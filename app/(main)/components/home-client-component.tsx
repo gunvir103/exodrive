@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense, useMemo } from "react"
+import { useEffect, useState, useRef, Suspense } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, useInView } from "framer-motion"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Shield, Car, Star, Zap, MapPin, Instagram } from "lucide-react"
 import { CarCard } from "@/components/car-card"
-import type { Car as AppCar } from "@/lib/types/car"
+import type { AppCar } from "@/lib/services/car-service-supabase"
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 import Autoplay from "embla-carousel-autoplay"
 import { HeroSection } from "@/components/hero-section"
@@ -16,53 +16,45 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getValidImageUrl, handleImageError } from "@/lib/utils/image-utils"
 
 // Simple CountUp component remains the same
-function CountUp({ end, duration = 2000 }: { end: number; duration?: number }) {
+function CountUp({ target, duration = 1.5 }: { target: number; duration?: number }) {
   const [count, setCount] = useState(0)
   useEffect(() => {
     setCount(0)
     const totalFrames = Math.min(duration / 16, 100) 
-    const increment = end > 0 ? end / totalFrames : 0
+    const increment = target > 0 ? target / totalFrames : 0
     let currentCount = 0
     let frame = 0
     const counter = setInterval(() => {
-      currentCount = Math.min(currentCount + increment, end)
+      currentCount = Math.min(currentCount + increment, target)
       setCount(Math.floor(currentCount))
       frame++
       if (frame >= totalFrames) {
         clearInterval(counter)
-        setCount(end)
+        setCount(target)
       }
     }, 16)
     return () => clearInterval(counter)
-  }, [end, duration])
+  }, [target, duration])
   return <>{count}</>
 }
 
 // Client Component Part
 interface HomeClientComponentProps {
-  // Use any[] because getVisibleCarsForFleet returns an optimized structure
-  initialCars: any[]; 
+  initialCars: any[]; // Keep as any for optimized list
   initialError: string | null;
-  featuredCarId?: string | null;
+  featuredCar: AppCar | null; 
 }
 
-export default function HomeClientComponent({ initialCars, initialError, featuredCarId }: HomeClientComponentProps) {
+export default function HomeClientComponent({ initialCars, initialError, featuredCar }: HomeClientComponentProps) {
   const featuredRef = useRef(null)
   const isInView = useInView(featuredRef, { once: true, amount: 0.2 })
-  // Use the initialCars directly, maybe rename state variable for clarity
-  const [cars, setCars] = useState<any[]>(initialCars) 
+  const [cars, setCars] = useState<any[]>(initialCars)
   const [error, setError] = useState<string | null>(initialError)
-  
-  // Use the featuredCarId prop if available, otherwise find the first car marked as featured
-  const featuredCar = useMemo(() => {
-    if (featuredCarId) {
-      return cars.find(car => car.id === featuredCarId) || cars.find(car => car.isFeatured) || cars[0];
-    }
-    return cars.find(car => car.isFeatured) || cars[0];
-  }, [cars, featuredCarId]);
-  
-  // Use the primaryImageUrl directly from the fetched data
-  const featuredCarImageUrl = getValidImageUrl(featuredCar?.primaryImageUrl) || "/placeholder.svg?text=Featured+Car";
+
+  // Use the featuredCar prop directly to get the image URL
+  // Use optional chaining and provide a fallback
+  const featuredCarImageUrl = getValidImageUrl(featuredCar?.images?.find(img => img.is_primary)?.url ?? featuredCar?.images?.[0]?.url)
+    || "/placeholder.svg?text=Featured+Car";
 
   return (
     <div className="flex flex-col">
@@ -127,11 +119,11 @@ export default function HomeClientComponent({ initialCars, initialError, feature
                       </Badge>
                       <h3 className="text-2xl font-bold mb-2">{featuredCar.name}</h3>
                       <p className="mb-4 text-gray-200 line-clamp-2">
-                        {featuredCar.shortDescription || "Luxury vehicle details not available."}
+                        {featuredCar.short_description || "Luxury vehicle details not available."}
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-xl font-bold">
-                          {featuredCar.pricePerDay ? `$${featuredCar.pricePerDay}/day` : "Price unavailable"}
+                          {featuredCar.pricing?.base_price ? `$${featuredCar.pricing.base_price}/day` : "Price unavailable"}
                         </span>
                         <Button asChild size="sm" className="bg-[#eae2b7] hover:bg-[#eae2b7]/90 text-black">
                           <Link href={`/fleet/${featuredCar.slug}`}>View Details</Link>
@@ -173,7 +165,7 @@ export default function HomeClientComponent({ initialCars, initialError, feature
                     </div>
                     <div>
                       <div className="text-2xl font-bold">
-                        <CountUp end={cars.length} />+
+                        <CountUp target={cars.length} />+
                       </div>
                       <div className="text-sm text-white/80">Exotic Cars</div>
                     </div>

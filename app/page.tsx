@@ -9,12 +9,14 @@
 // import { Badge } from "@/components/ui/badge"
 // import { CheckCircle, Shield, Car, Star, Zap, MapPin, Instagram } from "lucide-react"
 // import { CarCard } from "@/components/car-card"
-import type { Car as AppCar } from "@/lib/types/car"
+// Remove potentially conflicting import
+// import type { Car as AppCar } from "@/lib/types/car"
 // import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 // import Autoplay from "embla-carousel-autoplay"
 // import { HeroSection } from "@/components/hero-section"
 // import { Skeleton } from "@/components/ui/skeleton"
 // import { getValidImageUrl, handleImageError } from "@/lib/utils/image-utils"
+import type { AppCar } from "@/lib/services/car-service-supabase"; // Keep this import
 
 // Import the NEW client component
 import HomeClientComponent from "@/app/(main)/components/home-client-component"
@@ -39,15 +41,50 @@ const fallbackCars: AppCar[] = [
     name: "Luxury Car",
     category: "luxury",
     description: "A premium luxury vehicle for your journey.",
-    shortDescription: "Premium luxury vehicle",
-    pricePerDay: 899.99,
-    imageUrls: ["/placeholder.svg?text=Luxury+Car"],
-    isAvailable: true,
-    isFeatured: true,
-    isHidden: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
+    short_description: "Premium luxury vehicle", // Use snake_case for Supabase fields
+    // Ensure pricing matches CarPricing structure or is null
+    pricing: {
+      // Adjust fallback pricing to match actual CarPricing schema
+      id: "fallback-pricing", 
+      car_id: "fallback-1", 
+      base_price: 899.99,
+      created_at: new Date().toISOString(), 
+      updated_at: new Date().toISOString(), 
+      deposit_amount: 500, // Example deposit
+      // Remove fields not in schema
+      // cost_per_mile: 0,
+      // included_miles: 0,
+      // weekly_discount: 0,
+      // monthly_discount: 0,
+      // Add fields from schema based on linter error
+      currency: "USD", // Add required currency
+      discount_percentage: null, // Nullable
+      minimum_days: 1, // Example minimum days
+      special_offer_text: null, // Nullable
+    },
+    // Use car_images structure
+    images: [
+      {
+        id: "fallback-image-1", // Dummy ID
+        car_id: "fallback-1", // Link to car
+        url: "/placeholder.svg?text=Luxury+Car",
+        alt: "Fallback luxury car", // Use 'alt' instead of 'alt_text'
+        is_primary: true,
+        sort_order: 0,
+        path: null, // Add path if needed, or keep null
+        created_at: new Date().toISOString(), // Convert Date to string
+      },
+    ],
+    // Use car_features structure
+    features: [],
+    // Use car_specifications structure
+    specifications: [],
+    available: true, // Use snake_case based on AppCar/CarBase
+    featured: true,
+    hidden: false,
+    createdAt: new Date().toISOString(), // Convert Date to string
+    updatedAt: new Date().toISOString(), // Convert Date to string
+  },
 ];
 
 // Default export: The Server Component that fetches data
@@ -56,6 +93,7 @@ export default async function HomePage() {
   let initialCars: any[] = []; // Use any[] as the return type of getVisibleCarsForFleet is optimized
   let initialError: string | null = null;
   let featuredCarId: string | null = null;
+  let featuredCarData: AppCar | null = null; // Add state for full featured car data
   
   try {
     console.log("Attempting to create service client..."); // Debug log
@@ -93,12 +131,34 @@ export default async function HomePage() {
         } else if (homepageSettings?.featured_car_id) {
           featuredCarId = homepageSettings.featured_car_id;
           
-          // Mark the selected car as featured in our data
+          // Mark the selected car as featured in our data (for carousel highlighting)
           initialCars.forEach(car => {
             car.isFeatured = car.id === featuredCarId;
           });
           
-          console.log(`Featured car set to ID: ${featuredCarId}`);
+          // --- Fetch FULL featured car data ---
+          // Add null check for featuredCarId before fetching
+          if (featuredCarId) { 
+            try {
+              featuredCarData = await carServiceSupabase.getCarById(serviceClient, featuredCarId);
+              console.log(`Fetched full data for featured car ID: ${featuredCarId}`);
+              // ---- ADD DETAILED LOG ----
+              console.log("Server Fetched Featured Car Data:", JSON.stringify(featuredCarData, null, 2));
+              // ---- END DETAILED LOG ----
+            } catch (featuredCarErr) {
+              console.error(`Error fetching full data for featured car ${featuredCarId}:`, featuredCarErr);
+              // ---- ADD ERROR LOG ----
+              console.log("Featured Car Data on Error:", JSON.stringify(featuredCarData, null, 2)); // Log data even if error occurred after assignment
+              // ---- END ERROR LOG ----
+              // Optionally handle this error, maybe fallback or log more details
+              // For now, featuredCarData will remain null
+            }
+          } else {
+            console.log("No featuredCarId found in settings, cannot fetch full data.");
+          }
+          // --- END Fetch FULL featured car data ---
+          
+          console.log(`Featured car ID set to: ${featuredCarId}`); // Updated log
         }
       }
     } catch (settingsErr) {
@@ -125,7 +185,7 @@ export default async function HomePage() {
         <HomeClientComponent 
           initialCars={initialCars} 
           initialError={initialError} 
-          featuredCarId={featuredCarId}
+          featuredCar={featuredCarData}
         />
       </Suspense>
     </ErrorBoundary>
