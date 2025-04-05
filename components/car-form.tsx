@@ -771,7 +771,6 @@ export function CarForm({ car }: CarFormProps) {
                     placeholder="e.g. Apple CarPlay"
                     value={newFeatureKey}
                     onChange={(e) => setNewFeatureKey(e.target.value)}
-                    required
                   />
                 </div>
                 <div className="flex-1 space-y-1">

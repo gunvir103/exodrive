@@ -247,9 +247,37 @@ export const carServiceSupabase = {
             }
 
             // Process data to get primary image and price
-             return data.map((car: any) => {
-                 const primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
-                 const price = car.pricing?.[0]?.base_price ?? car.pricing?.base_price; // Handle array/object from select
+             return data.map((car: any, index: number) => {
+                 // --- DEBUG LOGGING inside map --- 
+                 console.log(`Processing car index ${index}, ID: ${car?.id}`);
+                 console.log(`  Raw car object:`, JSON.stringify(car, null, 2));
+                 console.log(`  car.images type: ${typeof car.images}, isArray: ${Array.isArray(car.images)}`);
+                 console.log(`  car.pricing type: ${typeof car.pricing}`);
+                 // ----------------------------------
+                 
+                 let primaryImage = null;
+                 try {
+                     primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
+                 } catch (e) {
+                     console.error(`Error processing images for car ID ${car?.id}:`, e);
+                 }
+
+                 let price = null;
+                 try {
+                    // Check if pricing is array or object due to potential Supabase join inconsistency
+                    if(Array.isArray(car.pricing)) {
+                        price = car.pricing?.[0]?.base_price;
+                    } else if (typeof car.pricing === 'object' && car.pricing !== null) {
+                        price = car.pricing?.base_price;
+                    }
+                 } catch (e) {
+                      console.error(`Error processing pricing for car ID ${car?.id}:`, e);
+                 }
+                 
+                 // --- DEBUG LOGGING after processing --- 
+                 console.log(`  Processed primaryImage URL: ${primaryImage?.url}`);
+                 console.log(`  Processed price: ${price}`);
+                 // ------------------------------------
 
                  return {
                     ...car,
@@ -328,321 +356,196 @@ export const carServiceSupabase = {
     },
 
      /**
-     * Create a new car with related data.
-     * IMPORTANT: This doesn't handle transactions. For production, wrap these in an RPC function (pg_transaction)
-     * or handle potential partial failures gracefully.
+     * Create a new car with related data using RPC for atomicity.
      */
     createCar: async (
         supabase: SupabaseClient,
         carData: AppCarUpsert,
-        userId?: string | null
+        userId?: string | null // Optional user ID is no longer used by RPC
     ): Promise<AppCar> => {
-        // Add check for required name
-        if (!carData.name) {
-            throw new Error("Car name is required to create a car.");
-        }
-        // Use helper function
-        const slug = generateSlug(carData.name);
-
-        // 1. Insert base car data
-        // Map fields ONLY present in cars.Insert type
-        const baseCarPayload: CarInsertData & { slug: string; created_by?: string } = {
-            name: carData.name,
-            slug: slug, // Generated slug
-            // make: carData.make, // Removed: Not in cars.Insert
-            // model: carData.model, // Removed: Not in cars.Insert
-            // year: carData.year, // Removed: Not in cars.Insert
-            category: carData.category,
-            description: carData.description ?? "", // Ensure non-null for insert if description is not nullable
-            short_description: carData.short_description, // Nullable is fine
-            // engine: carData.engine, // Removed: Not in cars.Insert
-            // transmission: carData.transmission, // Removed: Not in cars.Insert
-            // drivetrain: carData.drivetrain, // Removed: Not in cars.Insert
-            available: carData.available ?? true,
-            featured: carData.featured ?? false,
-            hidden: carData.hidden ?? false,
-            created_by: userId ?? undefined // Optional creator ID
+        // Prepare arguments for the RPC function
+        const rpcParams = {
+            p_name: carData.name,
+            p_category: carData.category,
+            p_description: carData.description,
+            p_short_description: carData.short_description,
+            p_available: carData.available ?? true,
+            p_featured: carData.featured ?? false,
+            p_hidden: carData.hidden ?? false,
+            p_pricing: carData.pricing, // Pass JSON directly
+            p_images: carData.images, // Pass JSON array directly
+            p_features: carData.features, // Pass JSON array directly
+            p_specifications: carData.specifications // Pass JSON array directly
         };
 
-        const { data: newCar, error: carError } = await supabase
-            .from("cars")
-            .insert(baseCarPayload)
-            .select("*")
-            .single<CarBase>();
-
-        if (carError || !newCar) {
-            console.error("Error creating base car:", carError);
-            throw carError || new Error("Failed to create car: No data returned.");
-        }
-
-        const carId = newCar.id;
-
-        // --- Insert Related Data (handle errors individually or use transaction) ---
-        let pricingResult: CarPricing | null = null;
-        let imagesResult: CarImage[] = [];
-        let featuresResult: CarFeature[] = [];
-        let specsResult: CarSpecification[] = [];
+        // ---- DEBUGGING: Log parameters being sent to RPC ----
+        console.log("Calling create_car_atomic with params:", JSON.stringify(rpcParams, null, 2));
+        // ----------------------------------------------------
 
         try {
-            // 2. Insert Pricing
-            if (carData.pricing) {
-                const { data, error } = await supabase.from("car_pricing").insert({ ...carData.pricing, car_id: carId }).select().single<CarPricing>();
-                if (error) throw new Error(`Pricing insert failed: ${error.message}`);
-                pricingResult = data;
+            const { data: newCarId, error } = await supabase.rpc('create_car_atomic', rpcParams);
+
+            if (error) {
+                console.error("Error calling create_car_atomic RPC:", error);
+                throw error; // Re-throw the specific error
             }
 
-            // 3. Insert Images
-            if (carData.images && carData.images.length > 0) {
-                const imagePayloads = carData.images.map(img => ({ ...img, car_id: carId }));
-                const { data, error } = await supabase.from("car_images").insert(imagePayloads).select();
-                if (error) throw new Error(`Images insert failed: ${error.message}`);
-                imagesResult = data || [];
+            if (!newCarId) {
+                throw new Error("create_car_atomic RPC did not return a car ID.");
             }
 
-            // 4. Insert Features
-            if (carData.features && carData.features.length > 0) {
-                const featurePayloads = carData.features.map(f => ({ ...f, car_id: carId }));
-                const { data, error } = await supabase.from("car_features").insert(featurePayloads).select();
-                 if (error) throw new Error(`Features insert failed: ${error.message}`);
-                featuresResult = data || [];
+            // Fetch the newly created car with all details to return the full AppCar object
+            const newCar = await carServiceSupabase.getCarById(supabase, newCarId as string);
+            if (!newCar) {
+                throw new Error(`Failed to fetch newly created car with ID: ${newCarId}`);
             }
-
-            // 5. Insert Specifications
-            if (carData.specifications && carData.specifications.length > 0) {
-                 const specPayloads = carData.specifications.map(s => ({ ...s, car_id: carId }));
-                 const { data, error } = await supabase.from("car_specifications").insert(specPayloads).select();
-                 if (error) throw new Error(`Specifications insert failed: ${error.message}`);
-                 specsResult = data || [];
-            }
-
-             // Sort images after insert if needed
-            if (imagesResult.length > 0 && 'sort_order' in imagesResult[0]) {
-                imagesResult.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-             }
-
-
-            // Assemble the final AppCar object
-             return {
-                 ...newCar,
-                 pricing: pricingResult,
-                 images: imagesResult,
-                 features: featuresResult,
-                 specifications: specsResult,
-             };
+            return newCar;
 
         } catch (error) {
-            // Basic cleanup attempt (consider more robust transaction/rollback)
-            console.error("Error inserting related data, attempting cleanup for car:", carId, error);
-             await supabase.from("cars").delete().eq("id", carId); // Delete the base car if related inserts fail
+            // Handle potential errors during RPC call or subsequent fetch
              if (error instanceof Error) {
                 throw new Error(handleSupabaseError(error));
              }
-             throw new Error("An unexpected error occurred creating related car data.");
+             throw new Error("An unexpected error occurred creating the car via RPC.");
         }
     },
 
      /**
-     * Update a car and its related data.
-     * IMPORTANT: Uses multiple DB calls. Consider transactions (RPC) for atomicity.
-     * Handles updating, inserting, and deleting related items.
+     * Update a car and its related data using RPC for atomicity.
+     * Handles deleting orphaned images from storage separately.
      */
     updateCar: async (
         supabase: SupabaseClient,
         carId: string,
-        updates: Partial<AppCarUpsert> // Use the combined upsert type
+        updates: Partial<AppCarUpsert> // Accept partial updates
     ): Promise<AppCar> => {
 
-         // 1. Update base car data
-         // Map fields ONLY present in cars.Update type
-         const baseCarUpdatePayload: Partial<Database['public']['Tables']['cars']['Update']> = {};
-         if (updates.name !== undefined) {
-             baseCarUpdatePayload.name = updates.name;
-             // Regenerate slug if name changes - use helper
-             baseCarUpdatePayload.slug = generateSlug(updates.name);
-         }
-         // Check and assign other base fields, converting null to undefined for Update type
-         if (updates.category !== undefined) baseCarUpdatePayload.category = updates.category;
-         if (updates.description !== undefined) {
-             baseCarUpdatePayload.description = updates.description === null ? undefined : updates.description;
-         }
-         if (updates.short_description !== undefined) {
-             baseCarUpdatePayload.short_description = updates.short_description === null ? undefined : updates.short_description;
-         }
-         if (updates.available !== undefined) {
-             baseCarUpdatePayload.available = updates.available === null ? undefined : updates.available;
-         }
-         if (updates.featured !== undefined) {
-             baseCarUpdatePayload.featured = updates.featured === null ? undefined : updates.featured;
-         }
-         if (updates.hidden !== undefined) {
-             baseCarUpdatePayload.hidden = updates.hidden === null ? undefined : updates.hidden;
-         }
-
-
-        if (Object.keys(baseCarUpdatePayload).length > 0) {
-            const { error: updateError } = await supabase
-                .from("cars")
-                .update(baseCarUpdatePayload)
-                .eq("id", carId);
-            if (updateError) {
-                 console.error("Error updating base car:", updateError);
-                 throw updateError;
-            }
+        // 1. Fetch existing image paths BEFORE the update RPC
+        let existingImagePaths: string[] = [];
+        try {
+            const { data: images, error: imgError } = await supabase
+                .from("car_images")
+                .select("path")
+                .eq("car_id", carId);
+            if (imgError) throw new Error(`Failed to fetch existing image paths: ${imgError.message}`);
+            existingImagePaths = images?.map(img => img.path).filter(Boolean) as string[] || [];
+        } catch (error) {
+            console.error("Error fetching existing image paths before update:", error);
+            // Decide if we should proceed or throw - let's throw for now
+            if (error instanceof Error) throw error; 
+            throw new Error("Could not verify existing images before update.");
         }
 
-        // --- Update Related Data ---
-        // This requires fetching existing, comparing, deleting, updating, inserting.
+        // 2. Prepare arguments for the RPC function
+        // Need to merge updates with existing data or pass full objects
+        // The RPC expects the *full* set of pricing, images, features, specs.
+        // So we need the complete intended state, not just partial updates.
+        // This logic assumes `updates` contains the *complete* desired state 
+        // for related items (pricing, images, features, specifications).
+        const rpcParams = {
+            p_car_id: carId,
+            // Base car fields (pass undefined if not present in updates)
+            p_name: updates.name ?? undefined,
+            p_category: updates.category ?? undefined,
+            p_description: updates.description,
+            p_short_description: updates.short_description,
+            p_available: updates.available,
+            p_featured: updates.featured,
+            p_hidden: updates.hidden,
+            // Related data (pass the full intended state)
+            p_pricing: updates.pricing ?? null,
+            p_images: updates.images ?? null, 
+            p_features: updates.features ?? null,
+            p_specifications: updates.specifications ?? null
+        };
+
+        // ---- DEBUGGING: Log parameters being sent to RPC ----
+        console.log("Calling update_car_atomic with params:", JSON.stringify(rpcParams, null, 2));
+        // ----------------------------------------------------
 
         try {
-             // 2. Update Pricing (assuming one-to-one, using upsert)
-            if (updates.pricing) {
-                 const { error } = await supabase
-                     .from("car_pricing")
-                     .upsert({ ...updates.pricing, car_id: carId }, { onConflict: 'car_id' }); // Upsert based on car_id
-                  if (error) throw new Error(`Pricing update/insert failed: ${error.message}`);
+            // 3. Call the update RPC function
+            const { error } = await supabase.rpc('update_car_atomic', rpcParams);
+
+            if (error) {
+                // ---- DEBUGGING: Log the specific RPC error ----
+                console.error("Error calling update_car_atomic RPC:", error);
+                // -------------------------------------------------
+                throw error; // Re-throw specific error
             }
 
-            // 3. Update Images (More complex: delete removed, update existing, insert new)
-            if (updates.images) {
-                 // Get existing image IDs/Paths for comparison
-                 const { data: existingImages, error: fetchErr } = await supabase.from("car_images").select("id, path").eq("car_id", carId);
-                 if (fetchErr) throw new Error(`Failed to fetch existing images: ${fetchErr.message}`);
+            // 4. Delete orphaned images from Storage
+            const updatedImagePaths = new Set(updates.images?.map(img => img.path).filter(Boolean) as string[] || []);
+            const pathsToDelete = existingImagePaths.filter(path => !updatedImagePaths.has(path));
 
-                 const existingImagePaths = new Set(existingImages?.map(img => img.path) || []);
-                 const incomingImagePaths = new Set(updates.images.map(img => img.path));
-
-                 // Identify images to delete (exist in DB but not in update payload)
-                 const imagesToDelete = existingImages?.filter(img => img.path && !incomingImagePaths.has(img.path)) || [];
-
-                 // Identify images to upsert (exist in update payload)
-                 // We'll upsert all incoming images based on a unique constraint (e.g., car_id, path)
-                 // Assumes a unique constraint `(car_id, path)` exists or needs to be added.
-                 // Or upsert based on `id` if client provides existing IDs. Let's assume path is the key for now.
-                 const imagesToUpsert = updates.images.map(img => ({
-                     ...img,
-                     car_id: carId,
-                     // Ensure 'path' is included for onConflict
-                 }));
-
-
-                 // Perform deletions (storage first, then DB)
-                 if (imagesToDelete.length > 0) {
-                     const pathsToDelete = imagesToDelete.map(img => img.path).filter(Boolean) as string[];
-                     const idsToDelete = imagesToDelete.map(img => img.id);
-
-                     // Delete from Storage (handle potential errors)
-                     if (pathsToDelete.length > 0) {
-                        const { error: storageError } = await supabase.storage.from(BUCKET_NAMES.VEHICLE_IMAGES).remove(pathsToDelete);
-                         if (storageError) console.error("Error deleting images from storage:", storageError); // Log but continue DB deletion
-                     }
-                     // Delete from DB
-                     const { error: dbDeleteError } = await supabase.from("car_images").delete().in("id", idsToDelete);
-                     if (dbDeleteError) throw new Error(`Failed to delete images from DB: ${dbDeleteError.message}`);
-                 }
-
-                 // Perform upserts (insert new or update existing based on path)
-                 if (imagesToUpsert.length > 0) {
-                     // Need a unique constraint on (car_id, path) for this to work reliably
-                      const { error: upsertError } = await supabase.from("car_images").upsert(imagesToUpsert, { onConflict: 'car_id, path' }); // ADJUST onConflict based on schema
-                      if (upsertError) throw new Error(`Failed to upsert images: ${upsertError.message}`);
+            if (pathsToDelete.length > 0) {
+                 console.log("Deleting orphaned images from storage:", pathsToDelete);
+                 const { error: storageError } = await supabase.storage
+                     .from(BUCKET_NAMES.VEHICLE_IMAGES)
+                     .remove(pathsToDelete);
+                 if (storageError) {
+                     // Log error but don't necessarily fail the whole operation, 
+                     // as DB update succeeded.
+                     console.error("Failed to delete orphaned images from storage:", storageError);
+                     // Optionally notify user/admin
                  }
             }
 
-             // 4. Update Features (Delete all existing for car, then insert new) - Simpler approach
-             if (updates.features) {
-                 // Delete existing
-                 const { error: deleteError } = await supabase.from("car_features").delete().eq("car_id", carId);
-                  if (deleteError) throw new Error(`Failed to delete old features: ${deleteError.message}`);
-
-                 // Insert new
-                 if (updates.features.length > 0) {
-                     const featurePayloads = updates.features.map(f => ({ ...f, car_id: carId }));
-                     const { error: insertError } = await supabase.from("car_features").insert(featurePayloads);
-                      if (insertError) throw new Error(`Failed to insert new features: ${insertError.message}`);
-                 }
-             }
-
-            // 5. Update Specifications (Delete all existing for car, then insert new)
-            if (updates.specifications) {
-                 // Delete existing
-                 const { error: deleteError } = await supabase.from("car_specifications").delete().eq("car_id", carId);
-                 if (deleteError) throw new Error(`Failed to delete old specifications: ${deleteError.message}`);
-
-                 // Insert new
-                 if (updates.specifications.length > 0) {
-                     const specPayloads = updates.specifications.map(s => ({ ...s, car_id: carId }));
-                     const { error: insertError } = await supabase.from("car_specifications").insert(specPayloads);
-                     if (insertError) throw new Error(`Failed to insert new specifications: ${insertError.message}`);
-                 }
-             }
+            // 5. Fetch the updated car data to return
+            const updatedCar = await carServiceSupabase.getCarById(supabase, carId);
+            if (!updatedCar) throw new Error(`Failed to fetch updated car ${carId} after update RPC.`);
+            return updatedCar;
 
         } catch (error) {
-            console.error("Error updating related car data:", error);
-            if (error instanceof Error) {
+            // Handle potential errors during RPC call or subsequent fetch/delete
+             if (error instanceof Error) {
+                // ---- DEBUGGING: Log the caught error before handling ----
+                console.error("Caught error during updateCar process:", error);
+                // -------------------------------------------------------
                 throw new Error(handleSupabaseError(error));
-            }
-            throw new Error("An unexpected error occurred updating related car data.");
+             }
+             // ---- DEBUGGING: Log unexpected error type ----
+             console.error("Caught unexpected error type during updateCar:", error);
+             // ----------------------------------------------
+             throw new Error("An unexpected error occurred updating the car via RPC.");
         }
-
-         // Fetch the updated complete car data to return
-         const updatedCar = await carServiceSupabase.getCarById(supabase, carId);
-         if (!updatedCar) throw new Error(`Failed to fetch updated car ${carId} after update.`);
-         return updatedCar;
     },
 
     /**
-     * Delete a car and its related data and storage objects.
-     * IMPORTANT: Use transactions (RPC) for atomicity in production.
+     * Delete a car and its related data using RPC.
+     * Handles deleting associated images from storage first.
      */
     deleteCar: async (supabase: SupabaseClient, carId: string): Promise<boolean> => {
         try {
-            // 1. Get image paths to delete from storage
+            // 1. Get image paths to delete from storage BEFORE deleting DB record
             const { data: images, error: imgError } = await supabase
                 .from("car_images")
-                .select("id, path") // Also select id for DB deletion
+                .select("path")
                 .eq("car_id", carId);
 
              if (imgError) {
                  console.error("Failed to fetch images for deletion:", imgError);
-                 // Decide whether to proceed with DB deletion or throw
                  throw imgError;
              }
+             const imagePathsToDelete = images?.map(img => img.path).filter(Boolean) as string[] || [];
 
-             // Add null check before mapping
-             const imagesToDelete = images || []; 
-             const imagePathsToDelete = imagesToDelete.map(img => img.path).filter(Boolean) as string[];
-             const imageIdsToDelete = imagesToDelete.map(img => img.id); // Get IDs for DB deletion
-
-
-             // 2. Delete related data first (constraints might require this order)
-             // Wrap in Promise.all for concurrency, but sequential might be safer without transactions
-             await Promise.all([
-                 supabase.from("car_pricing").delete().eq("car_id", carId),
-                 supabase.from("car_features").delete().eq("car_id", carId),
-                 supabase.from("car_specifications").delete().eq("car_id", carId),
-                 supabase.from("car_images").delete().eq("car_id", carId), // Use `in` operator with IDs for safety if needed
-                 // supabase.from("car_images").delete().in("id", imageIdsToDelete), // Alternative safer delete
-                 // Add other related tables if needed (reviews, availability, etc.)
-             ]).catch(error => {
-                 console.error("Error deleting related car data:", error);
-                 throw error; // Re-throw to stop the process
-             });
-
-
-             // 3. Delete the main car record
-             const { error: carDeleteError } = await supabase.from("cars").delete().eq("id", carId);
-             if (carDeleteError) {
-                 console.error("Error deleting main car record:", carDeleteError);
-                 throw carDeleteError;
+             // 2. Delete images from storage
+             if (imagePathsToDelete.length > 0) {
+                  const { error: storageError } = await supabase.storage
+                    .from(BUCKET_NAMES.VEHICLE_IMAGES)
+                    .remove(imagePathsToDelete);
+                  if (storageError) {
+                      // Log error but proceed with DB deletion attempt
+                      console.error("Error deleting images from storage before DB delete:", storageError);
+                  }
              }
 
-             // 4. Delete images from storage
-             if (imagePathsToDelete.length > 0) {
-                  const { error: storageError } = await supabase.storage.from(BUCKET_NAMES.VEHICLE_IMAGES).remove(imagePathsToDelete);
-                  if (storageError) {
-                      // Log error but consider deletion successful as DB records are gone
-                      console.error("Error deleting images from storage after DB deletion:", storageError);
-                  }
+             // 3. Call the delete RPC function (handles DB deletes via cascade)
+             const { error: rpcError } = await supabase.rpc('delete_car_atomic', { p_car_id: carId });
+
+             if (rpcError) {
+                 console.error("Error calling delete_car_atomic RPC:", rpcError);
+                 throw rpcError;
              }
 
             return true;
@@ -651,7 +554,7 @@ export const carServiceSupabase = {
             if (error instanceof Error) {
                 throw new Error(handleSupabaseError(error));
             }
-            throw new Error("An unexpected error occurred deleting car");
+            throw new Error("An unexpected error occurred deleting car via RPC");
         }
     },
 
