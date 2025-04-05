@@ -67,6 +67,30 @@ export default async function HomePage() {
     // Use the correct, refactored service method for optimized fleet data
     initialCars = await carServiceSupabase.getVisibleCarsForFleet(serviceClient); 
     console.log(`Fetched ${initialCars.length} cars successfully.`); // Debug log
+    
+    // Check if there's a featured car in homepage settings
+    const { data: homepageSettings } = await serviceClient
+      .from('homepage_settings')
+      .select('*')
+      .maybeSingle();
+    
+    if (homepageSettings?.featured_car_id) {
+      // Find the corresponding car in the already fetched cars
+      const featuredCarIndex = initialCars.findIndex(car => car.id === homepageSettings.featured_car_id);
+      
+      if (featuredCarIndex >= 0) {
+        // Mark the car as featured for the UI
+        initialCars[featuredCarIndex].isFeatured = true;
+        
+        // Remove featured flag from any other cars
+        initialCars.forEach((car, index) => {
+          if (index !== featuredCarIndex) {
+            car.isFeatured = false;
+          }
+        });
+      }
+    }
+    
   } catch (err) { // Catch any error type
     console.error("***** ERROR in HomePage Server Fetch *****:", err); // Log the raw error
     initialError = (err instanceof Error) ? err.message : "An unknown error occurred during server fetch";

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Car, Users, DollarSign, Calendar, TrendingUp, ArrowUpRight, ArrowDownRight, ImageIcon } from "lucide-react"
+import { Car, Users, DollarSign, Calendar, TrendingUp, ArrowUpRight, ArrowDownRight, ImageIcon, Home } from "lucide-react"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -317,6 +317,12 @@ export default function AdminPage() {
                 <Link href="/admin/hero-settings">
                   <ImageIcon className="mr-2 h-4 w-4" />
                   Hero Settings
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/homepage-settings">
+                  <Home className="mr-2 h-4 w-4" />
+                  Homepage Settings
                 </Link>
               </Button>
               <Button asChild variant="secondary">

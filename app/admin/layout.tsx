@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Car, Grid, LogOut, Settings, Users } from "lucide-react"
+import { Car, Grid, LogOut, Settings, Users, Home, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
 
@@ -101,6 +101,24 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
             >
               <Settings className="mr-2 h-4 w-4" />
               Settings
+            </Button>
+          </Link>
+          <Link href="/admin/hero-settings">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start ${pathname?.startsWith("/admin/hero-settings") ? "bg-muted" : ""}`}
+            >
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Hero Settings
+            </Button>
+          </Link>
+          <Link href="/admin/homepage-settings">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start ${pathname?.startsWith("/admin/homepage-settings") ? "bg-muted" : ""}`}
+            >
+              <Home className="mr-2 h-4 w-4" />
+              Homepage Settings
             </Button>
           </Link>
         </nav>
