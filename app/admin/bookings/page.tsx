@@ -7,6 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 
+// Force dynamic rendering for this admin page
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // This would normally come from Supabase
 const bookings = [
   {

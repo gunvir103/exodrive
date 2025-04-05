@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "bun --bun next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "start": "bun --bun next start",
+    "lint": "bun --bun next lint",
     "clean": "rm -rf .next",
-    "db:migrate": "node scripts/run-migrations.js"
+    "db:migrate": "bun run scripts/run-migrations.js"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",

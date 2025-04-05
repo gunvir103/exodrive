@@ -1,0 +1,39 @@
+[install]
+# Use the exact versions specified in package.json
+exact = true
+# Cache dependencies for faster installs
+cache = true
+# Use lockfile for deterministic installs
+lockfile = true
+# Frozen lockfile for production builds
+frozen-lockfile = true
+# Enable Bun's native package manager
+prefer-offline = true
+
+[runtime]
+# Enable JSX runtime optimization
+jsx = "automatic"
+# Enable all runtime optimizations
+optimize = true
+# Use Bun's native fetch implementation
+smol = true
+# Enable JIT compilation
+jit = true
+
+[build]
+# Enable minification
+minify = true
+# Enable tree shaking
+treeshake = true
+# Enable source maps for production
+sourcemap = true
+# Enable native JavaScript optimization
+javascript = { minify = true, compress = true }
+# Enable native TypeScript optimization
+typescript = { minify = true, dts = true }
+
+[test]
+# Configure test environment
+coverage = true
+# Use Bun's native test runner
+preload = ["setup.ts"] 

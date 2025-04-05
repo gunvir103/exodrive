@@ -21,12 +21,56 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      }
+    ]
   },
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+    // Package optimizations
+    optimizePackageImports: [
+      '@radix-ui/react-*', 
+      'lucide-react', 
+      '@supabase/supabase-js'
+    ],
+    // Server actions configuration
+    serverActions: {
+      bodySizeLimit: '2mb'
+    }
   },
+  // Webpack optimizations
+  webpack: (config, { isServer }) => {
+    // Client-side optimizations
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'stream': 'stream-browserify',
+        'crypto': 'crypto-browserify'
+      }
+    }
+    
+    // Build optimizations
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      chunkIds: 'deterministic',
+      minimize: true,
+      minimizer: [
+        ...config.optimization.minimizer || [],
+      ]
+    }
+    
+    return config
+  }
 }
 
 if (userConfig) {
