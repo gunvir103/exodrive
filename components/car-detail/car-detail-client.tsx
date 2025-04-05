@@ -33,14 +33,17 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
   // E.g., Reviews, Availability calendar within BookingForm
 
   const handleShare = useCallback(() => {
+    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
+    const shareUrl = `${baseUrl}${window.location.pathname}`;
+    
     if (navigator.share) {
       navigator.share({
           title: `exoDrive - ${car?.name}`,
           text: `Check out the ${car?.name} at exoDrive!`,
-          url: window.location.href,
+          url: shareUrl,
       }).catch(console.error);
     } else {
-      navigator.clipboard.writeText(window.location.href).then(() => {
+      navigator.clipboard.writeText(shareUrl).then(() => {
         toast({ title: "Link copied", description: "Car link copied to clipboard!" });
       }).catch(console.error);
     }

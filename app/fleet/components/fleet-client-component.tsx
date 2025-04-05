@@ -25,16 +25,26 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
   
   // Use the specific optimized type for state
-  const [allCars, setAllCars] = useState<OptimizedCarListItem[]>(initialCars) 
-  const [filteredCars, setFilteredCars] = useState<OptimizedCarListItem[]>(initialCars) 
-  const [isLoading, setIsLoading] = useState(false); // Only true for client-side actions now
-  const [error, setError] = useState<string | null>(initialError); // Initialize with fetched error
+  const [allCars, setAllCars] = useState<OptimizedCarListItem[]>([]) 
+  const [filteredCars, setFilteredCars] = useState<OptimizedCarListItem[]>([]) 
+  const [isLoading, setIsLoading] = useState(true); // Start with loading state
+  const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [sortOption, setSortOption] = useState("featured")
   const [showFilters, setShowFilters] = useState(false)
+
+  // Set mounted state
+  useEffect(() => {
+    setIsMounted(true);
+    setIsLoading(false);
+    setAllCars(initialCars);
+    setFilteredCars(initialCars);
+    setError(initialError);
+  }, [initialCars, initialError]);
 
   // Update URL with filters
   useEffect(() => {
@@ -111,11 +121,6 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
     });
   }, [pathname, router]);
 
-  // Handle initial error state
-  if (error) {
-    return <div className="container py-10 text-center text-red-500">Error loading cars: {error}</div>;
-  }
-  
   // Render the UI using `filteredCars`
   return (
     <div className="flex flex-col">
@@ -143,119 +148,123 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
       </section>
 
       {/* Filters Section */}
-      <section className="sticky top-0 z-30 py-4 bg-background border-b shadow-sm">
-        <div className="container">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="md:hidden">
-                <Filter className="h-4 w-4 mr-2" />
-                {showFilters ? "Hide Filters" : "Show Filters"}
-              </Button>
-
-              <div className="relative hidden md:block">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search cars..."
-                  className="w-full pl-8 md:w-[200px] lg:w-[300px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-2"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Select value={sortOption} onValueChange={setSortOption}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="featured">Featured</SelectItem>
-                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
-                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
-                  <SelectItem value="name-asc">Name: A to Z</SelectItem>
-                  <SelectItem value="name-desc">Name: Z to A</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {(selectedCategory || searchQuery) && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  <X className="h-4 w-4 mr-2" />
-                  Clear Filters
+      {isMounted && (
+        <section className="sticky top-0 z-30 py-4 bg-background border-b shadow-sm">
+          <div className="container">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="md:hidden">
+                  <Filter className="h-4 w-4 mr-2" />
+                  {showFilters ? "Hide Filters" : "Show Filters"}
                 </Button>
-              )}
-            </div>
-          </div>
 
-          {/* Mobile search */}
-          {showFilters && (
-            <div className="mt-4 md:hidden">
-              <div className="relative mb-4">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search cars..."
-                  className="w-full pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-2"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="h-4 w-4" />
+                <div className="relative hidden md:block">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search cars..."
+                    className="w-full pl-8 md:w-[200px] lg:w-[300px]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-2"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Select value={sortOption} onValueChange={setSortOption}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="featured">Featured</SelectItem>
+                    <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                    <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                    <SelectItem value="name-asc">Name: A to Z</SelectItem>
+                    <SelectItem value="name-desc">Name: Z to A</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {(selectedCategory || searchQuery) && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="h-4 w-4 mr-2" />
+                    Clear Filters
                   </Button>
                 )}
               </div>
             </div>
-          )}
 
-          {/* Category filters */}
-          <div
-            className={`flex flex-wrap items-center justify-center gap-2 mt-4 ${showFilters ? "block" : "hidden md:flex"}`}
-          >
-            <Button
-              variant={selectedCategory === null ? "default" : "outline"}
-              onClick={() => setSelectedCategory(null)}
-              className="rounded-full"
-              size="sm"
+            {/* Mobile search */}
+            {showFilters && (
+              <div className="mt-4 md:hidden">
+                <div className="relative mb-4">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search cars..."
+                    className="w-full pl-8"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-2"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Category filters */}
+            <div
+              className={`flex flex-wrap items-center justify-center gap-2 mt-4 ${showFilters ? "block" : "hidden md:flex"}`}
             >
-              All Cars
-            </Button>
-            {categories.map((category) => (
               <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                onClick={() => setSelectedCategory(category)}
+                variant={selectedCategory === null ? "default" : "outline"}
+                onClick={() => setSelectedCategory(null)}
                 className="rounded-full"
                 size="sm"
               >
-                {category}
+                All Cars
               </Button>
-            ))}
+              {categories.map((category) => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? "default" : "outline"}
+                  onClick={() => setSelectedCategory(category)}
+                  className="rounded-full"
+                  size="sm"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Car Grid Section */}
       <section className="container py-12">
-        {isLoading ? (
+        {!isMounted || isLoading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
+        ) : error ? (
+          <div className="text-center py-10 text-red-500">Error loading cars: {error}</div>
         ) : filteredCars && filteredCars.length > 0 ? (
           <motion.div 
             className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -269,7 +278,7 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
           </motion.div>
         ) : (
           <div className="text-center py-10 text-muted-foreground">
-            {initialCars && initialCars.length > 0 
+            {allCars && allCars.length > 0 
               ? "No cars match your current filters."
               : "No cars available at the moment."}
           </div>
@@ -277,22 +286,24 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
       </section>
 
       {/* Instagram Section */}
-      <section className="py-16 bg-gradient-to-r from-gray-900 via-black to-gray-900">
-        <div className="container text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Follow Us on Instagram
-          </h2>
-          <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
-            Get a glimpse of our stunning fleet and exclusive behind-the-scenes content.
-          </p>
-          <Button asChild size="lg" className="bg-[#E1306C] hover:bg-[#c12a5b] text-white">
-            <Link href="https://www.instagram.com/exodriveexotics/?igsh=MTNwNzQ3a3c1a2xieQ%3D%3D" target="_blank">
-              <Instagram className="mr-2 h-5 w-5" />
-              Follow @exodriveexotics
-            </Link>
-          </Button>
-        </div>
-      </section>
+      {isMounted && (
+        <section className="py-16 bg-gradient-to-r from-gray-900 via-black to-gray-900">
+          <div className="container text-center">
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Follow Us on Instagram
+            </h2>
+            <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
+              Get a glimpse of our stunning fleet and exclusive behind-the-scenes content.
+            </p>
+            <Button asChild size="lg" className="bg-[#E1306C] hover:bg-[#c12a5b] text-white">
+              <Link href="https://www.instagram.com/exodriveexotics/?igsh=MTNwNzQ3a3c1a2xieQ%3D%3D" target="_blank">
+                <Instagram className="mr-2 h-5 w-5" />
+                Follow @exodriveexotics
+              </Link>
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   );
 } 

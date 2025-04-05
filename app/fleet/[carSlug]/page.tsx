@@ -34,6 +34,8 @@ export async function generateMetadata(
 
     // Get the primary image URL or fallback
     const primaryImage = car.images?.find(img => img.is_primary)?.url || car.images?.[0]?.url;
+    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
+    const canonicalUrl = `${baseUrl}/fleet/${params.carSlug}`;
     
     // Construct base metadata
     const metadata: Metadata = {
@@ -51,13 +53,17 @@ export async function generateMetadata(
           }
         ] : [],
         type: 'website',
-        siteName: 'Exo Drive Exotic Car Rentals'
+        siteName: 'Exo Drive Exotic Car Rentals',
+        url: canonicalUrl
       },
       twitter: {
         card: 'summary_large_image',
         title: car.name,
         description: car.short_description || car.description,
         images: primaryImage ? [primaryImage] : [],
+      },
+      alternates: {
+        canonical: canonicalUrl
       }
     }
 

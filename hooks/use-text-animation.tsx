@@ -1,6 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
+import { useMemo } from "react"
 
 interface TextAnimationOptions {
   delayOffset?: number
@@ -32,6 +33,14 @@ export const useTextAnimation = (options: TextAnimationOptions = {}) => {
   const animateText = (text: string) => {
     if (!text) return null
 
+    // Create a deterministic pseudo-random value based on character position
+    const getYOffset = (index: number) => {
+      const range = characterAnimationConfig?.initialYRandomRange ?? 5
+      const baseY = characterAnimationConfig?.initialY ?? 0
+      const value = Math.abs(Math.sin(index * 0.5)) * range
+      return value - range / 2 + baseY
+    }
+
     // Split the text into words
     const words = text.split(" ")
 
@@ -49,7 +58,7 @@ export const useTextAnimation = (options: TextAnimationOptions = {}) => {
                     return (
                       <motion.span
                         key={j}
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: getYOffset(i) }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
                           duration: 0.5,
@@ -71,7 +80,7 @@ export const useTextAnimation = (options: TextAnimationOptions = {}) => {
                   return (
                     <motion.span
                       key={j}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: getYOffset(i) }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
                         duration: 0.5,
@@ -84,10 +93,7 @@ export const useTextAnimation = (options: TextAnimationOptions = {}) => {
                           key={k}
                           initial={{
                             opacity: 0,
-                            y:
-                              Math.random() * characterAnimationConfig.initialYRandomRange -
-                              characterAnimationConfig.initialYRandomRange / 2 +
-                              characterAnimationConfig.initialY,
+                            y: getYOffset(i * 100 + k),
                           }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{
@@ -113,7 +119,7 @@ export const useTextAnimation = (options: TextAnimationOptions = {}) => {
           return (
             <motion.span
               key={i}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: getYOffset(i) }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 * i + delayOffset }}
               className="inline-block"
@@ -124,10 +130,7 @@ export const useTextAnimation = (options: TextAnimationOptions = {}) => {
                   key={k}
                   initial={{
                     opacity: 0,
-                    y:
-                      Math.random() * characterAnimationConfig.initialYRandomRange -
-                      characterAnimationConfig.initialYRandomRange / 2 +
-                      characterAnimationConfig.initialY,
+                    y: getYOffset(i * 100 + k),
                   }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{

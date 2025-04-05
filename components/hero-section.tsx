@@ -222,7 +222,7 @@ export function HeroSection({
           </motion.div>
 
           <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl md:text-6xl lg:text-7xl text-shadow-lg">
-            {animateText(content.title)}
+            {isMounted ? animateText(content.title) : content.title}
           </h1>
 
           <motion.p
