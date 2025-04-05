@@ -1,0 +1,314 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Instagram, Search, Filter, X } from "lucide-react"
+import { CarCard } from "@/components/car-card"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { motion } from "framer-motion"
+import { ParticlesBackground } from "@/components/particles-background"
+import type { Car as AppCar } from "@/lib/types/car"
+import FleetLoading from "./loading"
+
+// This interface defines the props our client component will receive
+interface FleetClientComponentProps {
+  initialCars: AppCar[];
+  initialError: string | null;
+}
+
+// Renamed the main component to FleetClientComponent
+function FleetClientComponent({ initialCars, initialError }: FleetClientComponentProps) {
+  const [allCars, setAllCars] = useState<AppCar[]>(initialCars) // Initialize with fetched data
+  const [filteredCars, setFilteredCars] = useState<AppCar[]>(initialCars) // Initialize with fetched data
+  const [isLoading, setIsLoading] = useState(false); // Only true for client-side actions now
+  const [error, setError] = useState<string | null>(initialError); // Initialize with fetched error
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortOption, setSortOption] = useState("featured")
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Filter and sort cars - This logic remains client-side
+  const filterAndSortCars = useCallback(() => {
+    let result = [...allCars];
+
+    // Apply category filter
+    if (selectedCategory) {
+      result = result.filter((car) => car.category === selectedCategory);
+    }
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (car) =>
+          car.name.toLowerCase().includes(query) ||
+          (car.description || "").toLowerCase().includes(query) ||
+          car.category.toLowerCase().includes(query) ||
+          (car.make || "").toLowerCase().includes(query) ||
+          (car.model || "").toLowerCase().includes(query)
+      );
+    }
+    // Apply sorting
+    switch (sortOption) {
+      case "price-asc": result.sort((a, b) => a.pricePerDay - b.pricePerDay); break;
+      case "price-desc": result.sort((a, b) => b.pricePerDay - a.pricePerDay); break;
+      case "name-asc": result.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case "name-desc": result.sort((a, b) => b.name.localeCompare(a.name)); break;
+      case "featured": default:
+        result.sort((a, b) => {
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        break;
+    }
+    setFilteredCars(result);
+  }, [selectedCategory, searchQuery, sortOption, allCars]);
+
+  // Update filtered cars whenever dependencies change
+  useEffect(() => {
+    filterAndSortCars();
+  }, [filterAndSortCars]);
+
+  // Get unique categories from the initially fetched cars
+  const categories = Array.from(new Set(allCars.map((car) => car.category)));
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSelectedCategory(null)
+    setSearchQuery("")
+    setSortOption("featured")
+  }
+
+  // Handle initial error state
+  if (error) {
+    return <div className="container py-10 text-center text-red-500">Error loading cars: {error}</div>;
+  }
+  
+  // Render the UI using `filteredCars`
+  return (
+     <div className="flex flex-col">
+      {/* Hero Section */}
+      <section className="relative h-[40vh] md:h-[50vh] w-full overflow-hidden bg-black">
+        {/* Remove the Image component and add particle backgrounds */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#2a2a2a]" />
+
+        {/* Add particle backgrounds */}
+        <ParticlesBackground
+          position="bottom"
+          color="#D4AF37" // Gold color
+          quantity={50}
+          speed={1.2}
+          opacity={0.4}
+          height="70%"
+        />
+
+        <ParticlesBackground
+          position="top"
+          color="#D4AF37" // Gold color
+          quantity={25}
+          speed={0.8}
+          opacity={0.25}
+          height="30%"
+        />
+
+        <div className="container relative z-10 flex h-full flex-col items-center justify-center text-white px-4 md:px-6 text-center">
+          <div className="max-w-4xl">
+            <Badge
+              className="mb-6 px-4 py-1.5 text-sm bg-white/10 backdrop-blur-sm text-white border-none"
+              variant="outline"
+            >
+              Exotic Collection
+            </Badge>
+            <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl md:text-6xl lg:text-7xl text-shadow-lg">
+              Our <span className="text-[#eae2b7]">Luxury</span> Fleet
+            </h1>
+            <p className="mb-8 max-w-xl mx-auto text-base text-gray-200 md:text-lg lg:text-xl">
+              Browse our collection of luxury and exotic cars available for rent in the DMV area
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Filters Section */}
+      <section className="sticky top-0 z-30 py-4 bg-background border-b shadow-sm">
+        <div className="container">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="md:hidden">
+                <Filter className="h-4 w-4 mr-2" />
+                {showFilters ? "Hide Filters" : "Show Filters"}
+              </Button>
+
+              <div className="relative hidden md:block">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search cars..."
+                  className="w-full pl-8 md:w-[200px] lg:w-[300px]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-2"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Select value={sortOption} onValueChange={setSortOption}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="featured">Featured</SelectItem>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                  <SelectItem value="name-asc">Name: A to Z</SelectItem>
+                  <SelectItem value="name-desc">Name: Z to A</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(selectedCategory || searchQuery) && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile search */}
+          {showFilters && (
+            <div className="mt-4 md:hidden">
+              <div className="relative mb-4">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search cars..."
+                  className="w-full pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-2"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Category filters */}
+          <div
+            className={`flex flex-wrap items-center justify-center gap-2 mt-4 ${showFilters ? "block" : "hidden md:flex"}`}
+          >
+            <Button
+              variant={selectedCategory === null ? "default" : "outline"}
+              onClick={() => setSelectedCategory(null)}
+              className="rounded-full"
+              size="sm"
+            >
+              All Cars
+            </Button>
+            {categories.map((category) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? "default" : "outline"}
+                onClick={() => setSelectedCategory(category)}
+                className="rounded-full"
+                size="sm"
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Car Grid Section */}
+      <section className="container py-12">
+        {filteredCars.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            {filteredCars.map((car) => (
+              <CarCard key={car.id} car={car} />
+            ))}
+          </motion.div>
+        ) : (
+          <div className="text-center py-10 text-muted-foreground">
+            No cars match your current filters.
+          </div>
+        )}
+      </section>
+
+      {/* Instagram Section */}
+      <section className="py-16 bg-gradient-to-r from-gray-900 via-black to-gray-900">
+         <div className="container text-center">
+           <h2 className="text-3xl font-bold text-white mb-4">
+             Follow Us on Instagram
+           </h2>
+           <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
+             Get a glimpse of our stunning fleet and exclusive behind-the-scenes content.
+           </p>
+           <Button asChild size="lg" className="bg-[#E1306C] hover:bg-[#c12a5b] text-white">
+             <Link href="https://www.instagram.com/exodriveexotics/?igsh=MTNwNzQ3a3c1a2xieQ%3D%3D" target="_blank">
+               <Instagram className="mr-2 h-5 w-5" />
+               Follow @exodriveexotics
+             </Link>
+           </Button>
+         </div>
+       </section>
+    </div>
+  );
+}
+
+// --- Server Component Wrapper --- 
+
+import { carServiceSupabase } from "@/lib/services/car-service-supabase";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { Suspense } from 'react';
+
+// This is the default export for the page route
+export default async function FleetPage() {
+  let initialCars: AppCar[] = [];
+  let initialError: string | null = null;
+
+  try {
+    // Fetch initial data using the service role client on the server
+    const serviceClient = createSupabaseServiceRoleClient();
+    // Using getVisibleCars assumes we want to bypass RLS for the public fleet view
+    initialCars = await carServiceSupabase.getVisibleCars(serviceClient);
+  } catch (err: any) {
+    console.error("Server Failed to fetch cars for FleetPage:", err);
+    initialError = err.message || "Could not load cars";
+  }
+
+  // Render the client component, passing the fetched data as props
+  // Use Suspense for the loading state during server rendering/fetching if needed
+  return (
+      <FleetClientComponent 
+        initialCars={initialCars} 
+        initialError={initialError} 
+      />
+  );
+}
+
