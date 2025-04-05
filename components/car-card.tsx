@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Gauge, Clock, Star, ChevronRight, ShieldCheck, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getValidImageUrl, handleImageError } from "@/lib/utils/image-utils"
+import { getValidImageUrl, handleImageError, BACKUP_PLACEHOLDER_IMAGE } from "@/lib/utils/image-utils"
 import type { Car as AppCar } from "@/lib/types/car"
 
 interface CarCardProps {
@@ -28,18 +28,34 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isPrecached, setIsPrecached] = useState(false)
+  const [imgSrc, setImgSrc] = useState<string | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const hasAttemptedLoad = useRef(false)
 
-  const price = car.pricePerDay ?? 0
-  const imageUrl = getValidImageUrl(car.imageUrls?.[0])
-  const carLink = `/fleet/${car.slug}`
-  const shortDescription = car.shortDescription || (car.description ? car.description.substring(0, 120) + "..." : "")
-  const horsepower = car.horsepower ? `${car.horsepower} hp` : null
-  const acceleration = car.acceleration060 ? `${car.acceleration060}s 0-60` : null
-  const transmission = car.transmission
-  const topSpeed = car.topSpeed ? `${car.topSpeed} mph` : null
+  // Use memoized values to prevent unnecessary re-renders
+  const price = car?.pricePerDay ?? 0
+  const carName = car?.name || "Luxury Car"
+  const carCategory = car?.category || "luxury"
+  const shortDescription = car?.shortDescription || (car?.description ? car.description.substring(0, 120) + "..." : "Experience luxury driving")
+  const horsepower = car?.horsepower ? `${car.horsepower} hp` : null
+  const acceleration = car?.acceleration060 ? `${car.acceleration060}s 0-60` : null
+  const transmission = car?.transmission || null
+  const topSpeed = car?.topSpeed ? `${car.topSpeed} mph` : null
+  const isAvailable = car?.isAvailable !== false // Default to true if undefined
+
+  // Initialize image source
+  useEffect(() => {
+    if (!hasAttemptedLoad.current) {
+      const url = getValidImageUrl(car?.imageUrls?.[0])
+      setImgSrc(url)
+      hasAttemptedLoad.current = true
+    }
+  }, [car])
+
+  const carLink = car?.slug ? `/fleet/${car.slug}` : `/fleet`
 
   const prefetchCarDetails = useCallback(async () => {
-    if (!car.slug) return
+    if (!car?.slug) return
 
     try {
       await router.prefetch(carLink)
@@ -49,7 +65,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
     } catch (error) {
       console.error("Error prefetching car details:", error)
     }
-  }, [car.slug, router, onPrefetch, carLink])
+  }, [car?.slug, router, onPrefetch, carLink])
 
   useEffect(() => {
     if (isHovered && !isPrecached) {
@@ -61,6 +77,16 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
       return () => clearTimeout(timer)
     }
   }, [isHovered, isPrecached, prefetchCarDetails])
+
+  const handleImgError = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    handleImageError(e)
+    // Update local state with new src after error handler runs
+    setTimeout(() => {
+      if (imgRef.current) {
+        setImgSrc(imgRef.current.src)
+      }
+    }, 0)
+  }, [])
 
   return (
     <motion.div
@@ -79,25 +105,30 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
         )}
       >
         <div className={cn("relative overflow-hidden group", isCompact ? "h-44" : isFeatured ? "h-72" : "h-56")}>
-          <Image
-            src={imageUrl || "/placeholder.svg"}
-            alt={car.name || "Car image"}
-            fill
-            className={cn(
-              "object-cover transition-transform duration-700",
-              isHovered ? "scale-110 brightness-105" : "group-hover:scale-105",
-            )}
-            onError={handleImageError}
-            priority={index < 3}
-          />
-          {!car.isAvailable && (
+          {imgSrc && (
+            <Image
+              ref={imgRef}
+              src={imgSrc}
+              alt={carName}
+              fill
+              className={cn(
+                "object-cover transition-transform duration-700",
+                isHovered ? "scale-110 brightness-105" : "group-hover:scale-105",
+              )}
+              onError={handleImgError}
+              priority={index < 3}
+              quality={80}
+              sizes={isFeatured ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 100vw, 33vw"}
+            />
+          )}
+          {!isAvailable && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <Badge variant="secondary" className="text-lg py-1.5">
                 Currently Booked
               </Badge>
             </div>
           )}
-          {car.isFeatured && (
+          {car?.isFeatured && (
             <div className="absolute top-3 left-3">
               <Badge className="bg-rose-600 hover:bg-rose-700">
                 <Star className="mr-1 h-3 w-3" />
@@ -107,7 +138,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
           )}
           <div className="absolute top-3 right-3">
             <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">
-              {car.category}
+              {carCategory}
             </Badge>
           </div>
 
@@ -142,7 +173,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
           className={cn("p-6 flex-grow flex flex-col", isCompact ? "p-4" : "", isHovered ? "bg-card/95" : "")}
         >
           <div className="mb-3">
-            <h3 className={cn("font-bold", isCompact ? "text-lg" : "text-xl")}>{car.name}</h3>
+            <h3 className={cn("font-bold", isCompact ? "text-lg" : "text-xl")}>{carName}</h3>
             {!isCompact && <p className="text-muted-foreground line-clamp-2 mt-1">{shortDescription}</p>}
           </div>
 
@@ -181,8 +212,8 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
 
           <div className={cn("mt-auto pt-4 flex items-center justify-between", isCompact ? "pt-2" : "")}>
             {!isFeatured && <span className={cn("font-bold", isCompact ? "text-base" : "text-lg")}>${price}/day</span>}
-            <Badge variant={car.isAvailable ? "default" : "secondary"} className="capitalize">
-              {car.isAvailable ? "Available" : "Booked"}
+            <Badge variant={isAvailable ? "default" : "secondary"} className="capitalize">
+              {isAvailable ? "Available" : "Booked"}
             </Badge>
           </div>
 

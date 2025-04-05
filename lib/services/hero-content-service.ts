@@ -1,4 +1,4 @@
-import { createBrowserClient } from '@supabase/ssr' // Import browser client
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { handleSupabaseError } from "@/lib/supabase/client"
 import type { HeroContentData } from "@/contexts/hero-content-context"
 
@@ -20,11 +20,13 @@ const mockHeroContent: HeroContentData = {
 export const heroContentService = {
   // Get active hero content - REFACTORED FOR CLIENT-SIDE USE
   getActiveHero: async (): Promise<HeroContentData> => {
-    // Create a client-side client
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    // Use the singleton browser client
+    const supabase = getSupabaseBrowserClient();
+    
+    if (!supabase) {
+      console.warn("Supabase client not available, using mock data.");
+      return mockHeroContent;
+    }
 
     try {
       // Fetches using the PUBLIC Anon Key (respects RLS)

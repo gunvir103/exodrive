@@ -1,5 +1,4 @@
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +6,7 @@ import { Edit, Plus, Star, Trash } from "lucide-react"
 import { carServiceSupabase } from "@/lib/services/car-service-supabase"
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { getValidImageUrl, handleImageError } from "@/lib/utils/image-utils"
+import { ClientImage } from "@/components/ui/client-image"
 import type { Car as AppCar } from "@/lib/types/car"
 
 // Server Component: Fetches all cars using service role client
@@ -54,12 +54,11 @@ export default async function AdminCarsPage() {
           return (
             <Card key={car.id} className={`overflow-hidden ${car.isHidden ? "opacity-60 border-dashed border-muted-foreground" : ""}`}>
               <div className="relative h-48 bg-muted">
-                <Image
+                <ClientImage
                   src={imageUrl}
                   alt={car.name}
                   fill
                   className="object-cover"
-                  onError={handleImageError}
                 />
                 {car.isFeatured && (
                   <div className="absolute top-2 left-2">

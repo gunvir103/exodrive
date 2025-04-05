@@ -21,6 +21,21 @@ export interface HeroContentData {
   isActive: boolean
 }
 
+// Fallback content that will always be available
+export const fallbackHeroContent: HeroContentData = {
+  id: "fallback-hero",
+  title: "Drive Your *Dream Car* Today",
+  subtitle: "Experience the thrill of driving the world's most exotic cars in the DMV area.",
+  backgroundType: "image",
+  backgroundSrc: "/placeholder.svg?height=1080&width=1920&text=Luxury+Supercar",
+  badgeText: "Premium Experience",
+  primaryButtonText: "Browse Our Fleet",
+  primaryButtonLink: "/fleet",
+  secondaryButtonText: "Rent Now",
+  secondaryButtonLink: "https://www.instagram.com/exodriveexotics/?igsh=MTNwNzQ3a3c1a2xieQ%3D%3D#",
+  isActive: true,
+};
+
 interface HeroContentContextType {
   heroContent: HeroContentData | null
   isLoading: boolean
@@ -34,7 +49,7 @@ interface HeroContentContextType {
 
 // Create context with default values
 const HeroContentContext = createContext<HeroContentContextType>({
-  heroContent: null,
+  heroContent: fallbackHeroContent, // Always provide the fallback
   isLoading: false,
   error: null,
   refetch: async () => {},
@@ -58,15 +73,14 @@ const sanitizeContent = (html: string): string => {
 
 // Provider component
 export const HeroContentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [heroContent, setHeroContent] = useState<HeroContentData | null>(null)
+  const [heroContent, setHeroContent] = useState<HeroContentData | null>(fallbackHeroContent)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const { toast } = useToast()
 
   const fetchData = async () => {
     setIsLoading(true)
-    setError(null)
-
+    
     try {
       const data = await heroContentService.getActiveHero()
 
@@ -81,12 +95,15 @@ export const HeroContentProvider: React.FC<{ children: ReactNode }> = ({ childre
       }
 
       setHeroContent(sanitizedData)
+      setError(null) // Clear any previous errors
     } catch (err) {
+      console.error("Failed to fetch hero content:", err)
       setError(err instanceof Error ? err : new Error("Failed to fetch hero content"))
+      // Don't set heroContent to null, keep the fallback
       toast({
-        title: "Error",
-        description: "Failed to load hero content. Please refresh the page.",
-        variant: "destructive",
+        title: "Warning",
+        description: "Using fallback hero content. You may need to refresh.",
+        variant: "default",
       })
     } finally {
       setIsLoading(false)

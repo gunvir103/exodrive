@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "rm -rf .next"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",
@@ -59,9 +60,9 @@
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "^0.4.4",
-    "react": "^19",
+    "react": "^18",
     "react-day-picker": "8.10.1",
-    "react-dom": "^19",
+    "react-dom": "^18",
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "react-tsparticles": "latest",
@@ -78,8 +79,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "@types/uuid": "^10.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",

@@ -17,26 +17,58 @@ interface ParticlesBackgroundProps {
 export function ParticlesBackground({
   position = "bottom",
   color = "#D4AF37", // Gold color
-  quantity = 60, // Increased from 40
+  quantity = 40, // Reduced for better performance
   speed = 1,
-  opacity = 0.4, // Increased from 0.3
-  height = "60%", // Increased from 40%
+  opacity = 0.4,
+  height = "60%",
 }: ParticlesBackgroundProps) {
   const [mounted, setMounted] = useState(false)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    
+    // Safety timeout - if particles don't load in 3 seconds, show a fallback
+    const timeout = setTimeout(() => {
+      setError(true)
+    }, 3000)
+    
+    return () => clearTimeout(timeout)
   }, [])
 
   const particlesInit = useCallback(async (engine: Engine) => {
-    await loadFull(engine)
+    try {
+      await loadFull(engine)
+    } catch (err) {
+      console.error("Failed to initialize particles:", err)
+      setError(true)
+    }
   }, [])
 
   const particlesLoaded = useCallback(async (container: Container | undefined) => {
-    // Container loaded
+    if (container) {
+      // Clear the error state if we successfully loaded the container
+      setError(false)
+    }
   }, [])
 
   if (!mounted) return null
+  
+  // Fallback to simple gradient if particles fail to load
+  if (error) {
+    return (
+      <div
+        className="absolute w-full pointer-events-none z-10"
+        style={{
+          [position]: 0,
+          height: height,
+          background: position === "bottom" 
+            ? `linear-gradient(to top, ${color}20, transparent)`
+            : `linear-gradient(to bottom, ${color}20, transparent)`,
+        }}
+      />
+    )
+  }
 
   return (
     <div
@@ -47,14 +79,14 @@ export function ParticlesBackground({
       }}
     >
       <Particles
-        id="tsparticles"
+        id={`tsparticles-${position}`} // Unique ID for each instance
         init={particlesInit}
         loaded={particlesLoaded}
         options={{
           fullScreen: {
             enable: false,
           },
-          fpsLimit: 60,
+          fpsLimit: 30, // Lower for better performance
           particles: {
             number: {
               value: quantity,
@@ -67,27 +99,24 @@ export function ParticlesBackground({
               value: color,
             },
             shape: {
-              type: ["circle", "polygon"], // Add polygon shape for variety
-              polygon: {
-                sides: 6, // Hexagon
-              },
+              type: "circle", // Simplify to just circles for better performance
             },
             opacity: {
               value: opacity,
               random: true,
               anim: {
                 enable: true,
-                speed: 0.8, // Increased from 0.5
+                speed: 0.5,
                 opacity_min: 0.1,
                 sync: false,
               },
             },
             size: {
-              value: 4, // Increased from 3
+              value: 3,
               random: true,
               anim: {
                 enable: true,
-                speed: 2,
+                speed: 1,
                 size_min: 0.1,
                 sync: false,
               },
@@ -96,19 +125,19 @@ export function ParticlesBackground({
               enable: true,
               distance: 150,
               color: color,
-              opacity: 0.3, // Increased from 0.2
+              opacity: 0.2,
               width: 1,
             },
             move: {
               enable: true,
               speed: speed,
-              direction: position === "top" ? "bottom" : "none", // Changed from "top" to "none" for more random movement
+              direction: position === "top" ? "bottom" : "none",
               random: true,
               straight: false,
               out_mode: "out",
               bounce: false,
               attract: {
-                enable: true,
+                enable: false, // Disable for performance
                 rotateX: 600,
                 rotateY: 1200,
               },
@@ -135,7 +164,7 @@ export function ParticlesBackground({
               },
             },
           },
-          retina_detect: true,
+          retina_detect: false, // Disable for performance
           background: {
             color: "transparent",
             image: "",

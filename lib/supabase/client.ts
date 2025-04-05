@@ -26,6 +26,9 @@ export function getSupabaseBrowserClient() {
   return client;
 }
 
+// Add this export for backward compatibility
+export const getSupabaseClient = getSupabaseBrowserClient;
+
 // Helper function for creating a Supabase client with service role (admin access)
 export function getSupabaseServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

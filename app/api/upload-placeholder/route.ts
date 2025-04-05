@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { getSupabaseServiceClient } from "@/lib/supabase/client"
+import { getSupabaseClient } from "@/lib/supabase/client"
 import { BUCKET_NAMES } from "@/lib/supabase/storage-service"
 
 // This is a one-time setup route to upload the placeholder image to Supabase
 export async function GET() {
   try {
-    const supabase = getSupabaseServiceClient()
+    const supabase = getSupabaseClient()
     if (!supabase) {
       return NextResponse.json({ error: "Supabase client not available" }, { status: 500 })
     }
