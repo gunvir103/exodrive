@@ -454,10 +454,9 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 // Default export: The Server Component that fetches data
 export default async function HomePage() {
-  // --- TEMPORARILY BYPASS ALL SERVER FETCHING ---
-  const initialCars: AppCar[] = [];
-  const initialError: string | null = null;
-  /*
+  // --- Restore SERVER FETCHING ---
+  let initialCars: AppCar[] = [];
+  let initialError: string | null = null;
   try {
     console.log("Attempting to create service client..."); // Debug log
     const serviceClient = createSupabaseServiceRoleClient();
@@ -468,8 +467,7 @@ export default async function HomePage() {
     console.error("***** ERROR in HomePage Server Fetch *****:", err); // Log the raw error
     initialError = (err instanceof Error) ? err.message : "An unknown error occurred during server fetch";
   }
-  */
-  // --- END TEMPORARY BYPASS ---
+  // --- END Restore SERVER FETCHING ---
 
   // Render the client component, passing the fetched data as props
   return (

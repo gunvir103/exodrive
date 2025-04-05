@@ -59,11 +59,9 @@ export function HeroSection({
   const heroRef = useRef<HTMLElement>(null)
   const [isMounted, setIsMounted] = useState(false)
 
-  // --- TEMPORARILY BYPASS CONTEXT ---
-  // const { heroContent, isLoading, error, refetch } = useHeroContent()
-  const isLoading = false; // Assume not loading
-  const error = null; // Assume no error
-  // --- END TEMPORARY BYPASS ---
+  // --- Restore CONTEXT ---
+  const { heroContent, isLoading, error, refetch } = useHeroContent()
+  // --- END Restore CONTEXT ---
 
   // Use text animation hook with custom configuration
   const { animateText } = useTextAnimation({
@@ -78,21 +76,21 @@ export function HeroSection({
   })
 
   // Merge props with context data, with props taking precedence
-  // --- USE ONLY PROPS TEMPORARILY ---
+  // --- Restore Context Merging ---
   const content: HeroContentData = {
-    id: "default", // Default ID
-    title: propTitle || "Default Title", // Use prop or fallback
-    subtitle: propSubtitle || "Default Subtitle",
-    backgroundType: "image", // Set to valid type, src is empty
-    backgroundSrc: "",
-    badgeText: propBadgeText || "Default Badge",
-    primaryButtonText: propPrimaryButtonText || "Browse",
-    primaryButtonLink: propPrimaryButtonLink || "#",
-    secondaryButtonText: propSecondaryButtonText || "Contact",
-    secondaryButtonLink: propSecondaryButtonLink || "#",
-    isActive: true, // Assume active
+    id: heroContent?.id || "default",
+    title: propTitle || heroContent?.title || "Loading...", // Use prop, then context, then fallback
+    subtitle: propSubtitle || heroContent?.subtitle || "Loading...",
+    backgroundType: "image", // Keep as image for now, adjust if needed based on context data later
+    backgroundSrc: "", // Need to handle backgroundSrc from heroContent if used
+    badgeText: propBadgeText || heroContent?.badgeText || "Loading...",
+    primaryButtonText: propPrimaryButtonText || heroContent?.primaryButtonText || "Browse",
+    primaryButtonLink: propPrimaryButtonLink || heroContent?.primaryButtonLink || "#",
+    secondaryButtonText: propSecondaryButtonText || heroContent?.secondaryButtonText || "Contact",
+    secondaryButtonLink: propSecondaryButtonLink || heroContent?.secondaryButtonLink || "#",
+    isActive: heroContent?.isActive || true,
   }
-  // --- END USE ONLY PROPS ---
+  // --- END Restore Context Merging ---
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -124,10 +122,49 @@ export function HeroSection({
     return () => clearTimeout(timer)
   }, [])
 
-  // TEMPORARILY SKIPPING Loading and Error states rendering below
+  // Restore Loading and Error states rendering below
 
-  // if (isLoading) { return (...); }
-  // if (error) { return (...); }
+  if (isLoading) {
+    // Keep the original loading state JSX here
+    return (
+      <section ref={heroRef} className="relative h-[90vh] md:h-screen w-full overflow-hidden bg-black">
+        <div className="absolute inset-0 bg-muted/10 animate-pulse" />
+        <div className="container relative z-10 flex h-full flex-col items-center justify-center px-4 md:px-6 text-center">
+          <div className="max-w-4xl">
+            <Skeleton className="h-8 w-32 mx-auto mb-6 bg-gray-800" />
+            <Skeleton className="h-16 w-full mx-auto mb-4 bg-gray-800" />
+            <Skeleton className="h-16 w-3/4 mx-auto mb-6 bg-gray-800" />
+            <Skeleton className="h-6 w-1/2 mx-auto mb-8 bg-gray-800" />
+            <div className="flex justify-center gap-4">
+              <Skeleton className="h-12 w-32 bg-gray-800" />
+              <Skeleton className="h-12 w-32 bg-gray-800" />
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+  
+  if (error) {
+    // Keep the original error state JSX here
+    return (
+      <section ref={heroRef} className="relative h-[90vh] md:h-screen w-full overflow-hidden bg-black">
+        <div className="absolute inset-0 bg-muted/5" />
+        <div className="container relative z-10 flex h-full flex-col items-center justify-center px-4 md:px-6">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              Failed to load hero content. Please refresh the page or try again later.
+            </AlertDescription>
+          </Alert>
+          <Button onClick={() => refetch()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section ref={heroRef} className="relative h-[90vh] md:h-screen w-full overflow-hidden bg-black">
