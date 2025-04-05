@@ -9,10 +9,15 @@
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZHVrZGRzZWZvZ3picXNiZnNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4MTczOTksImV4cCI6MjA1OTM5MzM5OX0.bpe7buU7Qg4PsvhFuhMdEB46ABXZn1p5Yj347KEUuvI",
     "NEXT_PUBLIC_URL": "https://www.exodrive.co"
   },
-  "domains": ["www.exodrive.co", "exodrive.co"],
   "redirects": [
     {
-      "source": "https://exodrive.co/:path*",
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "exodrive.co"
+        }
+      ],
       "destination": "https://www.exodrive.co/:path*",
       "permanent": true
     }
