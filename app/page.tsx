@@ -55,6 +55,8 @@ export default async function HomePage() {
   // --- Restore SERVER FETCHING ---
   let initialCars: any[] = []; // Use any[] as the return type of getVisibleCarsForFleet is optimized
   let initialError: string | null = null;
+  let featuredCarId: string | null = null;
+  
   try {
     console.log("Attempting to create service client..."); // Debug log
     const serviceClient = createSupabaseServiceRoleClient();
@@ -70,50 +72,48 @@ export default async function HomePage() {
     
     // Check if there's a featured car in homepage settings
     try {
-      const { data: homepageSettings, error } = await serviceClient
+      // First check if the table exists
+      const { error: tableError } = await serviceClient
         .from('homepage_settings')
-        .select('*')
-        .maybeSingle();
-      
-      // If table doesn't exist yet, just continue without error
-      if (error && error.code === 'PGRST301') {
+        .select('*', { count: 'exact', head: true });
+
+      if (tableError && tableError.code === '42P01') {
         console.warn('Homepage settings table not found. Run migrations first.');
-      } else if (error) {
-        console.error('Error fetching homepage settings:', error);
-      } else if (homepageSettings?.featured_car_id) {
-        // Find the corresponding car in the already fetched cars
-        const featuredCarIndex = initialCars.findIndex(car => car.id === homepageSettings.featured_car_id);
-        
-        if (featuredCarIndex >= 0) {
-          // Mark the car as featured for the UI
-          initialCars[featuredCarIndex].isFeatured = true;
-          
-          // Remove featured flag from any other cars
-          initialCars.forEach((car, index) => {
-            if (index !== featuredCarIndex) {
-              car.isFeatured = false;
-            }
-          });
-        }
       } else {
-        // If no specific car is marked as featured, show first car as featured
-        if (initialCars.length > 0) {
-          initialCars[0].isFeatured = true;
+        // Table exists, fetch the settings
+        const { data: homepageSettings, error } = await serviceClient
+          .from('homepage_settings')
+          .select('featured_car_id')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.error('Error fetching homepage settings:', error);
+        } else if (homepageSettings?.featured_car_id) {
+          featuredCarId = homepageSettings.featured_car_id;
+          
+          // Mark the selected car as featured in our data
+          initialCars.forEach(car => {
+            car.isFeatured = car.id === featuredCarId;
+          });
+          
+          console.log(`Featured car set to ID: ${featuredCarId}`);
         }
       }
     } catch (settingsErr) {
       console.error("Error handling homepage settings:", settingsErr);
-      // If we can't access settings, default to showing first car as featured
-      if (initialCars.length > 0) {
-        initialCars[0].isFeatured = true;
-      }
+    }
+    
+    // If no featured car was set from settings, use the first car
+    if (!initialCars.some(car => car.isFeatured) && initialCars.length > 0) {
+      initialCars[0].isFeatured = true;
+      console.log(`No featured car found in settings, defaulting to first car: ${initialCars[0].id}`);
     }
     
   } catch (err) { // Catch any error type
     console.error("***** ERROR in HomePage Server Fetch *****:", err); // Log the raw error
     initialError = (err instanceof Error) ? err.message : "An unknown error occurred during server fetch";
-    // Use fallback data - Adjust fallback if needed for the new structure
-    // initialCars = fallbackCars; // Commenting out fallback for now, needs update
     initialCars = []; // Default to empty array on error
   }
   // --- END Restore SERVER FETCHING ---
@@ -125,6 +125,7 @@ export default async function HomePage() {
         <HomeClientComponent 
           initialCars={initialCars} 
           initialError={initialError} 
+          featuredCarId={featuredCarId}
         />
       </Suspense>
     </ErrorBoundary>

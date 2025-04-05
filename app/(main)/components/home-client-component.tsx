@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from "react"
+import { useEffect, useState, useRef, Suspense, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, useInView } from "framer-motion"
@@ -43,18 +43,24 @@ interface HomeClientComponentProps {
   // Use any[] because getVisibleCarsForFleet returns an optimized structure
   initialCars: any[]; 
   initialError: string | null;
+  featuredCarId?: string | null;
 }
 
-export default function HomeClientComponent({ initialCars, initialError }: HomeClientComponentProps) {
+export default function HomeClientComponent({ initialCars, initialError, featuredCarId }: HomeClientComponentProps) {
   const featuredRef = useRef(null)
   const isInView = useInView(featuredRef, { once: true, amount: 0.2 })
   // Use the initialCars directly, maybe rename state variable for clarity
   const [cars, setCars] = useState<any[]>(initialCars) 
   const [error, setError] = useState<string | null>(initialError)
   
-  // Find the first featured car from the fetched list
-  // Use isFeatured and primaryImageUrl fields from the optimized data structure
-  const featuredCar = cars.find((car) => car.isFeatured) 
+  // Use the featuredCarId prop if available, otherwise find the first car marked as featured
+  const featuredCar = useMemo(() => {
+    if (featuredCarId) {
+      return cars.find(car => car.id === featuredCarId) || cars.find(car => car.isFeatured) || cars[0];
+    }
+    return cars.find(car => car.isFeatured) || cars[0];
+  }, [cars, featuredCarId]);
+  
   // Use the primaryImageUrl directly from the fetched data
   const featuredCarImageUrl = getValidImageUrl(featuredCar?.primaryImageUrl) || "/placeholder.svg?text=Featured+Car";
 
