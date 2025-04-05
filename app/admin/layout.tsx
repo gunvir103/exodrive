@@ -12,21 +12,34 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [shouldRedirect, setShouldRedirect] = useState(false)
+  const [permissionDenied, setPermissionDenied] = useState(false)
 
-  // Always call hooks before any conditional returns
   useEffect(() => {
-    if (!isLoading && !user && pathname !== "/admin/login") {
-      setShouldRedirect(true)
+    if (!isLoading) {
+      if (!user && pathname !== "/admin/login") {
+        console.log("AdminLayout: No user found, redirecting to login.")
+        setShouldRedirect(true)
+        setPermissionDenied(false)
+      } else if (user && user.user_metadata?.role !== 'admin') {
+        console.log(`AdminLayout: User ${user.email} is not admin, setting permission denied.`)
+        setPermissionDenied(true) 
+        setShouldRedirect(false)
+      } else {
+        setPermissionDenied(false)
+        setShouldRedirect(false)
+      }
     }
   }, [user, isLoading, pathname])
 
   useEffect(() => {
     if (shouldRedirect) {
       router.push("/admin/login")
+    } else if (permissionDenied) {
+      console.log("AdminLayout: Redirecting non-admin user to homepage.")
+      router.push("/")
     }
-  }, [shouldRedirect, router])
+  }, [shouldRedirect, permissionDenied, router])
 
-  // After all hooks are called, we can have conditional returns
   if (pathname === "/admin/login") {
     return <>{children}</>
   }
@@ -39,14 +52,10 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     )
   }
 
-  if (!user) {
+  if (!user || permissionDenied) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/40">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-          <p className="mb-4">Please log in to access the admin area.</p>
-          <Button onClick={() => router.push("/admin/login")}>Go to Login</Button>
-        </div>
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
       </div>
     )
   }
