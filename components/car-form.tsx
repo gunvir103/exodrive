@@ -29,6 +29,19 @@ import { restrictToParentElement } from "@dnd-kit/modifiers"
 import { carServiceSupabase, type AppCar, type CarImage, type CarFeature, type CarSpecification, type AppCarUpsert, type PricingInsertData, type ImageInsertData, type FeatureInsertData, type SpecificationInsertData } from "@/lib/services/car-service-supabase"
 import { BUCKET_NAMES } from "@/lib/supabase/storage-service"
 import { v4 as uuidv4 } from 'uuid'; // For generating unique file names
+import { deleteCarPermanentlyAction } from '@/app/admin/cars/actions' // Import the delete action
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog" // Import AlertDialog components
+import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card" // Import Card Header components
 
 // Define a state type for images within the form
 interface FormImageData extends Partial<CarImage> {
@@ -892,22 +905,18 @@ export function CarForm({ car }: CarFormProps) {
           </CardContent>
         </Card>
 
-         {/* Action Buttons */}
-        <div className="flex justify-end gap-4 pt-4">
+         {/* --- Action Buttons (Update/Add/Cancel) --- */}
+        <div className="flex justify-end gap-4 pt-4 border-t">
           <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
             Cancel
           </Button>
           <Button type="submit" disabled={isLoading || formImages.some(img => img.isUploading)}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : car?.id ? (
-              "Update Car"
-            ) : (
-              "Add Car"
-            )}
+             {isLoading ? (
+               <>
+                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                 Saving...
+               </>
+             ) : car?.id ? "Update Car" : "Add Car"}
           </Button>
         </div>
       </form>

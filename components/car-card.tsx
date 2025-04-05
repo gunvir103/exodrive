@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button"
 import { Gauge, Clock, Star, ChevronRight, ShieldCheck, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getValidImageUrl, handleImageError, BACKUP_PLACEHOLDER_IMAGE } from "@/lib/utils/image-utils"
+import type { OptimizedCarListItem } from "@/lib/services/car-service-supabase"
 
 interface CarCardProps {
-  car: any
+  car: OptimizedCarListItem
   index?: number
   delay?: number
   variant?: "default" | "compact" | "featured"
@@ -23,7 +24,7 @@ interface CarCardProps {
 
 export function CarCard({ car, index = 0, delay = 0, variant = "default", className, onPrefetch }: CarCardProps) {
   const isCompact = variant === "compact"
-  const isFeatured = variant === "featured" || car?.isFeatured
+  const isFeatured = variant === "featured" || car?.featured
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isPrecached, setIsPrecached] = useState(false)
@@ -31,7 +32,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
   const imgRef = useRef<HTMLImageElement>(null)
   const hasAttemptedLoad = useRef(false)
 
-  const price = car?.pricePerDay ?? 0
+  const price = car?.price_per_day ?? 0
   const carName = car?.name || "Luxury Car"
   const carCategory = car?.category || "luxury"
   const shortDescription = car?.shortDescription || "Experience luxury driving"
@@ -39,11 +40,11 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
 
   useEffect(() => {
     if (!hasAttemptedLoad.current) {
-      const url = getValidImageUrl(car?.primaryImageUrl)
+      const url = getValidImageUrl(car?.primary_image_url)
       setImgSrc(url)
       hasAttemptedLoad.current = true
     }
-  }, [car?.primaryImageUrl])
+  }, [car?.primary_image_url])
 
   const carLink = car?.slug ? `/fleet/${car.slug}` : `/fleet`
 

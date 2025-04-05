@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { motion, AnimatePresence } from "framer-motion"
 import { ParticlesBackground } from "@/components/particles-background"
+import type { OptimizedCarListItem } from "@/lib/services/car-service-supabase"
 
 // This interface defines the props our client component will receive
 interface FleetClientComponentProps {
-  // Expect the optimized list structure (use any[] for now)
-  initialCars: any[]; 
+  // Use the specific optimized type
+  initialCars: OptimizedCarListItem[]; 
   initialError: string | null;
 }
 
@@ -25,9 +26,9 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
   const router = useRouter();
   const pathname = usePathname();
   
-  // Use any[] for state as well, matching the prop type
-  const [allCars, setAllCars] = useState<any[]>(initialCars) 
-  const [filteredCars, setFilteredCars] = useState<any[]>(initialCars) 
+  // Use the specific optimized type for state
+  const [allCars, setAllCars] = useState<OptimizedCarListItem[]>(initialCars) 
+  const [filteredCars, setFilteredCars] = useState<OptimizedCarListItem[]>(initialCars) 
   const [isLoading, setIsLoading] = useState(false); // Only true for client-side actions now
   const [error, setError] = useState<string | null>(initialError); // Initialize with fetched error
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -74,17 +75,16 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
           // Removed make, model, description as they aren't in the optimized list
       );
     }
-    // Apply sorting (use available fields: pricePerDay, name, isFeatured)
+    // Apply sorting (use available fields: price_per_day, name, featured)
     switch (sortOption) {
-      case "price-asc": result.sort((a, b) => (a.pricePerDay ?? 0) - (b.pricePerDay ?? 0)); break;
-      case "price-desc": result.sort((a, b) => (b.pricePerDay ?? 0) - (a.pricePerDay ?? 0)); break;
+      case "price-asc": result.sort((a, b) => (a.price_per_day ?? 0) - (b.price_per_day ?? 0)); break;
+      case "price-desc": result.sort((a, b) => (b.price_per_day ?? 0) - (a.price_per_day ?? 0)); break;
       case "name-asc": result.sort((a, b) => (a.name || "").localeCompare(b.name || "")); break;
       case "name-desc": result.sort((a, b) => (b.name || "").localeCompare(a.name || "")); break;
       case "featured": default:
         result.sort((a, b) => {
-          // Use isFeatured field
-          if (a.isFeatured && !b.isFeatured) return -1;
-          if (!a.isFeatured && b.isFeatured) return 1;
+          if (a.featured && !b.featured) return -1;
+          if (!a.featured && b.featured) return 1;
           return (a.name || "").localeCompare(b.name || "");
         });
         break;

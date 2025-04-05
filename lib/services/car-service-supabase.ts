@@ -60,6 +60,20 @@ export type AppCarUpsert = {
     specifications: SpecificationInsertData[];
 };
 
+// Define type for the optimized list item structure
+export type OptimizedCarListItem = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string | null; 
+  available: boolean | null;
+  featured: boolean | null;
+  hidden: boolean | null;
+  created_at: string | null;
+  primary_image_url?: string | null; // Make optional
+  price_per_day?: number | null;   // Make optional
+  shortDescription?: string | null; // Make optional
+};
 
 // --- Helper Functions (Transformation logic removed as we use related tables directly) ---
 // No longer needed as we fetch joined data or assemble it
@@ -221,80 +235,52 @@ export const carServiceSupabase = {
      * Get base details for all cars (for Admin List)
      * Includes minimal related data (e.g., primary image URL, price)
      */
-    getAllCarsForAdminList: async (supabase: SupabaseClient): Promise<any[]> => { // Return type depends on exact data needed
-        try {
-            // Select base car data and only essential related fields
-            const { data, error } = await supabase
-                .from("cars")
-                .select(`
-                    id,
-                    slug,
-                    name,
-                    category,
-                    available,
-                    featured,
-                    hidden,
-                    created_at,
-                    pricing:car_pricing(base_price),
-                    images:car_images(url, is_primary, sort_order)
-                `)
-                .order("created_at", { ascending: false });
+    getAllCarsForAdminList: async (supabase: SupabaseClient): Promise<OptimizedCarListItem[]> => {
+      try {
+        const { data, error } = await supabase
+            .from("cars")
+            .select(` id, slug, name, category, available, featured, hidden, created_at, pricing:car_pricing(base_price), images:car_images(url, is_primary, sort_order) `)
+            .order("created_at", { ascending: false });
 
-            if (error) {
-                // Throw the specific Supabase error for better debugging upstream
-                console.error("Error in getAllCarsForAdminList Query:", error);
-                throw error; 
-            }
-
-            // Process data to get primary image and price
-             return data.map((car: any, index: number) => {
-                 // --- DEBUG LOGGING inside map --- 
-                 console.log(`Processing car index ${index}, ID: ${car?.id}`);
-                 console.log(`  Raw car object:`, JSON.stringify(car, null, 2));
-                 console.log(`  car.images type: ${typeof car.images}, isArray: ${Array.isArray(car.images)}`);
-                 console.log(`  car.pricing type: ${typeof car.pricing}`);
-                 // ----------------------------------
-                 
-                 let primaryImage = null;
-                 try {
-                     primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
-                 } catch (e) {
-                     console.error(`Error processing images for car ID ${car?.id}:`, e);
-                 }
-
-                 let price = null;
-                 try {
-                    // Check if pricing is array or object due to potential Supabase join inconsistency
-                    if(Array.isArray(car.pricing)) {
-                        price = car.pricing?.[0]?.base_price;
-                    } else if (typeof car.pricing === 'object' && car.pricing !== null) {
-                        price = car.pricing?.base_price;
-                    }
-                 } catch (e) {
-                      console.error(`Error processing pricing for car ID ${car?.id}:`, e);
-                 }
-                 
-                 // --- DEBUG LOGGING after processing --- 
-                 console.log(`  Processed primaryImage URL: ${primaryImage?.url}`);
-                 console.log(`  Processed price: ${price}`);
-                 // ------------------------------------
-
-                 return {
-                    ...car,
-                    images: undefined, // remove nested array
-                    pricing: undefined, // remove nested array/object
-                    primary_image_url: primaryImage?.url,
-                    price_per_day: price // Rename for consistency if needed elsewhere
-                 };
-             });
-
-        } catch (error) {
-            console.error("Error in getAllCarsForAdminList:", error);
-            if (error instanceof Error) {
-                throw new Error(handleSupabaseError(error));
-            }
-            throw new Error("An unexpected error occurred fetching cars for admin list");
+        if (error) {
+          console.error("Error in getAllCarsForAdminList Query:", error);
+          throw error;
         }
+        if (!data) return [];
+
+        return data.map((car: any): OptimizedCarListItem => {
+            let primaryImage = null;
+            try {
+                primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
+            } catch (e) { console.error(`Error processing images for car ID ${car?.id}:`, e); }
+
+            let price = null;
+            try {
+                if(Array.isArray(car.pricing)) { price = car.pricing?.[0]?.base_price; }
+                else if (typeof car.pricing === 'object' && car.pricing !== null) { price = car.pricing?.base_price; }
+            } catch (e) { console.error(`Error processing pricing for car ID ${car?.id}:`, e); }
+            
+            // Return only the explicitly defined fields for OptimizedCarListItem
+            const listItem: OptimizedCarListItem = {
+              id: car.id,
+              slug: car.slug,
+              name: car.name,
+              category: car.category,
+              available: car.available,
+              featured: car.featured,
+              hidden: car.hidden,
+              created_at: car.created_at,
+              primary_image_url: primaryImage?.url ?? null, // Ensure null if undefined
+              price_per_day: price ?? null, // Ensure null if undefined
+              // shortDescription is not part of this list type's definition
+           };
+           return listItem;
+        });
+      } catch (error) {
+        console.error("Error in getAllCarsForAdminList processing:", error);
+        if (error instanceof Error) throw new Error(handleSupabaseError(error));
+        throw new Error("An unexpected error occurred fetching cars for admin list");
+      }
     },
 
 
@@ -302,56 +288,46 @@ export const carServiceSupabase = {
      * Get visible cars for the public fleet (Optimized fetch)
      * Includes necessary data for display (name, slug, price, primary image, category)
      */
-    getVisibleCarsForFleet: async (supabase: SupabaseClient): Promise<any[]> => {
-         try {
+    getVisibleCarsForFleet: async (supabase: SupabaseClient): Promise<OptimizedCarListItem[]> => {
+        try {
             const { data, error } = await supabase
                 .from("cars")
-                .select(`
-                    id,
-                    slug,
-                    name,
-                    category,
-                    short_description,
-                    featured,
-                    pricing:car_pricing(base_price),
-                    images:car_images(url, is_primary, sort_order)
-                `)
+                .select(` id, slug, name, category, short_description, featured, pricing:car_pricing(base_price), images:car_images(url, is_primary, sort_order) `)
                 .eq("available", true)
                 .eq("hidden", false)
-                .order("featured", { ascending: false }) // Order by featured first
+                .order("featured", { ascending: false })
                 .order("created_at", { ascending: false });
 
-            if (error) {
-                // Throw the specific Supabase error for better debugging upstream
-                console.error("Error in getVisibleCarsForFleet Query:", error);
-                throw error; 
-            }
+            if (error) { console.error("Error in getVisibleCarsForFleet Query:", error); throw error; }
+            if (!data) return [];
 
-            // Process data (similar to admin list)
-            return data.map((car: any) => {
-                 const primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
-                  const price = car.pricing?.[0]?.base_price ?? car.pricing?.base_price;
+            return data.map((car: any): OptimizedCarListItem => {
+                let primaryImage = null;
+                try { primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0]; } catch(e) {console.error("ImgErr", e)}
+                let price = null;
+                try {
+                    if(Array.isArray(car.pricing)) { price = car.pricing?.[0]?.base_price; }
+                    else if (typeof car.pricing === 'object' && car.pricing !== null) { price = car.pricing?.base_price; }
+                } catch (e) { console.error("PriceErr", e) }
 
-                  return {
-                     id: car.id,
-                     slug: car.slug,
-                     name: car.name,
-                     // make: car.make, // Removed - Not fetched
-                     // model: car.model, // Removed - Not fetched
-                     category: car.category,
-                     shortDescription: car.short_description,
-                     isFeatured: car.featured, // Rename for consistency
-                     primaryImageUrl: primaryImage?.url,
-                     pricePerDay: price // Rename for consistency
-                 };
-             });
-
+                return {
+                   id: car.id,
+                   slug: car.slug,
+                   name: car.name,
+                   category: car.category,
+                   shortDescription: car.short_description,
+                   available: true,
+                   featured: car.featured,
+                   hidden: false, 
+                   created_at: null, // Not selected
+                   primary_image_url: primaryImage?.url, 
+                   price_per_day: price 
+                };
+            });
         } catch (error) {
-            console.error("Error in getVisibleCarsForFleet:", error);
-            if (error instanceof Error) {
-                throw new Error(handleSupabaseError(error));
-            }
-            throw new Error("An unexpected error occurred fetching visible cars for fleet");
+             console.error("Error in getVisibleCarsForFleet processing:", error);
+             if (error instanceof Error) throw new Error(handleSupabaseError(error));
+             throw new Error("An unexpected error occurred fetching visible cars for fleet");
         }
     },
 
@@ -360,10 +336,8 @@ export const carServiceSupabase = {
      */
     createCar: async (
         supabase: SupabaseClient,
-        carData: AppCarUpsert,
-        userId?: string | null // Optional user ID is no longer used by RPC
+        carData: AppCarUpsert
     ): Promise<AppCar> => {
-        // Prepare arguments for the RPC function
         const rpcParams = {
             p_name: carData.name,
             p_category: carData.category,
@@ -372,40 +346,27 @@ export const carServiceSupabase = {
             p_available: carData.available ?? true,
             p_featured: carData.featured ?? false,
             p_hidden: carData.hidden ?? false,
-            p_pricing: carData.pricing, // Pass JSON directly
-            p_images: carData.images, // Pass JSON array directly
-            p_features: carData.features, // Pass JSON array directly
-            p_specifications: carData.specifications // Pass JSON array directly
+            p_created_by: null, // Pass null for placeholder
+            p_pricing: carData.pricing,
+            p_images: carData.images,
+            p_features: carData.features,
+            p_specifications: carData.specifications
         };
-
-        // ---- DEBUGGING: Log parameters being sent to RPC ----
         console.log("Calling create_car_atomic with params:", JSON.stringify(rpcParams, null, 2));
-        // ----------------------------------------------------
-
         try {
             const { data: newCarId, error } = await supabase.rpc('create_car_atomic', rpcParams);
-
-            if (error) {
-                console.error("Error calling create_car_atomic RPC:", error);
-                throw error; // Re-throw the specific error
-            }
-
-            if (!newCarId) {
-                throw new Error("create_car_atomic RPC did not return a car ID.");
-            }
-
-            // Fetch the newly created car with all details to return the full AppCar object
+            if (error) { console.error("Error calling create_car_atomic RPC:", error); throw error; }
+            if (!newCarId) { throw new Error("create_car_atomic RPC did not return a car ID."); }
             const newCar = await carServiceSupabase.getCarById(supabase, newCarId as string);
-            if (!newCar) {
-                throw new Error(`Failed to fetch newly created car with ID: ${newCarId}`);
-            }
+            if (!newCar) { throw new Error(`Failed fetch after create`); }
             return newCar;
-
         } catch (error) {
             // Handle potential errors during RPC call or subsequent fetch
              if (error instanceof Error) {
-                throw new Error(handleSupabaseError(error));
+                 console.error("Caught error during createCar process:", error);
+                 throw new Error(handleSupabaseError(error));
              }
+             console.error("Caught unexpected error type during createCar:", error);
              throw new Error("An unexpected error occurred creating the car via RPC.");
         }
     },
@@ -417,138 +378,90 @@ export const carServiceSupabase = {
     updateCar: async (
         supabase: SupabaseClient,
         carId: string,
-        updates: Partial<AppCarUpsert> // Accept partial updates
+        updates: Partial<AppCarUpsert> // Accept partial updates, but RPC needs full related state
     ): Promise<AppCar> => {
-
-        // 1. Fetch existing image paths BEFORE the update RPC
         let existingImagePaths: string[] = [];
         try {
-            const { data: images, error: imgError } = await supabase
-                .from("car_images")
-                .select("path")
-                .eq("car_id", carId);
+            const { data: images, error: imgError } = await supabase.from("car_images").select("path").eq("car_id", carId);
             if (imgError) throw new Error(`Failed to fetch existing image paths: ${imgError.message}`);
             existingImagePaths = images?.map(img => img.path).filter(Boolean) as string[] || [];
         } catch (error) {
             console.error("Error fetching existing image paths before update:", error);
-            // Decide if we should proceed or throw - let's throw for now
             if (error instanceof Error) throw error; 
             throw new Error("Could not verify existing images before update.");
         }
 
-        // 2. Prepare arguments for the RPC function
-        // Need to merge updates with existing data or pass full objects
-        // The RPC expects the *full* set of pricing, images, features, specs.
-        // So we need the complete intended state, not just partial updates.
-        // This logic assumes `updates` contains the *complete* desired state 
-        // for related items (pricing, images, features, specifications).
         const rpcParams = {
             p_car_id: carId,
-            // Base car fields (pass undefined if not present in updates)
-            p_name: updates.name ?? undefined,
-            p_category: updates.category ?? undefined,
-            p_description: updates.description,
-            p_short_description: updates.short_description,
-            p_available: updates.available,
-            p_featured: updates.featured,
-            p_hidden: updates.hidden,
-            // Related data (pass the full intended state)
+            p_name: updates.name === undefined ? null : updates.name,
+            p_category: updates.category === undefined ? null : updates.category,
+            p_description: updates.description === undefined ? null : updates.description,
+            p_short_description: updates.short_description === undefined ? null : updates.short_description,
+            p_available: updates.available === undefined ? null : updates.available,
+            p_featured: updates.featured === undefined ? null : updates.featured,
+            p_hidden: updates.hidden === undefined ? null : updates.hidden,
             p_pricing: updates.pricing ?? null,
-            p_images: updates.images ?? null, 
+            p_images: updates.images ?? null,
             p_features: updates.features ?? null,
             p_specifications: updates.specifications ?? null
         };
-
-        // ---- DEBUGGING: Log parameters being sent to RPC ----
         console.log("Calling update_car_atomic with params:", JSON.stringify(rpcParams, null, 2));
-        // ----------------------------------------------------
-
         try {
-            // 3. Call the update RPC function
-            const { error } = await supabase.rpc('update_car_atomic', rpcParams);
+            const { error: rpcError } = await supabase.rpc('update_car_atomic', rpcParams);
+            if (rpcError) throw rpcError; 
 
-            if (error) {
-                // ---- DEBUGGING: Log the specific RPC error ----
-                console.error("Error calling update_car_atomic RPC:", error);
-                // -------------------------------------------------
-                throw error; // Re-throw specific error
-            }
+            // Storage Deletion AFTER DB success
+            try {
+                const updatedImagePaths = new Set(updates.images?.map(img => img.path).filter(Boolean) as string[] || []);
+                const pathsToDelete = existingImagePaths.filter(path => path && !updatedImagePaths.has(path));
+                if (pathsToDelete.length > 0) {
+                    console.log("(Post-Update) Deleting orphaned images:", pathsToDelete);
+                    const { error: storageError } = await supabase.storage.from(BUCKET_NAMES.VEHICLE_IMAGES).remove(pathsToDelete);
+                    if (storageError) console.error("Failed storage delete:", storageError);
+                }
+            } catch (storageCatchError) { console.error("Storage cleanup error:", storageCatchError); }
+            // --- END Storage Deletion ---
 
-            // 4. Delete orphaned images from Storage
-            const updatedImagePaths = new Set(updates.images?.map(img => img.path).filter(Boolean) as string[] || []);
-            const pathsToDelete = existingImagePaths.filter(path => !updatedImagePaths.has(path));
-
-            if (pathsToDelete.length > 0) {
-                 console.log("Deleting orphaned images from storage:", pathsToDelete);
-                 const { error: storageError } = await supabase.storage
-                     .from(BUCKET_NAMES.VEHICLE_IMAGES)
-                     .remove(pathsToDelete);
-                 if (storageError) {
-                     // Log error but don't necessarily fail the whole operation, 
-                     // as DB update succeeded.
-                     console.error("Failed to delete orphaned images from storage:", storageError);
-                     // Optionally notify user/admin
-                 }
-            }
-
-            // 5. Fetch the updated car data to return
             const updatedCar = await carServiceSupabase.getCarById(supabase, carId);
-            if (!updatedCar) throw new Error(`Failed to fetch updated car ${carId} after update RPC.`);
+            if (!updatedCar) throw new Error(`Failed fetch after update`);
             return updatedCar;
-
         } catch (error) {
-            // Handle potential errors during RPC call or subsequent fetch/delete
-             if (error instanceof Error) {
-                // ---- DEBUGGING: Log the caught error before handling ----
+            if (error instanceof Error) {
                 console.error("Caught error during updateCar process:", error);
-                // -------------------------------------------------------
                 throw new Error(handleSupabaseError(error));
-             }
-             // ---- DEBUGGING: Log unexpected error type ----
-             console.error("Caught unexpected error type during updateCar:", error);
-             // ----------------------------------------------
-             throw new Error("An unexpected error occurred updating the car via RPC.");
+            }
+            console.error("Caught unexpected error type during updateCar:", error);
+            throw new Error("An unexpected error occurred updating the car via RPC.");
         }
     },
 
     /**
      * Delete a car and its related data using RPC.
-     * Handles deleting associated images from storage first.
+     * Handles deleting associated images from storage AFTERWARDS.
      */
     deleteCar: async (supabase: SupabaseClient, carId: string): Promise<boolean> => {
+        let imagePathsToDelete: string[] = [];
         try {
-            // 1. Get image paths to delete from storage BEFORE deleting DB record
-            const { data: images, error: imgError } = await supabase
-                .from("car_images")
-                .select("path")
-                .eq("car_id", carId);
+            const { data: images, error: imgError } = await supabase.from("car_images").select("path").eq("car_id", carId);
+            if (imgError) { console.error("Failed fetch img paths for delete:", imgError); }
+            else { imagePathsToDelete = images?.map(img => img.path).filter(Boolean) as string[] || []; }
 
-             if (imgError) {
-                 console.error("Failed to fetch images for deletion:", imgError);
-                 throw imgError;
-             }
-             const imagePathsToDelete = images?.map(img => img.path).filter(Boolean) as string[] || [];
+            const rpcParams = { p_car_id: carId };
+            console.log("Calling delete_car_atomic:", rpcParams);
+            const { error: rpcError } = await supabase.rpc('delete_car_atomic', rpcParams);
+            if (rpcError) throw rpcError;
 
-             // 2. Delete images from storage
-             if (imagePathsToDelete.length > 0) {
-                  const { error: storageError } = await supabase.storage
-                    .from(BUCKET_NAMES.VEHICLE_IMAGES)
-                    .remove(imagePathsToDelete);
-                  if (storageError) {
-                      // Log error but proceed with DB deletion attempt
-                      console.error("Error deleting images from storage before DB delete:", storageError);
-                  }
-             }
+            // Storage Deletion AFTER DB success
+            try {
+                if (imagePathsToDelete.length > 0) {
+                    console.log("(Post-Delete) Deleting images:", imagePathsToDelete);
+                    const { error: storageError } = await supabase.storage.from(BUCKET_NAMES.VEHICLE_IMAGES).remove(imagePathsToDelete);
+                    if (storageError) console.error("Storage delete failed:", storageError);
+                }
+            } catch (storageCatchError) { console.error("Storage cleanup error:", storageCatchError); }
+            // --- END Storage Deletion ---
 
-             // 3. Call the delete RPC function (handles DB deletes via cascade)
-             const { error: rpcError } = await supabase.rpc('delete_car_atomic', { p_car_id: carId });
-
-             if (rpcError) {
-                 console.error("Error calling delete_car_atomic RPC:", rpcError);
-                 throw rpcError;
-             }
-
-            return true;
+            return true; // DB delete succeeded
         } catch (error) {
             console.error(`Error deleting car ${carId}:`, error);
             if (error instanceof Error) {
@@ -556,9 +469,10 @@ export const carServiceSupabase = {
             }
             throw new Error("An unexpected error occurred deleting car via RPC");
         }
+        return false; // Return false if any error occurred before returning true
     },
 
-     /**
+    /**
       * Get unique categories for filtering (from visible cars)
       */
      getCategories: async (supabase: SupabaseClient): Promise<string[]> => {
@@ -589,66 +503,80 @@ export const carServiceSupabase = {
      /**
       * Get related cars by category (for car detail page)
       */
-     getRelatedCars: async (supabase: SupabaseClient, carId: string, limit = 3): Promise<any[]> => { // Return optimized list type
-         try {
-             // 1. Get the category of the current car
-             const { data: currentCar, error: carError } = await supabase
-                 .from("cars")
-                 .select("category")
-                 .eq("id", carId)
-                 .maybeSingle();
+     getRelatedCars: async (supabase: SupabaseClient, carId: string, limit = 3): Promise<OptimizedCarListItem[]> => {
+        try {
+            const { data: currentCar, error: carError } = await supabase.from("cars").select("category").eq("id", carId).maybeSingle();
+            if (carError) { console.error("Error fetching current car category:", carError); throw carError; }
+            if (!currentCar?.category) return [];
 
-             if (carError) {
-                 console.error("Error fetching current car category for related cars:", carError);
-                 throw carError; // Re-throw specific error
-             }
-             if (!currentCar?.category) return []; // No category or car not found
+            const { data: relatedCars, error: relatedError } = await supabase
+                .from("cars")
+                .select(` id, slug, name, category, pricing:car_pricing(base_price), images:car_images(url, is_primary, sort_order) `)
+                .eq("category", currentCar.category).neq("id", carId).eq("available", true).eq("hidden", false).limit(limit);
 
-             // 2. Fetch related cars in the same category (optimized payload)
-             const { data: relatedCars, error: relatedError } = await supabase
-                 .from("cars")
-                 .select(`
-                     id,
-                     slug,
-                     name,
-                     category,
-                     pricing:car_pricing(base_price),
-                     images:car_images(url, is_primary, sort_order)
-                 `)
-                 .eq("category", currentCar.category)
-                 .neq("id", carId) // Exclude the current car
-                 .eq("available", true)
-                 .eq("hidden", false)
-                 .limit(limit);
+            if (relatedError) { console.error("Error fetching related cars:", relatedError); throw relatedError; }
+            if (!relatedCars) return [];
 
-             if (relatedError) {
-                 console.error("Error fetching related car details:", relatedError);
-                 throw relatedError; // Re-throw specific error
-             } 
-             if (!relatedCars) return [];
+            return relatedCars.map((car: any): OptimizedCarListItem => {
+                let primaryImage = null;
+                try { primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0]; } catch(e) {console.error("ImgErrRel", e)}
+                let price = null;
+                try {
+                    if(Array.isArray(car.pricing)) { price = car.pricing?.[0]?.base_price; }
+                    else if (typeof car.pricing === 'object' && car.pricing !== null) { price = car.pricing?.base_price; }
+                } catch(e) {console.error("PriceErrRel", e)}
 
-             // Process data (similar to list views)
-             return relatedCars.map((car: any) => {
-                 const primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
-                  const price = car.pricing?.[0]?.base_price ?? car.pricing?.base_price;
-                  return {
-                     id: car.id,
-                     slug: car.slug,
-                     name: car.name,
-                     category: car.category,
-                     primaryImageUrl: primaryImage?.url,
-                     pricePerDay: price
-                 };
-             });
-
-         } catch (error) {
-             console.error("Error fetching related cars:", error);
-             if (error instanceof Error) {
-                 throw new Error(handleSupabaseError(error));
-             }
-             throw new Error("An unexpected error occurred fetching related cars");
-         }
+                 return {
+                    id: car.id,
+                    slug: car.slug,
+                    name: car.name,
+                    category: car.category,
+                    primary_image_url: primaryImage?.url,
+                    price_per_day: price,
+                    available: true, 
+                    featured: null, 
+                    hidden: false, 
+                    created_at: null, 
+                    shortDescription: null,
+                };
+            });
+        } catch (error) {
+            console.error("Error fetching related cars:", error);
+            if (error instanceof Error) throw new Error(handleSupabaseError(error));
+            throw new Error("An unexpected error occurred fetching related cars");
+        }
      },
+
+    // RE-ADD simple functions for Archive/Unarchive (toggle hidden flag)
+    archiveCar: async (supabase: SupabaseClient, carId: string): Promise<boolean> => {
+        try {
+            const { error } = await supabase
+                .from('cars')
+                .update({ hidden: true, updated_at: new Date().toISOString() })
+                .eq('id', carId);
+            if (error) throw error;
+            return true;
+        } catch(error) {
+            console.error(`Error archiving car ${carId}:`, error);
+            if (error instanceof Error) throw new Error(handleSupabaseError(error));
+            throw new Error("An unexpected error occurred archiving the car.");
+        }
+    },
+
+    unarchiveCar: async (supabase: SupabaseClient, carId: string): Promise<boolean> => {
+        try {
+            const { error } = await supabase
+                .from('cars')
+                .update({ hidden: false, updated_at: new Date().toISOString() })
+                .eq('id', carId);
+             if (error) throw error;
+             return true;
+        } catch(error) {
+            console.error(`Error unarchiving car ${carId}:`, error);
+            if (error instanceof Error) throw new Error(handleSupabaseError(error));
+            throw new Error("An unexpected error occurred unarchiving the car.");
+        }
+    }
 
 }
 

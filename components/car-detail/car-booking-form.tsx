@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format, differenceInDays, addDays, isBefore, isAfter } from "date-fns"
+import { format, differenceInDays, addDays, isBefore, isAfter, startOfToday } from "date-fns"
 import { CalendarIcon, CheckCircle, Shield, Clock, CreditCard, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -21,7 +21,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 
 interface BookingFormProps {
   carId: string
-  pricing: CarPricing
+  pricing: CarPricing | null | undefined
   availability?: DateAvailability[]
 }
 
@@ -43,43 +43,21 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   const { toast } = useToast()
   const isMobile = useMediaQuery("(max-width: 640px)")
 
-  // Calculate rental days and total price
+  // Calculate rental days and total price safely
   const days = startDate && endDate ? Math.max(1, differenceInDays(endDate, startDate) + 1) : 0
-  const totalPrice = days * pricing.basePrice
-  const depositAmount = pricing.depositAmount || Math.round(totalPrice * 0.3)
+  const basePrice = pricing?.base_price ?? 0;
+  const deposit = pricing?.deposit_amount ?? Math.round(days * basePrice * 0.3); // Default deposit if not set
+  const totalPrice = days * basePrice;
 
-  // Get today and tomorrow for date constraints
-  const today = new Date()
-  const tomorrow = addDays(today, 1)
+  // Get today (start of day) and max date
+  const today = startOfToday(); 
+  const maxDate = addDays(today, 90);
 
-  // Get dates 3 months from now for max date constraint
-  const maxDate = addDays(today, 90)
+  // Function to check if a date is available (commented out or removed)
+  // const isDateAvailable = (date: Date) => { ... }
 
-  // Function to check if a date is available
-  const isDateAvailable = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd")
-    const dateAvailability = availability.find((a) => a.date === dateStr)
-    return !dateAvailability || dateAvailability.status === "available"
-  }
-
-  // Function to get date class names based on availability
-  const getDateClassName = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd")
-    const dateAvailability = availability.find((a) => a.date === dateStr)
-
-    if (!dateAvailability) return ""
-
-    switch (dateAvailability.status) {
-      case "booked":
-        return "bg-red-100 text-red-800"
-      case "maintenance":
-        return "bg-orange-100 text-orange-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return ""
-    }
-  }
+  // Function to get date class names based on availability (can be kept if needed for styling booked dates)
+  // const getDateClassName = (date: Date) => { ... }
 
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +137,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
         startDate: format(startDate, "yyyy-MM-dd"),
         endDate: format(endDate, "yyyy-MM-dd"),
         totalPrice,
-        depositAmount,
+        depositAmount: deposit,
         customer: {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -242,7 +220,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                 Booking Information
               </h3>
               <p className="text-xs text-muted-foreground">
-                Select your rental dates below. A {Math.round((depositAmount / totalPrice || 0.3) * 100)}% deposit is
+                Select your rental dates below. A {Math.round((deposit / totalPrice || 0.3) * 100)}% deposit is
                 required to secure your booking.
               </p>
             </div>
@@ -273,30 +251,28 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                     selected={startDate}
                     onSelect={(date) => {
                       if (!date) return
+                      // Ensure selected date is not in the past
+                      if (isBefore(date, today)) return; 
                       setStartDate(date)
-                      // If end date is before start date, reset it
                       if (endDate && isBefore(endDate, date)) {
                         setEndDate(undefined)
                       } else if (!endDate) {
-                        // Suggest an end date 3 days after start date
                         setEndDate(addDays(date, 3))
                       }
                     }}
                     initialFocus
-                    disabled={(date) => isBefore(date, today) || isAfter(date, maxDate) || !isDateAvailable(date)}
-                    modifiers={{
-                      booked: (date) => !isDateAvailable(date),
-                    }}
-                    modifiersClassNames={{
-                      booked: "text-red-500 line-through",
-                    }}
+                    // Disable only past dates and dates beyond 90 days
+                    disabled={(date) => isBefore(date, today) || isAfter(date, maxDate)} 
+                    // Modifiers for booked styling can still be used if availability data exists
+                    // modifiers={{ booked: (date) => !isDateAvailable(date) }} 
+                    // modifiersClassNames={{ booked: "text-red-500 line-through" }}
                     className="rounded-md border"
-                    components={{
-                      Day: (props) => {
-                        const dateClassName = getDateClassName(props.date)
-                        return <button {...props} className={cn(props.className, dateClassName)} />
-                      },
-                    }}
+                    // components={{
+                    //   Day: (props) => {
+                    //     const dateClassName = getDateClassName(props.date)
+                    //     return <button {...props} className={cn(props.className, dateClassName)} />
+                    //   },
+                    // }}
                     showOutsideDays={true}
                     fixedWeeks={true}
                   />
@@ -331,22 +307,20 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                     selected={endDate}
                     onSelect={setEndDate}
                     initialFocus
+                    // Disable dates before start date, or past dates, or beyond 90 days
                     disabled={(date) =>
-                      !startDate || isBefore(date, startDate) || isAfter(date, maxDate) || !isDateAvailable(date)
+                      !startDate || isBefore(date, startDate) || isBefore(date, today) || isAfter(date, maxDate) 
                     }
-                    modifiers={{
-                      booked: (date) => !isDateAvailable(date),
-                    }}
-                    modifiersClassNames={{
-                      booked: "text-red-500 line-through",
-                    }}
+                    // Modifiers for booked styling can still be used if availability data exists
+                    // modifiers={{ booked: (date) => !isDateAvailable(date) }} 
+                    // modifiersClassNames={{ booked: "text-red-500 line-through" }}
                     className="rounded-md border"
-                    components={{
-                      Day: (props) => {
-                        const dateClassName = getDateClassName(props.date)
-                        return <button {...props} className={cn(props.className, dateClassName)} />
-                      },
-                    }}
+                     // components={{
+                    //   Day: (props) => {
+                    //     const dateClassName = getDateClassName(props.date)
+                    //     return <button {...props} className={cn(props.className, dateClassName)} />
+                    //   },
+                    // }}
                     showOutsideDays={true}
                     fixedWeeks={true}
                   />
@@ -359,34 +333,24 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                 <div className="bg-muted rounded-lg p-3 space-y-2">
                   <div className="flex justify-between text-xs">
                     <span>Daily Rate:</span>
-                    <span>${pricing.basePrice.toLocaleString()}/day</span>
+                    {/* Use basePrice safely */}
+                    <span>${basePrice.toLocaleString()}/day</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span>Duration:</span>
-                    <span>
-                      {days} day{days !== 1 ? "s" : ""}
-                    </span>
+                    <span> {days} day{days !== 1 ? "s" : ""} </span>
                   </div>
-                  {pricing.additionalFees
-                    .filter((fee) => !fee.isOptional)
-                    .map((fee) => (
-                      <div key={fee.id} className="flex justify-between text-xs">
-                        <span>{fee.name}:</span>
-                        <span>${fee.amount.toLocaleString()}</span>
-                      </div>
-                    ))}
+                  {/* Removed additional fees section as it depends on data not fetched */}
                   <Separator className="my-1" />
                   <div className="flex justify-between font-bold text-sm">
-                    <span>Total:</span>
-                    <span>
-                      $
-                      {(
-                        totalPrice +
-                        pricing.additionalFees
-                          .filter((fee) => !fee.isOptional)
-                          .reduce((sum, fee) => sum + fee.amount, 0)
-                      ).toLocaleString()}
-                    </span>
+                    <span>Total Estimate:</span>
+                    {/* Use totalPrice safely */}
+                    <span> ${totalPrice.toLocaleString()} </span>
+                  </div>
+                   <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Security Deposit:</span>
+                    {/* Use deposit safely */}
+                    <span> ${deposit.toLocaleString()} </span>
                   </div>
                 </div>
               </motion.div>
@@ -555,31 +519,13 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                 <Separator />
                 <div className="flex justify-between text-xs">
                   <span>Daily Rate:</span>
-                  <span>${pricing.basePrice.toLocaleString()}/day</span>
+                  <span>${basePrice.toLocaleString()}/day</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span>Subtotal:</span>
                   <span>${totalPrice.toLocaleString()}</span>
                 </div>
-                {pricing.additionalFees.map((fee) => (
-                  <div key={fee.id} className="flex justify-between text-xs">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="flex items-center">
-                          <span>
-                            {fee.name}
-                            {fee.isOptional ? " (optional)" : ""}:
-                          </span>
-                          <Info className="h-3 w-3 ml-1 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">{fee.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <span>${fee.amount.toLocaleString()}</span>
-                  </div>
-                ))}
+                {/* Removed additional fees section as it depends on data not fetched */}
                 <div className="flex justify-between text-xs">
                   <TooltipProvider>
                     <Tooltip>
@@ -595,11 +541,11 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <span>${depositAmount.toLocaleString()}</span>
+                  <span>${deposit.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-bold pt-1 border-t text-sm">
                   <span>Due Today:</span>
-                  <span>${depositAmount.toLocaleString()}</span>
+                  <span>${deposit.toLocaleString()}</span>
                 </div>
               </div>
 
