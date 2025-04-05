@@ -19,8 +19,10 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  output: 'standalone',
   images: {
     unoptimized: true,
+    domains: ['localhost', 'placeholder.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -29,6 +31,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
       }
     ]
   },
