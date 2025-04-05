@@ -10,7 +10,6 @@ import { useHeroContent, type HeroContentData } from "@/contexts/hero-content-co
 import { useTextAnimation } from "@/hooks/use-text-animation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ParticlesBackground } from "./particles-background"
 
 interface HeroSectionProps {
   // Optional props to override context data
@@ -32,7 +31,7 @@ interface HeroSectionProps {
       damping?: number
     }
   }
-  // Particles configuration
+  // Particles configuration - keeping for backward compatibility
   particlesConfig?: {
     position?: "top" | "bottom"
     color?: string
@@ -52,7 +51,7 @@ export function HeroSection({
   secondaryButtonText: propSecondaryButtonText,
   secondaryButtonLink: propSecondaryButtonLink,
   animationConfig,
-  particlesConfig,
+  particlesConfig, // Keep for backward compatibility
 }: HeroSectionProps) {
   const [isGoldSheen, setIsGoldSheen] = useState(false)
   const [hasAutoAnimated, setHasAutoAnimated] = useState(false)
@@ -171,28 +170,19 @@ export function HeroSection({
       {/* Solid black background with subtle gradient */}
       <motion.div style={{ opacity }} className="absolute inset-0 bg-gradient-to-b from-black via-black to-[#0a0a0a]" />
 
-      {/* Gold particles animation - updated configuration */}
+      {/* Gold gradient overlay - replacing particles for better performance */}
       {isMounted && (
-        <ParticlesBackground
-          position={particlesConfig?.position || "bottom"}
-          color={particlesConfig?.color || "#D4AF37"} // Gold color
-          quantity={particlesConfig?.quantity || 60} // Increased from 40
-          speed={particlesConfig?.speed || 1.2} // Slightly increased
-          opacity={particlesConfig?.opacity || 0.4} // Increased from 0.3
-          height={particlesConfig?.height || "60%"} // Increased from 40%
-        />
-      )}
-
-      {/* Add a second particle background at the top for more visual interest */}
-      {isMounted && (
-        <ParticlesBackground
-          position="top"
-          color="#D4AF37" // Gold color
-          quantity={30} // Fewer particles at the top
-          speed={0.8}
-          opacity={0.25}
-          height="30%"
-        />
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Bottom gold gradient */}
+          <div className="absolute bottom-0 w-full h-[60%] bg-gradient-to-t from-[#D4AF37]/10 via-[#D4AF37]/05 to-transparent" />
+          
+          {/* Top subtle gold gradient */}
+          <div className="absolute top-0 w-full h-[30%] bg-gradient-to-b from-[#D4AF37]/05 via-[#D4AF37]/03 to-transparent" />
+          
+          {/* Add some radial gradient elements for depth */}
+          <div className="absolute bottom-0 left-1/4 w-1/2 h-[40%] bg-radial-gradient-gold opacity-20" />
+          <div className="absolute top-1/4 right-1/4 w-1/3 h-[30%] bg-radial-gradient-gold opacity-10" />
+        </div>
       )}
 
       <div className="container relative z-20 flex h-full flex-col items-center justify-center text-white px-4 md:px-6 text-center">

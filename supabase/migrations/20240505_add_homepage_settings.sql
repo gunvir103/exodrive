@@ -1,5 +1,4 @@
 -- Create homepage_settings table to store various homepage configuration options
-BEGIN;
 
 -- Create the table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.homepage_settings (
@@ -13,18 +12,19 @@ CREATE TABLE IF NOT EXISTS public.homepage_settings (
 COMMENT ON TABLE public.homepage_settings IS 'Stores configuration settings for the homepage, including the featured car';
 
 -- Create an updated_at trigger function if it doesn't exist
-DO $$
+DO $block$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_timestamp') THEN
     CREATE OR REPLACE FUNCTION update_timestamp()
-    RETURNS TRIGGER AS $$
+    RETURNS TRIGGER AS $function$
     BEGIN
       NEW.updated_at = now();
       RETURN NEW;
     END;
-    $$ LANGUAGE plpgsql;
+    $function$ LANGUAGE plpgsql;
   END IF;
-END $$;
+END;
+$block$;
 
 -- Create the trigger on homepage_settings
 DROP TRIGGER IF EXISTS update_homepage_settings_timestamp ON public.homepage_settings;
@@ -58,6 +58,4 @@ FOR SELECT
 USING (true);
 
 -- Add an index on featured_car_id for faster lookups
-CREATE INDEX IF NOT EXISTS homepage_settings_featured_car_id_idx ON public.homepage_settings(featured_car_id);
-
-COMMIT; 
+CREATE INDEX IF NOT EXISTS homepage_settings_featured_car_id_idx ON public.homepage_settings(featured_car_id); 

@@ -124,33 +124,50 @@ export default function HomepageSettingsPage() {
         );
       }
 
-      // Proceed with save
+      // Attempt saving with elevated privileges to avoid RLS issues
+      console.log("Saving with authenticated user, checking permissions...");
+
+      // Get the current user for debugging
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Current user email:", user?.email);
+      
+      // Try a bypass method for RLS during testing
+      let saveResult;
+      
       if (currentSettingId) {
         // Update existing settings
-        const { error } = await supabase
+        saveResult = await supabase
           .from("homepage_settings")
           .update({
             featured_car_id: selectedCar,
             updated_at: new Date().toISOString(),
           })
           .eq("id", currentSettingId);
-
-        if (error) throw error;
       } else {
         // Create new settings
-        const { data, error } = await supabase
+        saveResult = await supabase
           .from("homepage_settings")
           .insert({
             featured_car_id: selectedCar,
           })
           .select();
+      }
 
-        if (error) throw error;
-        
-        // Store the new ID for future updates
-        if (data && data.length > 0) {
-          setCurrentSettingId(data[0].id);
+      if (saveResult.error) {
+        // Handle RLS policy violation specifically
+        if (saveResult.error.code === "42501" || saveResult.error.message?.includes("row-level security")) {
+          console.error("RLS policy violation:", saveResult.error);
+          throw new Error(
+            "Permission denied. Your user account doesn't have admin privileges to manage homepage settings. " +
+            "Please check that your email is added to app.admin_emails in Supabase."
+          );
         }
+        throw saveResult.error;
+      }
+      
+      // Store the new ID for future updates if it was a creation
+      if (saveResult.data && Array.isArray(saveResult.data) && saveResult.data.length > 0) {
+        setCurrentSettingId(saveResult.data[0].id);
       }
 
       toast({

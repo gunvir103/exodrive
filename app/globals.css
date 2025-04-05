@@ -415,6 +415,10 @@
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
+
+  .bg-radial-gradient-gold {
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0) 70%);
+  }
 }
 
 @media (min-width: 768px) {
