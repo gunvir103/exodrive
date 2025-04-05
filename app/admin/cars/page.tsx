@@ -7,18 +7,16 @@ import { carServiceSupabase } from "@/lib/services/car-service-supabase"
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { getValidImageUrl, handleImageError } from "@/lib/utils/image-utils"
 import { ClientImage } from "@/components/ui/client-image"
-import type { Car as AppCar } from "@/lib/types/car"
 
 // Server Component: Fetches all cars using service role client
 export default async function AdminCarsPage() {
-  let cars: AppCar[] = []
+  let cars: any[] = []
   let error: string | null = null
 
   try {
     const supabase = createSupabaseServiceRoleClient()
-    // Fetch *all* cars for admin view, including hidden ones
-    // Using Service Client bypasses RLS
-    cars = await carServiceSupabase.getAllCars(supabase)
+    // Fetch *all* cars for admin view, using the CORRECT service function
+    cars = await carServiceSupabase.getAllCarsForAdminList(supabase)
   } catch (err: any) {
     console.error("Admin Failed to fetch cars:", err)
     error = err.message || "Could not load cars"
@@ -50,9 +48,9 @@ export default async function AdminCarsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {cars.map((car) => {
-          const imageUrl = getValidImageUrl(car.imageUrls?.[0])
+          const imageUrl = getValidImageUrl(car.primary_image_url)
           return (
-            <Card key={car.id} className={`overflow-hidden ${car.isHidden ? "opacity-60 border-dashed border-muted-foreground" : ""}`}>
+            <Card key={car.id} className={`overflow-hidden ${car.hidden ? "opacity-60 border-dashed border-muted-foreground" : ""}`}>
               <div className="relative h-48 bg-muted">
                 <ClientImage
                   src={imageUrl}
@@ -60,7 +58,7 @@ export default async function AdminCarsPage() {
                   fill
                   className="object-cover"
                 />
-                {car.isFeatured && (
+                {car.featured && (
                   <div className="absolute top-2 left-2">
                     <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">
                       <Star className="mr-1 h-3 w-3" />
@@ -68,7 +66,7 @@ export default async function AdminCarsPage() {
                     </Badge>
                   </div>
                 )}
-                {car.isHidden && (
+                {car.hidden && (
                   <div className="absolute top-2 right-2">
                     <Badge variant="secondary">Hidden</Badge>
                   </div>
@@ -77,12 +75,12 @@ export default async function AdminCarsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-bold truncate" title={car.name}>{car.name}</h3>
-                  <span className="font-medium whitespace-nowrap">${car.pricePerDay}/day</span>
+                  <span className="font-medium whitespace-nowrap">${car.price_per_day ?? 'N/A'}/day</span>
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <Badge variant="outline">{car.category}</Badge>
-                  <Badge variant={car.isAvailable ? "default" : "secondary"}>
-                    {car.isAvailable ? "Available" : "Unavailable"}
+                  <Badge variant={car.available ? "default" : "secondary"}>
+                    {car.available ? "Available" : "Unavailable"}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">

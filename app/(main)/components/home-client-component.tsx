@@ -40,20 +40,23 @@ function CountUp({ end, duration = 2000 }: { end: number; duration?: number }) {
 
 // Client Component Part
 interface HomeClientComponentProps {
-  initialCars: AppCar[];
+  // Use any[] because getVisibleCarsForFleet returns an optimized structure
+  initialCars: any[]; 
   initialError: string | null;
 }
 
 export default function HomeClientComponent({ initialCars, initialError }: HomeClientComponentProps) {
   const featuredRef = useRef(null)
   const isInView = useInView(featuredRef, { once: true, amount: 0.2 })
-  const [cars, setCars] = useState<AppCar[]>(initialCars)
+  // Use the initialCars directly, maybe rename state variable for clarity
+  const [cars, setCars] = useState<any[]>(initialCars) 
   const [error, setError] = useState<string | null>(initialError)
   
   // Find the first featured car from the fetched list
-  const featuredCar = cars.find((car) => car.isFeatured)
-  // Use a default placeholder if no featured car or image exists
-  const featuredCarImageUrl = getValidImageUrl(featuredCar?.imageUrls?.[0]) || "/placeholder.svg?text=Featured+Car";
+  // Use isFeatured and primaryImageUrl fields from the optimized data structure
+  const featuredCar = cars.find((car) => car.isFeatured) 
+  // Use the primaryImageUrl directly from the fetched data
+  const featuredCarImageUrl = getValidImageUrl(featuredCar?.primaryImageUrl) || "/placeholder.svg?text=Featured+Car";
 
   return (
     <div className="flex flex-col">
@@ -118,7 +121,7 @@ export default function HomeClientComponent({ initialCars, initialError }: HomeC
                       </Badge>
                       <h3 className="text-2xl font-bold mb-2">{featuredCar.name}</h3>
                       <p className="mb-4 text-gray-200 line-clamp-2">
-                        {featuredCar.shortDescription || featuredCar.description}
+                        {featuredCar.shortDescription || "Luxury vehicle details not available."}
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-xl font-bold">

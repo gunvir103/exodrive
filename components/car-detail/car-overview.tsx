@@ -3,15 +3,15 @@
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { Gauge, Clock, Star, ShieldCheck } from "lucide-react"
-import type { Car, CarSpecification } from "@/lib/types/car"
+import type { AppCar, CarSpecification } from "@/lib/services/car-service-supabase"
 
 interface CarOverviewProps {
-  car: Car
+  car: AppCar
 }
 
 export function CarOverview({ car }: CarOverviewProps) {
   // Get highlighted specs for the overview section
-  const highlightedSpecs = car.specifications.filter((spec) => spec.isHighlighted).slice(0, 4)
+  const highlightedSpecs = car.specifications.filter((spec) => spec.is_highlighted).slice(0, 4)
 
   // Map spec names to icons
   const getSpecIcon = (spec: CarSpecification) => {

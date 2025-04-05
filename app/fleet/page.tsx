@@ -30,7 +30,8 @@ const fallbackCars: AppCar[] = [
 
 // Default export: The Server Component that fetches data
 export default async function FleetPage() {
-  let initialCars: AppCar[] = [];
+  // Adjust type hint to any[] for optimized structure
+  let initialCars: any[] = []; 
   let initialError: string | null = null;
 
   try {
@@ -45,22 +46,27 @@ export default async function FleetPage() {
       setTimeout(() => reject(new Error("Data fetch timeout")), 5000);
     });
 
+    // Fetch using the correct service method
+    const fetchCarsPromise = carServiceSupabase.getVisibleCarsForFleet(serviceClient);
+
     initialCars = await Promise.race([
-      carServiceSupabase.getVisibleCars(serviceClient),
+      fetchCarsPromise,
       timeoutPromise
-    ]) as AppCar[];
+    ]) as any[]; // Use any[] type assertion
 
   } catch (err) {
     console.error("Error in FleetPage Server Fetch:", err);
     initialError = err instanceof Error ? err.message : "An unknown error occurred";
-    initialCars = fallbackCars;
+    // Use empty array as fallback, or update fallbackCars structure
+    initialCars = []; // fallbackCars; 
   }
 
   return (
     <ErrorBoundary>
       <Suspense fallback={<FleetLoading />}>
         <FleetClientComponent 
-          initialCars={initialCars.length > 0 ? initialCars : fallbackCars}
+          // Pass initialCars directly
+          initialCars={initialCars}
           initialError={initialError}
         />
       </Suspense>

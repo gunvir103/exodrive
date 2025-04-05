@@ -53,7 +53,7 @@ const fallbackCars: AppCar[] = [
 // Default export: The Server Component that fetches data
 export default async function HomePage() {
   // --- Restore SERVER FETCHING ---
-  let initialCars: AppCar[] = [];
+  let initialCars: any[] = []; // Use any[] as the return type of getVisibleCarsForFleet is optimized
   let initialError: string | null = null;
   try {
     console.log("Attempting to create service client..."); // Debug log
@@ -64,13 +64,15 @@ export default async function HomePage() {
     }
     
     console.log("Service client created, attempting to fetch cars..."); // Debug log
-    initialCars = await carServiceSupabase.getVisibleCars(serviceClient);
+    // Use the correct, refactored service method for optimized fleet data
+    initialCars = await carServiceSupabase.getVisibleCarsForFleet(serviceClient); 
     console.log(`Fetched ${initialCars.length} cars successfully.`); // Debug log
   } catch (err) { // Catch any error type
     console.error("***** ERROR in HomePage Server Fetch *****:", err); // Log the raw error
     initialError = (err instanceof Error) ? err.message : "An unknown error occurred during server fetch";
-    // Use fallback data
-    initialCars = fallbackCars;
+    // Use fallback data - Adjust fallback if needed for the new structure
+    // initialCars = fallbackCars; // Commenting out fallback for now, needs update
+    initialCars = []; // Default to empty array on error
   }
   // --- END Restore SERVER FETCHING ---
 
@@ -79,7 +81,7 @@ export default async function HomePage() {
     <ErrorBoundary>
       <Suspense fallback={<div className="h-screen w-full bg-black flex items-center justify-center text-white">Loading...</div>}>
         <HomeClientComponent 
-          initialCars={initialCars.length > 0 ? initialCars : fallbackCars} 
+          initialCars={initialCars} 
           initialError={initialError} 
         />
       </Suspense>
