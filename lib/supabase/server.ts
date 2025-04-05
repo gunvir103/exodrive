@@ -34,8 +34,13 @@ export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) 
 // Server client specifically for using the Service Role Key
 // ** Using base createClient from @supabase/supabase-js **
 export function createSupabaseServiceRoleClient() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL; // Revert back to using the public URL
+    console.log("--- DEBUG: Inside createSupabaseServiceRoleClient ---");
+    const supabaseUrl = process.env.SUPABASE_URL; // Correct: Use non-public URL for server-side
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // ADDED DEBUG LOGS to see the actual values:
+    console.log(`--- DEBUG: process.env.SUPABASE_URL = ${supabaseUrl}`); 
+    console.log(`--- DEBUG: process.env.SUPABASE_SERVICE_ROLE_KEY exists = ${!!supabaseServiceKey}`); // Log if key exists, not the key itself for security
 
     // Remove or comment out the temporary debug logs
     // console.log(`--- DEBUG: Using URL for Service Client: ${supabaseUrl} ---`);
