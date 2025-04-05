@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Save } from "lucide-react"
+import { ArrowLeft, Save, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import Image from "next/image"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface Car {
   id: string
@@ -26,6 +27,7 @@ export default function HomepageSettingsPage() {
   const [currentSettingId, setCurrentSettingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
@@ -34,6 +36,7 @@ export default function HomepageSettingsPage() {
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
+      setError(null)
       try {
         // Fetch all cars
         const { data: carsData, error: carsError } = await supabase
@@ -61,19 +64,30 @@ export default function HomepageSettingsPage() {
           .select("*")
           .single();
 
+        if (settingError && settingError.code !== 'PGRST116') { // PGRST116 is "no rows returned" - this is expected for first run
+          console.error("Error fetching settings:", settingError);
+          throw settingError;
+        }
+
         if (settingData) {
           setSelectedCar(settingData.featured_car_id || "");
           setCurrentSettingId(settingData.id);
-        } else if (!settingError) {
+        } else {
           // If no settings exist, we'll create them on save
           setCurrentSettingId(null);
+          
+          // If there are cars, select the first one by default
+          if (processedCars.length > 0) {
+            setSelectedCar(processedCars[0].id);
+          }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching data:", error);
+        setError(error.message || "Failed to load data");
         toast({
           variant: "destructive",
           title: "Error loading data",
-          description: "Could not load cars or homepage settings.",
+          description: error.message || "Could not load cars or homepage settings.",
         });
       } finally {
         setIsLoading(false);
@@ -85,8 +99,32 @@ export default function HomepageSettingsPage() {
 
   // Handle saving the settings
   const handleSave = async () => {
+    if (!selectedCar) {
+      toast({
+        variant: "destructive",
+        title: "No car selected",
+        description: "Please select a car to feature on the homepage",
+      });
+      return;
+    }
+
     setIsSaving(true);
+    setError(null);
+
     try {
+      // First check if the homepage_settings table exists by trying a simple query
+      const { data: tableCheck, error: tableError } = await supabase
+        .from("homepage_settings")
+        .select("count(*)", { count: "exact", head: true });
+      
+      // If the table doesn't exist, show a helpful error message
+      if (tableError && tableError.code === "PGRST301") {
+        throw new Error(
+          "The homepage_settings table doesn't exist. Please run the database migration first: npx supabase db push"
+        );
+      }
+
+      // Proceed with save
       if (currentSettingId) {
         // Update existing settings
         const { error } = await supabase
@@ -100,13 +138,19 @@ export default function HomepageSettingsPage() {
         if (error) throw error;
       } else {
         // Create new settings
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("homepage_settings")
           .insert({
             featured_car_id: selectedCar,
-          });
+          })
+          .select();
 
         if (error) throw error;
+        
+        // Store the new ID for future updates
+        if (data && data.length > 0) {
+          setCurrentSettingId(data[0].id);
+        }
       }
 
       toast({
@@ -116,12 +160,13 @@ export default function HomepageSettingsPage() {
 
       // Refresh server components
       router.refresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving settings:", error);
+      setError(error.message || "Failed to save settings");
       toast({
         variant: "destructive",
         title: "Error saving settings",
-        description: "Could not save homepage settings.",
+        description: error.message || "Could not save homepage settings.",
       });
     } finally {
       setIsSaving(false);
@@ -141,6 +186,13 @@ export default function HomepageSettingsPage() {
         <h1 className="text-2xl font-bold">Homepage Settings</h1>
       </div>
 
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Featured Car Section</CardTitle>
@@ -154,21 +206,28 @@ export default function HomepageSettingsPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="grid gap-3">
-                <Label htmlFor="featuredCar">Featured Car</Label>
-                <Select value={selectedCar} onValueChange={setSelectedCar}>
-                  <SelectTrigger id="featuredCar">
-                    <SelectValue placeholder="Select a car to feature" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cars.map((car) => (
-                      <SelectItem key={car.id} value={car.id}>
-                        {car.name} ({car.category})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {cars.length === 0 ? (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>No available cars found. Please add cars first.</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid gap-3">
+                  <Label htmlFor="featuredCar">Featured Car</Label>
+                  <Select value={selectedCar} onValueChange={setSelectedCar}>
+                    <SelectTrigger id="featuredCar">
+                      <SelectValue placeholder="Select a car to feature" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cars.map((car) => (
+                        <SelectItem key={car.id} value={car.id}>
+                          {car.name} ({car.category})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {selectedCarDetails && (
                 <div className="mt-6">
@@ -193,8 +252,11 @@ export default function HomepageSettingsPage() {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button onClick={handleSave} disabled={isLoading || isSaving}>
+        <CardFooter className="flex justify-between">
+          <div className="text-xs text-muted-foreground">
+            {currentSettingId ? "Settings exist and will be updated" : "New settings will be created"}
+          </div>
+          <Button onClick={handleSave} disabled={isLoading || isSaving || !selectedCar}>
             {isSaving ? "Saving..." : "Save Settings"}
             {!isSaving && <Save className="ml-2 h-4 w-4" />}
           </Button>

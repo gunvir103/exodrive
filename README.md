@@ -11,6 +11,7 @@ This is the codebase for exoDrive, a luxury and exotic car rental service operat
 - [Project Structure](#project-structure)
 - [Backend Integration](#backend-integration)
 - [Deployment](#deployment)
+- [Homepage Settings](#homepage-settings)
 
 ## Overview
 
@@ -123,6 +124,37 @@ The admin dashboard provides authenticated users (whose emails are listed in the
     - **Add/Edit:** The `CarForm` allows managing all car details: basic info, pricing, descriptions, visibility (Available, Featured, Hidden), image uploads (drag-and-drop reordering, primary image selection), features (key-value), and specifications (key-value, including common fields like Make, Model, Year, Engine, etc.).
     - **Delete:** (Button currently disabled in UI) Deleting a car removes its record and all associated data (pricing, images, features, specs) from the database and deletes its images from storage.
 - **Important Setup:** For CRUD operations to function, the Admin RLS Policies and the `app.admin_emails` setting **must** be correctly configured in your Supabase project as detailed in `SUPABASE_SETUP.md` and previous setup instructions.
+
+## Homepage Settings
+
+### Set Up the Featured Car
+
+The homepage features a car section that can be dynamically configured through the admin panel. To set this up:
+
+1. **Run Database Migrations**
+   
+   Before using the homepage settings feature, you need to run the database migrations to create the required tables:
+   ```bash
+   npm run db:migrate
+   ```
+
+2. **Configure Featured Car**
+   
+   After running the migration, go to the admin dashboard and:
+   
+   - Navigate to "Homepage Settings" in the sidebar
+   - Select a car from the dropdown to feature on the homepage
+   - Click "Save Settings"
+   
+   The selected car will now appear in the featured section on the homepage.
+
+3. **Troubleshooting**
+   
+   If you encounter issues:
+   
+   - Make sure your Supabase project is properly set up
+   - Ensure you have admin rights to modify the settings
+   - Check that you have at least one car in your database
 
 ## Deployment
 

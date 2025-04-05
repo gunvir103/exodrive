@@ -69,25 +69,43 @@ export default async function HomePage() {
     console.log(`Fetched ${initialCars.length} cars successfully.`); // Debug log
     
     // Check if there's a featured car in homepage settings
-    const { data: homepageSettings } = await serviceClient
-      .from('homepage_settings')
-      .select('*')
-      .maybeSingle();
-    
-    if (homepageSettings?.featured_car_id) {
-      // Find the corresponding car in the already fetched cars
-      const featuredCarIndex = initialCars.findIndex(car => car.id === homepageSettings.featured_car_id);
+    try {
+      const { data: homepageSettings, error } = await serviceClient
+        .from('homepage_settings')
+        .select('*')
+        .maybeSingle();
       
-      if (featuredCarIndex >= 0) {
-        // Mark the car as featured for the UI
-        initialCars[featuredCarIndex].isFeatured = true;
+      // If table doesn't exist yet, just continue without error
+      if (error && error.code === 'PGRST301') {
+        console.warn('Homepage settings table not found. Run migrations first.');
+      } else if (error) {
+        console.error('Error fetching homepage settings:', error);
+      } else if (homepageSettings?.featured_car_id) {
+        // Find the corresponding car in the already fetched cars
+        const featuredCarIndex = initialCars.findIndex(car => car.id === homepageSettings.featured_car_id);
         
-        // Remove featured flag from any other cars
-        initialCars.forEach((car, index) => {
-          if (index !== featuredCarIndex) {
-            car.isFeatured = false;
-          }
-        });
+        if (featuredCarIndex >= 0) {
+          // Mark the car as featured for the UI
+          initialCars[featuredCarIndex].isFeatured = true;
+          
+          // Remove featured flag from any other cars
+          initialCars.forEach((car, index) => {
+            if (index !== featuredCarIndex) {
+              car.isFeatured = false;
+            }
+          });
+        }
+      } else {
+        // If no specific car is marked as featured, show first car as featured
+        if (initialCars.length > 0) {
+          initialCars[0].isFeatured = true;
+        }
+      }
+    } catch (settingsErr) {
+      console.error("Error handling homepage settings:", settingsErr);
+      // If we can't access settings, default to showing first car as featured
+      if (initialCars.length > 0) {
+        initialCars[0].isFeatured = true;
       }
     }
     
