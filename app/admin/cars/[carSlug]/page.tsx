@@ -5,7 +5,9 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server"
 
 // Access params directly first, then get the slug
 export default async function EditCarPage({ params }: { params: { carSlug: string } }) {
-  const carSlug = params.carSlug; // Access slug *after* function signature
+  // Ensure params object is resolved before accessing
+  const resolvedParams = await params; 
+  const carSlug = resolvedParams.carSlug;
   
   if (!carSlug) {
     console.error("carSlug param is missing.");

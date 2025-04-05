@@ -282,8 +282,6 @@ export const carServiceSupabase = {
                     id,
                     slug,
                     name,
-                    make,
-                    model,
                     category,
                     short_description,
                     featured,
@@ -295,24 +293,28 @@ export const carServiceSupabase = {
                 .order("featured", { ascending: false }) // Order by featured first
                 .order("created_at", { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                // Throw the specific Supabase error for better debugging upstream
+                console.error("Error in getVisibleCarsForFleet Query:", error);
+                throw error; 
+            }
 
             // Process data (similar to admin list)
             return data.map((car: any) => {
                  const primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
-                 const price = car.pricing?.[0]?.base_price ?? car.pricing?.base_price;
+                  const price = car.pricing?.[0]?.base_price ?? car.pricing?.base_price;
 
-                 return {
-                    id: car.id,
-                    slug: car.slug,
-                    name: car.name,
-                    make: car.make,
-                    model: car.model,
-                    category: car.category,
-                    shortDescription: car.short_description,
-                    isFeatured: car.featured, // Rename for consistency
-                    primaryImageUrl: primaryImage?.url,
-                    pricePerDay: price // Rename for consistency
+                  return {
+                     id: car.id,
+                     slug: car.slug,
+                     name: car.name,
+                     // make: car.make, // Removed - Not fetched
+                     // model: car.model, // Removed - Not fetched
+                     category: car.category,
+                     shortDescription: car.short_description,
+                     isFeatured: car.featured, // Rename for consistency
+                     primaryImageUrl: primaryImage?.url,
+                     pricePerDay: price // Rename for consistency
                  };
              });
 
@@ -693,7 +695,10 @@ export const carServiceSupabase = {
                  .eq("id", carId)
                  .maybeSingle();
 
-             if (carError) throw carError;
+             if (carError) {
+                 console.error("Error fetching current car category for related cars:", carError);
+                 throw carError; // Re-throw specific error
+             }
              if (!currentCar?.category) return []; // No category or car not found
 
              // 2. Fetch related cars in the same category (optimized payload)
@@ -703,8 +708,6 @@ export const carServiceSupabase = {
                      id,
                      slug,
                      name,
-                     make,
-                     model,
                      category,
                      pricing:car_pricing(base_price),
                      images:car_images(url, is_primary, sort_order)
@@ -715,7 +718,10 @@ export const carServiceSupabase = {
                  .eq("hidden", false)
                  .limit(limit);
 
-             if (relatedError) throw relatedError;
+             if (relatedError) {
+                 console.error("Error fetching related car details:", relatedError);
+                 throw relatedError; // Re-throw specific error
+             } 
              if (!relatedCars) return [];
 
              // Process data (similar to list views)
@@ -726,8 +732,6 @@ export const carServiceSupabase = {
                      id: car.id,
                      slug: car.slug,
                      name: car.name,
-                     make: car.make,
-                     model: car.model,
                      category: car.category,
                      primaryImageUrl: primaryImage?.url,
                      pricePerDay: price

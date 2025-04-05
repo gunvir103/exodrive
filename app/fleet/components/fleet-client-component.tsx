@@ -11,11 +11,11 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { motion, AnimatePresence } from "framer-motion"
 import { ParticlesBackground } from "@/components/particles-background"
-import type { Car as AppCar } from "@/lib/types/car"
 
 // This interface defines the props our client component will receive
 interface FleetClientComponentProps {
-  initialCars: AppCar[];
+  // Expect the optimized list structure (use any[] for now)
+  initialCars: any[]; 
   initialError: string | null;
 }
 
@@ -25,8 +25,9 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
   const router = useRouter();
   const pathname = usePathname();
   
-  const [allCars, setAllCars] = useState<AppCar[]>(initialCars) // Initialize with fetched data
-  const [filteredCars, setFilteredCars] = useState<AppCar[]>(initialCars) // Initialize with fetched data
+  // Use any[] for state as well, matching the prop type
+  const [allCars, setAllCars] = useState<any[]>(initialCars) 
+  const [filteredCars, setFilteredCars] = useState<any[]>(initialCars) 
   const [isLoading, setIsLoading] = useState(false); // Only true for client-side actions now
   const [error, setError] = useState<string | null>(initialError); // Initialize with fetched error
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -49,9 +50,12 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
     });
   }, [selectedCategory, searchQuery, sortOption, pathname, router]);
 
-  // Filter and sort cars - This logic remains client-side
+  // Filter and sort cars - Use fields available in the optimized structure
   const filterAndSortCars = useCallback(() => {
-    if (!allCars || allCars.length === 0) return;
+    if (!allCars || allCars.length === 0) {
+        setFilteredCars([]); // Ensure filtered cars is empty if allCars is empty
+        return;
+    }
     
     let result = [...allCars];
 
@@ -59,29 +63,29 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
     if (selectedCategory) {
       result = result.filter((car) => car.category === selectedCategory);
     }
-    // Apply search filter
+    // Apply search filter (use available fields: name, shortDescription, category)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
         (car) =>
-          car.name.toLowerCase().includes(query) ||
-          (car.description || "").toLowerCase().includes(query) ||
-          car.category.toLowerCase().includes(query) ||
-          (car.make || "").toLowerCase().includes(query) ||
-          (car.model || "").toLowerCase().includes(query)
+          (car.name || "").toLowerCase().includes(query) ||
+          (car.shortDescription || "").toLowerCase().includes(query) || 
+          (car.category || "").toLowerCase().includes(query)
+          // Removed make, model, description as they aren't in the optimized list
       );
     }
-    // Apply sorting
+    // Apply sorting (use available fields: pricePerDay, name, isFeatured)
     switch (sortOption) {
-      case "price-asc": result.sort((a, b) => a.pricePerDay - b.pricePerDay); break;
-      case "price-desc": result.sort((a, b) => b.pricePerDay - a.pricePerDay); break;
-      case "name-asc": result.sort((a, b) => a.name.localeCompare(b.name)); break;
-      case "name-desc": result.sort((a, b) => b.name.localeCompare(a.name)); break;
+      case "price-asc": result.sort((a, b) => (a.pricePerDay ?? 0) - (b.pricePerDay ?? 0)); break;
+      case "price-desc": result.sort((a, b) => (b.pricePerDay ?? 0) - (a.pricePerDay ?? 0)); break;
+      case "name-asc": result.sort((a, b) => (a.name || "").localeCompare(b.name || "")); break;
+      case "name-desc": result.sort((a, b) => (b.name || "").localeCompare(a.name || "")); break;
       case "featured": default:
         result.sort((a, b) => {
+          // Use isFeatured field
           if (a.isFeatured && !b.isFeatured) return -1;
           if (!a.isFeatured && b.isFeatured) return 1;
-          return a.name.localeCompare(b.name);
+          return (a.name || "").localeCompare(b.name || "");
         });
         break;
     }
@@ -94,7 +98,8 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
   }, [filterAndSortCars]);
 
   // Get unique categories from the initially fetched cars
-  const categories = Array.from(new Set(allCars?.map((car) => car.category) || []));
+  // Ensure car and car.category exist before mapping
+  const categories = Array.from(new Set(allCars?.filter(car => car?.category).map((car) => car.category) || []));
 
   // Clear all filters
   const clearFilters = useCallback(() => {
@@ -116,27 +121,8 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
     <div className="flex flex-col">
       {/* Hero Section */}
       <section className="relative h-[40vh] md:h-[50vh] w-full overflow-hidden bg-black">
-        {/* Remove the Image component and add particle backgrounds */}
+        {/* Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#2a2a2a]" />
-
-        {/* Add particle backgrounds */}
-        <ParticlesBackground
-          position="bottom"
-          color="#D4AF37" // Gold color
-          quantity={50}
-          speed={1.2}
-          opacity={0.4}
-          height="70%"
-        />
-
-        <ParticlesBackground
-          position="top"
-          color="#D4AF37" // Gold color
-          quantity={25}
-          speed={0.8}
-          opacity={0.25}
-          height="30%"
-        />
 
         <div className="container relative z-10 flex h-full flex-col items-center justify-center text-white px-4 md:px-6 text-center">
           <div className="max-w-4xl">

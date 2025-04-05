@@ -13,21 +13,30 @@ interface CarDetailPageProps {
 }
 
 export default async function CarDetailPage({ params }: CarDetailPageProps) {
+    // Ensure params object is resolved before accessing
+    const resolvedParams = await params; 
+    const carSlug = resolvedParams.carSlug;
+    
+    if (!carSlug) {
+      console.error("carSlug param is missing.");
+      notFound();
+    }
+
     // Get Supabase service client
     const supabase = createSupabaseServiceRoleClient();
 
     try {
         // Fetch car data using the slug
-        const car = await carServiceSupabase.getCarBySlug(supabase, params.carSlug);
+        const car = await carServiceSupabase.getCarBySlug(supabase, carSlug);
 
         if (!car) {
-            console.error(`Car not found with slug: ${params.carSlug}`);
+            console.error(`Car not found with slug: ${carSlug}`);
             notFound(); // Trigger 404 if car doesn't exist
         }
 
         // Trigger 404 if the car is marked as hidden
         if (car.hidden) {
-            console.log(`Attempted to access hidden car: ${params.carSlug}`);
+            console.log(`Attempted to access hidden car: ${carSlug}`);
             notFound(); 
         }
 
@@ -40,10 +49,8 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
         return <CarDetailClient car={car} relatedCars={relatedCars} />;
 
     } catch (error) {
-        console.error("Error fetching car detail page data:", error);
-        // Handle error gracefully - maybe show a generic error page or message
-        // For now, just re-throw or call notFound()
-        notFound(); // Or throw new Error("Failed to load car details");
+        console.error("Error fetching car detail page data for slug:", carSlug, error);
+        notFound();
     }
 }
 

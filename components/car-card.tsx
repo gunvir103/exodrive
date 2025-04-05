@@ -11,10 +11,9 @@ import { Button } from "@/components/ui/button"
 import { Gauge, Clock, Star, ChevronRight, ShieldCheck, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getValidImageUrl, handleImageError, BACKUP_PLACEHOLDER_IMAGE } from "@/lib/utils/image-utils"
-import type { Car as AppCar } from "@/lib/types/car"
 
 interface CarCardProps {
-  car: AppCar
+  car: any
   index?: number
   delay?: number
   variant?: "default" | "compact" | "featured"
@@ -24,7 +23,7 @@ interface CarCardProps {
 
 export function CarCard({ car, index = 0, delay = 0, variant = "default", className, onPrefetch }: CarCardProps) {
   const isCompact = variant === "compact"
-  const isFeatured = variant === "featured"
+  const isFeatured = variant === "featured" || car?.isFeatured
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isPrecached, setIsPrecached] = useState(false)
@@ -32,25 +31,19 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
   const imgRef = useRef<HTMLImageElement>(null)
   const hasAttemptedLoad = useRef(false)
 
-  // Use memoized values to prevent unnecessary re-renders
   const price = car?.pricePerDay ?? 0
   const carName = car?.name || "Luxury Car"
   const carCategory = car?.category || "luxury"
-  const shortDescription = car?.shortDescription || (car?.description ? car.description.substring(0, 120) + "..." : "Experience luxury driving")
-  const horsepower = car?.horsepower ? `${car.horsepower} hp` : null
-  const acceleration = car?.acceleration060 ? `${car.acceleration060}s 0-60` : null
-  const transmission = car?.transmission || null
-  const topSpeed = car?.topSpeed ? `${car.topSpeed} mph` : null
-  const isAvailable = car?.isAvailable !== false // Default to true if undefined
+  const shortDescription = car?.shortDescription || "Experience luxury driving"
+  const isAvailable = car?.available !== false
 
-  // Initialize image source
   useEffect(() => {
     if (!hasAttemptedLoad.current) {
-      const url = getValidImageUrl(car?.imageUrls?.[0])
+      const url = getValidImageUrl(car?.primaryImageUrl)
       setImgSrc(url)
       hasAttemptedLoad.current = true
     }
-  }, [car])
+  }, [car?.primaryImageUrl])
 
   const carLink = car?.slug ? `/fleet/${car.slug}` : `/fleet`
 
@@ -80,7 +73,6 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
 
   const handleImgError = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     handleImageError(e)
-    // Update local state with new src after error handler runs
     setTimeout(() => {
       if (imgRef.current) {
         setImgSrc(imgRef.current.src)
@@ -105,7 +97,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
         )}
       >
         <div className={cn("relative overflow-hidden group", isCompact ? "h-44" : isFeatured ? "h-72" : "h-56")}>
-          {imgSrc && (
+          {imgSrc ? (
             <Image
               ref={imgRef}
               src={imgSrc}
@@ -120,6 +112,10 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
               quality={80}
               sizes={isFeatured ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 100vw, 33vw"}
             />
+          ) : (
+            <div className="absolute inset-0 bg-muted flex items-center justify-center text-muted-foreground">
+              <span>Image loading...</span>
+            </div>
           )}
           {!isAvailable && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -128,7 +124,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
               </Badge>
             </div>
           )}
-          {car?.isFeatured && (
+          {isFeatured && (
             <div className="absolute top-3 left-3">
               <Badge className="bg-rose-600 hover:bg-rose-700">
                 <Star className="mr-1 h-3 w-3" />
@@ -176,39 +172,6 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
             <h3 className={cn("font-bold", isCompact ? "text-lg" : "text-xl")}>{carName}</h3>
             {!isCompact && <p className="text-muted-foreground line-clamp-2 mt-1">{shortDescription}</p>}
           </div>
-
-          {!isCompact && (
-            <div className="grid grid-cols-2 gap-3 my-4">
-              {horsepower && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Gauge className="h-4 w-4 mr-1 text-rose-600" />
-                  <span>{horsepower}</span>
-                </div>
-              )}
-              {acceleration && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4 mr-1 text-rose-600" />
-                  <span>{acceleration}</span>
-                </div>
-              )}
-              {isFeatured && (
-                <>
-                  {transmission && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <ShieldCheck className="h-4 w-4 mr-1 text-rose-600" />
-                      <span>{transmission}</span>
-                    </div>
-                  )}
-                  {topSpeed && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Star className="h-4 w-4 mr-1 text-rose-600" />
-                      <span>{topSpeed}</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
 
           <div className={cn("mt-auto pt-4 flex items-center justify-between", isCompact ? "pt-2" : "")}>
             {!isFeatured && <span className={cn("font-bold", isCompact ? "text-base" : "text-lg")}>${price}/day</span>}
