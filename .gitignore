@@ -26,3 +26,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.tsCLAUDE.md
 PayPal-Integration-Plan.md
+CLAUDE.md
+PayPal-Integration-Plan.md
+next-env.d.ts
