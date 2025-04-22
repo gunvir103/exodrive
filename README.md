@@ -53,7 +53,7 @@ exoDrive is a Next.js application that provides a modern, responsive interface f
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/exodrive.git
+   git clone https://github.com/gunvir103/exodrive.git
    cd exodrive
 
 ## Project Structure
