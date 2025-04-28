@@ -2,7 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   images: {
-    domains: ['localhost', 'placeholder.com'],
+    domains: ['localhost', 'placeholder.com', 'exodrive.co'], // Added 'exodrive.co'
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,4 +13,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-
