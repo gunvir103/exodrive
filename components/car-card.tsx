@@ -149,7 +149,17 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
                 variant="secondary"
                 size="sm"
                 className="bg-white/90 hover:bg-white text-black"
-                onClick={() => router.push(carLink)}
+                onClick={() => {
+                  import("@/lib/analytics/track-events").then(({ trackCarCardClick }) => {
+                    trackCarCardClick(
+                      car.id || "",
+                      carName,
+                      index
+                    );
+                  });
+                  
+                  router.push(carLink);
+                }}
               >
                 <Eye className="mr-2 h-4 w-4" />
                 Quick View
@@ -188,7 +198,18 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
               isHovered ? "shadow-md" : "",
             )}
           >
-            <Link href={carLink} className="flex items-center justify-center">
+            <Link 
+              href={carLink} 
+              className="flex items-center justify-center"
+              onClick={() => {
+                import("@/lib/analytics/track-events").then(({ trackCarCardClick }) => {
+                  trackCarCardClick(
+                    car.id || "",
+                    carName,
+                    index
+                  );
+                });
+              }}>
               View Details
               <ChevronRight
                 className={cn(

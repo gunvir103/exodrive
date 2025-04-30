@@ -165,7 +165,19 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
                     placeholder="Search cars..."
                     className="w-full pl-8 md:w-[200px] lg:w-[300px]"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      
+                      const searchTerm = e.target.value.trim();
+                      if (searchTerm && searchTerm.length > 2) {
+                        const handler = setTimeout(() => {
+                          import("@/lib/analytics/track-events").then(({ trackFilterApplied }) => {
+                            trackFilterApplied("search", searchTerm);
+                          });
+                        }, 1000);
+                        return () => clearTimeout(handler);
+                      }
+                    }}
                   />
                   {searchQuery && (
                     <Button
@@ -181,7 +193,15 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
               </div>
 
               <div className="flex items-center gap-2">
-                <Select value={sortOption} onValueChange={setSortOption}>
+                <Select 
+                  value={sortOption} 
+                  onValueChange={(value) => {
+                    setSortOption(value);
+                    
+                    import("@/lib/analytics/track-events").then(({ trackFilterApplied }) => {
+                      trackFilterApplied("sort", value);
+                    });
+                  }}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -213,7 +233,19 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
                     placeholder="Search cars..."
                     className="w-full pl-8"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      
+                      const searchTerm = e.target.value.trim();
+                      if (searchTerm && searchTerm.length > 2) {
+                        const handler = setTimeout(() => {
+                          import("@/lib/analytics/track-events").then(({ trackFilterApplied }) => {
+                            trackFilterApplied("search", searchTerm);
+                          });
+                        }, 1000);
+                        return () => clearTimeout(handler);
+                      }
+                    }}
                   />
                   {searchQuery && (
                     <Button
@@ -235,7 +267,13 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
             >
               <Button
                 variant={selectedCategory === null ? "default" : "outline"}
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => {
+                  setSelectedCategory(null);
+                  
+                  import("@/lib/analytics/track-events").then(({ trackFilterApplied }) => {
+                    trackFilterApplied("category", "all");
+                  });
+                }}
                 className="rounded-full"
                 size="sm"
               >
@@ -245,7 +283,13 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
                 <Button
                   key={category}
                   variant={selectedCategory === category ? "default" : "outline"}
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => {
+                    setSelectedCategory(category);
+                    
+                    import("@/lib/analytics/track-events").then(({ trackFilterApplied }) => {
+                      trackFilterApplied("category", category || "unknown");
+                    });
+                  }}
                   className="rounded-full"
                   size="sm"
                 >
@@ -306,4 +350,4 @@ export default function FleetClientComponent({ initialCars, initialError }: Flee
       )}
     </div>
   );
-} 
+}        
