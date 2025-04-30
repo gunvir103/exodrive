@@ -1,4 +1,15 @@
 import { Resend } from 'resend';
+import { renderContactTemplate } from '../email-templates/contact-template';
+import { renderBookingTemplate } from '../email-templates/booking-template';
+
+type RateLimitRecord = {
+  count: number;
+  timestamp: number;
+};
+
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
+const RATE_LIMIT_MAX = 10; // Maximum 10 emails per minute
+const rateLimitStore: Record<string, RateLimitRecord> = {};
 
 export type EmailTemplateData = {
   from?: string;
@@ -30,9 +41,36 @@ export type BookingConfirmationData = {
 
 export const emailServiceResend = {
   /**
+   * Check if the request is rate limited
+   */
+  isRateLimited: (ipAddress: string): boolean => {
+    const now = Date.now();
+    const record = rateLimitStore[ipAddress];
+    
+    if (!record || now - record.timestamp > RATE_LIMIT_WINDOW) {
+      rateLimitStore[ipAddress] = { count: 1, timestamp: now };
+      return false;
+    }
+    
+    if (record.count < RATE_LIMIT_MAX) {
+      record.count += 1;
+      return false;
+    }
+    
+    return true;
+  },
+  
+  /**
    * Send an email using Resend
    */
-  sendEmail: async (emailData: EmailTemplateData): Promise<{ success: boolean; error?: string }> => {
+  sendEmail: async (emailData: EmailTemplateData, ipAddress: string = 'unknown'): Promise<{ success: boolean; error?: string }> => {
+    if (emailServiceResend.isRateLimited(ipAddress)) {
+      return {
+        success: false,
+        error: 'Rate limit exceeded. Please try again later.'
+      };
+    }
+    
     const resend = new Resend(process.env.RESEND_API_KEY);
     
     try {
@@ -82,40 +120,13 @@ export const emailServiceResend = {
    * Generate HTML content for contact form submission
    */
   generateContactEmailHtml: (data: ContactFormData): string => {
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">New Contact Form Submission</h2>
-        <p><strong>Name:</strong> ${data.name}</p>
-        <p><strong>Email:</strong> ${data.email}</p>
-        ${data.phone ? `<p><strong>Phone:</strong> ${data.phone}</p>` : ''}
-        <p><strong>Message:</strong></p>
-        <p style="background-color: #f5f5f5; padding: 15px; border-radius: 4px;">${data.message.replace(/\n/g, '<br/>')}</p>
-      </div>
-    `;
+    return renderContactTemplate(data);
   },
 
   /**
    * Generate HTML content for booking confirmation
    */
   generateBookingConfirmationHtml: (data: BookingConfirmationData): string => {
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Your ExoDrive Booking Confirmation</h2>
-        <p>Hello ${data.customerName},</p>
-        <p>Thank you for booking with ExoDrive! Your exotic car rental request has been received.</p>
-        
-        <h3 style="margin-top: 20px;">Booking Details:</h3>
-        <p><strong>Vehicle:</strong> ${data.carName}</p>
-        <p><strong>Rental Period:</strong> ${data.startDate} to ${data.endDate} (${data.days} day${data.days !== 1 ? 's' : ''})</p>
-        <p><strong>Daily Rate:</strong> $${data.basePrice.toLocaleString()}</p>
-        <p><strong>Total:</strong> $${data.totalPrice.toLocaleString()}</p>
-        <p><strong>Deposit (Due Now):</strong> $${data.deposit.toLocaleString()}</p>
-        
-        <p style="margin-top: 20px;">Our team will contact you shortly to finalize your reservation and arrange for payment.</p>
-        
-        <p style="margin-top: 30px;">Thank you for choosing ExoDrive!</p>
-        <p>- The ExoDrive Team</p>
-      </div>
-    `;
+    return renderBookingTemplate(data);
   }
 };

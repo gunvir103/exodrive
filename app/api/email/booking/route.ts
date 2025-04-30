@@ -14,13 +14,17 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    
     const emailContent = emailServiceResend.generateBookingConfirmationHtml(body)
     
     const result = await emailServiceResend.sendEmail({
       to: body.customerEmail,
       subject: "Your ExoDrive Booking Confirmation",
       content: emailContent
-    })
+    }, ipAddress.split(',')[0]) // Use first IP if multiple are provided
     
     if (!result.success) {
       return NextResponse.json(
