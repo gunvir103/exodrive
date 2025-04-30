@@ -31,6 +31,17 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
 
   // Add state for components that might need client-side fetching or interaction later
   // E.g., Reviews, Availability calendar within BookingForm
+  
+  useEffect(() => {
+    import("@/lib/analytics/track-events").then(({ trackCarView }) => {
+      trackCarView(
+        car.id,
+        car.name,
+        car.pricing?.base_price ?? 0,
+        car.category || "unknown"
+      );
+    });
+  }, [car]);
 
   const handleShare = useCallback(() => {
     const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
@@ -210,4 +221,4 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
       )}
     </div>
   );
-} 
+}  
