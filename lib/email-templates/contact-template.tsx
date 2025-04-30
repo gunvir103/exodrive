@@ -35,3 +35,16 @@ export const renderContactTemplate = (data: ContactFormData): string => {
     </div>
   `;
 };
+
+export const renderContactPlainText = (data: ContactFormData): string => {
+  return `
+NEW CONTACT FORM SUBMISSION
+
+Name: ${data.name}
+Email: ${data.email}
+${data.phone ? `Phone: ${data.phone}` : ''}
+
+Message:
+${data.message}
+  `.trim();
+};

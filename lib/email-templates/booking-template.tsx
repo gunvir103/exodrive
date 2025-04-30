@@ -44,3 +44,25 @@ export const renderBookingTemplate = (data: BookingConfirmationData): string => 
     </div>
   `;
 };
+
+export const renderBookingPlainText = (data: BookingConfirmationData): string => {
+  return `
+YOUR EXODRIVE BOOKING CONFIRMATION
+
+Hello ${data.customerName},
+
+Thank you for booking with ExoDrive! Your exotic car rental request has been received.
+
+BOOKING DETAILS:
+Vehicle: ${data.carName}
+Rental Period: ${data.startDate} to ${data.endDate} (${data.days} day${data.days !== 1 ? 's' : ''})
+Daily Rate: $${data.basePrice.toLocaleString()}
+Total: $${data.totalPrice.toLocaleString()}
+Deposit (Due Now): $${data.deposit.toLocaleString()}
+
+Our team will contact you shortly to finalize your reservation and arrange for payment.
+
+Thank you for choosing ExoDrive!
+- The ExoDrive Team
+  `.trim();
+};

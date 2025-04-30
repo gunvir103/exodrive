@@ -19,11 +19,13 @@ export async function POST(request: NextRequest) {
                       'unknown';
     
     const emailContent = emailServiceResend.generateBookingConfirmationHtml(body)
+    const plainTextContent = emailServiceResend.generateBookingConfirmationPlainText(body)
     
     const result = await emailServiceResend.sendEmail({
       to: body.customerEmail,
       subject: "Your ExoDrive Booking Confirmation",
-      content: emailContent
+      content: emailContent,
+      plainText: plainTextContent
     }, ipAddress.split(',')[0]) // Use first IP if multiple are provided
     
     if (!result.success) {
