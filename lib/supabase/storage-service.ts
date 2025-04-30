@@ -62,7 +62,7 @@ export const storageService = {
       maxSize = MAX_FILE_SIZES.IMAGE,
       metadata = {},
       upsert = false,
-      cacheControl = "3600",
+      cacheControl = "public, max-age=31536000, immutable", // 1 year (long-term caching for images)
     } = options
 
     // Validate file type
@@ -123,7 +123,7 @@ export const storageService = {
         type: isVideo ? "video" : "image",
       },
       upsert: true,
-      cacheControl: "86400", // 24 hours
+      cacheControl: "public, max-age=604800, stale-while-revalidate=86400", // 7 days with 1 day stale-while-revalidate
     })
   },
 
@@ -139,7 +139,7 @@ export const storageService = {
         carId,
         isPrimary: isPrimary.toString(),
       },
-      cacheControl: "86400", // 24 hours
+      cacheControl: "public, max-age=604800, stale-while-revalidate=86400", // 7 days with 1 day stale-while-revalidate
     })
   },
 
