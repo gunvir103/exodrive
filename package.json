@@ -15,8 +15,6 @@
     "@dnd-kit/modifiers": "latest",
     "@dnd-kit/sortable": "latest",
     "@dnd-kit/utilities": "latest",
-    "@emotion/is-prop-valid": "latest",
-    "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-aspect-ratio": "^1.1.1",
@@ -59,7 +57,6 @@
     "embla-carousel-autoplay": "latest",
     "embla-carousel-react": "latest",
     "framer-motion": "latest",
-    "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "^0.4.4",
@@ -67,7 +64,6 @@
     "react-day-picker": "8.10.1",
     "react-dom": "^18",
     "react-hook-form": "^7.54.1",
-    "react-resizable-panels": "^2.1.7",
     "react-tsparticles": "latest",
     "recharts": "2.15.0",
     "sanitize-html": "latest",
@@ -77,8 +73,7 @@
     "tsparticles": "latest",
     "tsparticles-engine": "latest",
     "uuid": "latest",
-    "vaul": "^0.9.6",
-    "zod": "^3.24.1"
+    "vaul": "^0.9.6"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
