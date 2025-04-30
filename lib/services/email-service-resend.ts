@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+nvimport { Resend } from 'resend';
 import { renderContactTemplate, renderContactPlainText } from '../email-templates/contact-template';
 import { renderBookingTemplate, renderBookingPlainText } from '../email-templates/booking-template';
 
@@ -47,20 +47,20 @@ export const emailServiceResend = {
   isRateLimited: (ipAddress: string): boolean => {
     const now = Date.now();
     const record = rateLimitStore[ipAddress];
-    
+
     if (!record || now - record.timestamp > RATE_LIMIT_WINDOW) {
       rateLimitStore[ipAddress] = { count: 1, timestamp: now };
       return false;
     }
-    
+
     if (record.count < RATE_LIMIT_MAX) {
       record.count += 1;
       return false;
     }
-    
+
     return true;
   },
-  
+
   /**
    * Send an email using Resend
    */
@@ -71,9 +71,9 @@ export const emailServiceResend = {
         error: 'Rate limit exceeded. Please try again later.'
       };
     }
-    
+
     const resend = new Resend(process.env.RESEND_API_KEY);
-    
+
     try {
       const { data, error } = await resend.emails.send({
         from: emailData.from || 'ExoDrive <BookingSolutions@exodrive.co>', // Default sender using verified domain
@@ -88,31 +88,31 @@ export const emailServiceResend = {
         console.error('Resend API error:', error);
         throw error;
       }
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error sending email:', error);
-      
+
       if (typeof error === 'object' && error !== null) {
         const resendError = error as any;
-        
+
         if (resendError.statusCode === 403 && resendError.message?.includes('Not authorized')) {
-          return { 
-            success: false, 
+          return {
+            success: false,
             error: 'Email domain not authorized. Please contact support.'
           };
         }
-        
+
         if (resendError.statusCode === 429) {
-          return { 
-            success: false, 
+          return {
+            success: false,
             error: 'Rate limit exceeded. Please try again later.'
           };
         }
       }
-      
-      return { 
-        success: false, 
+
+      return {
+        success: false,
         error: error instanceof Error ? error.message : 'An unknown error occurred while sending email'
       };
     }
