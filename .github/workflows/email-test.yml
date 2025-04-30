@@ -1,4 +1,4 @@
-name: Email Service Verification
+name: Email Service Tests
 
 on:
   push:
@@ -6,14 +6,16 @@ on:
     paths:
       - 'lib/services/email-service-resend.ts'
       - 'app/api/email/**'
+      - '__tests__/email-service.test.ts'
   pull_request:
     branches: [ main ]
     paths:
       - 'lib/services/email-service-resend.ts'
       - 'app/api/email/**'
+      - '__tests__/email-service.test.ts'
 
 jobs:
-  verify:
+  test:
     runs-on: ubuntu-latest
     
     steps:
@@ -32,10 +34,12 @@ jobs:
       run: |
         if [ -f "lib/services/email-service-resend.ts" ] && [ -f "app/api/email/contact/route.ts" ] && [ -f "app/api/email/booking/route.ts" ]; then
           echo "Email service files verified successfully"
-          exit 0
         else
           echo "Email service files missing"
           exit 1
         fi
+    
+    - name: Run email service tests
+      run: npm test -- __tests__/email-service.test.ts
       env:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
