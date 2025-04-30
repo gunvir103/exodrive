@@ -99,6 +99,11 @@ export function Navbar() {
                           isScrolled ? "text-gray-300 hover:text-white" : "text-gray-300 hover:text-white",
                           route.active && "text-white",
                         )}
+                        onClick={() => {
+                          import("@/lib/analytics/track-events").then(({ trackNavigation }) => {
+                            trackNavigation(route.label, pathname);
+                          });
+                        }}
                       >
                         {route.label}
                       </NavigationMenuLink>
@@ -154,7 +159,13 @@ export function Navbar() {
                               ? "bg-[#333333] text-white font-medium"
                               : "text-gray-300 hover:bg-[#333333] hover:text-white",
                           )}
-                          onClick={() => setIsOpen(false)}
+                          onClick={() => {
+                            setIsOpen(false);
+                            
+                            import("@/lib/analytics/track-events").then(({ trackNavigation }) => {
+                              trackNavigation(route.label, pathname);
+                            });
+                          }}
                         >
                           <span>{route.label}</span>
                           <ChevronRight className="h-4 w-4 opacity-50" />
