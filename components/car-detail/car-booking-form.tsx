@@ -16,7 +16,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { DateAvailability, CarPricing } from "@/lib/types/car"
+type DateAvailability = {
+  date: string;
+  available: boolean;
+}
+
+type CarPricing = {
+  base_price: number;
+  deposit_amount?: number;
+}
 import { useMediaQuery } from "@/hooks/use-media-query"
 
 interface BookingFormProps {
@@ -152,6 +160,34 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
+      try {
+        const emailResponse = await fetch("/api/email/booking", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customerName: `${formData.firstName} ${formData.lastName}`,
+            customerEmail: formData.email,
+            customerPhone: formData.phone,
+            carName: document.title.split('|')[0].trim() || "Exotic Car", // Extract car name from page title
+            startDate: format(startDate, "MMMM d, yyyy"),
+            endDate: format(endDate, "MMMM d, yyyy"),
+            days,
+            basePrice,
+            totalPrice,
+            deposit,
+          }),
+        });
+
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.json();
+          console.warn("Email sending warning:", errorData);
+        }
+      } catch (emailError) {
+        console.error("Email sending error:", emailError);
+      }
+
       // This would redirect to a checkout page with Stripe in a real app
       toast({
         title: "Booking initiated",
@@ -245,7 +281,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                     {startDate ? format(startDate, "EEEE, MMMM d, yyyy") : "Select pickup date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" side={isMobile ? "bottom" : "start"}>
+                <PopoverContent className="w-auto p-0" align="start" side={isMobile ? "bottom" : "left"}>
                   <Calendar
                     mode="single"
                     selected={startDate}
@@ -301,7 +337,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                     {endDate ? format(endDate, "EEEE, MMMM d, yyyy") : "Select return date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" side={isMobile ? "bottom" : "start"}>
+                <PopoverContent className="w-auto p-0" align="start" side={isMobile ? "bottom" : "left"}>
                   <Calendar
                     mode="single"
                     selected={endDate}
@@ -477,7 +513,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                   <Label htmlFor="termsAccepted" className={cn("text-xs", errors.termsAccepted && "text-red-500")}>
                     I agree to the{" "}
                     <a href="#" className="text-primary underline">
-                      Terms & Conditions
+                      Terms &amp; Conditions
                     </a>{" "}
                     and{" "}
                     <a href="#" className="text-primary underline">
