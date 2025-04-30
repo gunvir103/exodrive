@@ -21,8 +21,7 @@ const nextConfig = {
   },
   output: 'standalone',
   images: {
-    unoptimized: true,
-    domains: ['localhost', 'placeholder.com', 'www.exodrive.co', 'exodrive.co'],
+    domains: ['localhost', 'placeholder.com', 'www.exodrive.co', 'exodrive.co', 'ncdukddsefogzbqsbfsa.supabase.co'],
     remotePatterns: [
       {
         protocol: 'https',
