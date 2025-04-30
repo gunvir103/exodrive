@@ -37,7 +37,7 @@ export const emailServiceResend = {
     
     try {
       const { data, error } = await resend.emails.send({
-        from: emailData.from || 'ExoDrive <noreply@exodrive.co>', // Default sender using verified domain
+        from: emailData.from || 'ExoDrive <contact@exodrive.co>', // Default sender using verified domain
         to: [emailData.to],
         subject: emailData.subject,
         html: emailData.content,
