@@ -181,28 +181,28 @@ export default function ContactPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="first-name">First Name</Label>
-                        <Input id="first-name" required />
+                        <Input id="first-name" name="first-name" required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="last-name">Last Name</Label>
-                        <Input id="last-name" required />
+                        <Input id="last-name" name="last-name" required />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" required />
+                      <Input id="email" name="email" type="email" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" type="tel" />
+                      <Input id="phone" name="phone" type="tel" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Input id="subject" required />
+                      <Input id="subject" name="subject" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="message">Message</Label>
-                      <Textarea id="message" rows={5} required />
+                      <Textarea id="message" name="message" rows={5} required />
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>
                       {isLoading ? (
