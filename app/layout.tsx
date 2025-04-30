@@ -69,7 +69,7 @@ export default function RootLayout({
               t.src=v;s=b.getElementsByTagName(e)[0];
               s.parentNode.insertBefore(t,s)}(window, document,'script',
               'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '1234567890123456'); // Replace with your actual Pixel ID
+              fbq('init', '1155379569298882'); // Meta Pixel ID
               fbq('track', 'PageView');
             `
           }}
