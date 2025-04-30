@@ -1,4 +1,4 @@
-nvimport { Resend } from 'resend';
+import { Resend } from 'resend';
 import { renderContactTemplate, renderContactPlainText } from '../email-templates/contact-template';
 import { renderBookingTemplate, renderBookingPlainText } from '../email-templates/booking-template';
 
