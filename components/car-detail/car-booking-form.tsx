@@ -48,6 +48,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
+  const bookingStartTimeRef = useRef<number>(Date.now())
   const { toast } = useToast()
   const isMobile = useMediaQuery("(max-width: 640px)")
 
@@ -154,6 +155,16 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
         },
       }
 
+      import("@/lib/analytics/track-events").then(({ trackBookingInitiated }) => {
+        const carName = document.title.split('|')[0].trim() || "Exotic Car"; // Extract car name from page title
+        trackBookingInitiated(
+          carId,
+          carName,
+          days,
+          totalPrice
+        );
+      });
+
       // In a real app, this would be an API call to create a booking
       console.log("Booking data:", bookingData)
 
@@ -207,9 +218,34 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
     }
   }
 
-  // Reset form when component unmounts
   useEffect(() => {
+    import("@/lib/analytics/track-events").then(({ trackBookingStep }) => {
+      trackBookingStep(
+        carId,
+        step,
+        step === 1 ? "Date Selection" : "Personal Information"
+      );
+    });
+  }, [step, carId]);
+
+  // Track booking abandonment when component unmounts
+  useEffect(() => {
+    bookingStartTimeRef.current = Date.now();
+    
     return () => {
+      if ((startDate || endDate) && !isSuccess) {
+        const timeSpent = Math.floor((Date.now() - bookingStartTimeRef.current) / 1000);
+        
+        import("@/lib/analytics/track-events").then(({ trackBookingAbandoned }) => {
+          trackBookingAbandoned(
+            carId,
+            step,
+            timeSpent
+          );
+        });
+      }
+      
+      // Reset form state
       setStartDate(undefined)
       setEndDate(undefined)
       setStep(1)
@@ -290,10 +326,31 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                       // Ensure selected date is not in the past
                       if (isBefore(date, today)) return; 
                       setStartDate(date)
+                      
+                      // Handle end date logic
+                      let newEndDate = endDate;
                       if (endDate && isBefore(endDate, date)) {
                         setEndDate(undefined)
+                        newEndDate = undefined;
                       } else if (!endDate) {
-                        setEndDate(addDays(date, 3))
+                        const suggestedEndDate = addDays(date, 3);
+                        setEndDate(suggestedEndDate)
+                        newEndDate = suggestedEndDate;
+                      }
+                      
+                      if (date && newEndDate) {
+                        const rentalDays = Math.max(1, differenceInDays(newEndDate, date) + 1);
+                        const price = rentalDays * (pricing?.base_price ?? 0);
+                        
+                        import("@/lib/analytics/track-events").then(({ trackDateSelection }) => {
+                          trackDateSelection(
+                            carId,
+                            format(date, "yyyy-MM-dd"),
+                            format(newEndDate, "yyyy-MM-dd"),
+                            rentalDays,
+                            price
+                          );
+                        });
                       }
                     }}
                     initialFocus
@@ -341,7 +398,24 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                   <Calendar
                     mode="single"
                     selected={endDate}
-                    onSelect={setEndDate}
+                    onSelect={(date) => {
+                      setEndDate(date);
+                      
+                      if (startDate && date) {
+                        const rentalDays = Math.max(1, differenceInDays(date, startDate) + 1);
+                        const price = rentalDays * (pricing?.base_price ?? 0);
+                        
+                        import("@/lib/analytics/track-events").then(({ trackDateSelection }) => {
+                          trackDateSelection(
+                            carId,
+                            format(startDate, "yyyy-MM-dd"),
+                            format(date, "yyyy-MM-dd"),
+                            rentalDays,
+                            price
+                          );
+                        });
+                      }
+                    }}
                     initialFocus
                     // Disable dates before start date, or past dates, or beyond 90 days
                     disabled={(date) =>
