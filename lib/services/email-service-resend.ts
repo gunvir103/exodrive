@@ -37,18 +37,40 @@ export const emailServiceResend = {
     
     try {
       const { data, error } = await resend.emails.send({
-        from: emailData.from || 'ExoDrive <noreply@exodrive.app>', // Default sender
+        from: emailData.from || 'ExoDrive <onboarding@resend.dev>', // Default sender using Resend's domain
         to: [emailData.to],
         subject: emailData.subject,
         html: emailData.content,
-        reply_to: emailData.replyTo || 'info@exodrive.app',
+        replyTo: emailData.replyTo || 'exodrivexotics@gmail.com', // Fixed property name and email
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Resend API error:', error);
+        throw error;
+      }
       
       return { success: true };
     } catch (error) {
       console.error('Error sending email:', error);
+      
+      if (typeof error === 'object' && error !== null) {
+        const resendError = error as any;
+        
+        if (resendError.statusCode === 403 && resendError.message?.includes('Not authorized')) {
+          return { 
+            success: false, 
+            error: 'Email domain not authorized. Please contact support.'
+          };
+        }
+        
+        if (resendError.statusCode === 429) {
+          return { 
+            success: false, 
+            error: 'Rate limit exceeded. Please try again later.'
+          };
+        }
+      }
+      
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'An unknown error occurred while sending email'

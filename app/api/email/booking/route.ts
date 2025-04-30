@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
     })
     
     if (!result.success) {
-      throw new Error(result.error || "Failed to send email")
+      return NextResponse.json(
+        { error: result.error || "Failed to send email" },
+        { status: 500 }
+      )
     }
     
     return NextResponse.json({ success: true })
