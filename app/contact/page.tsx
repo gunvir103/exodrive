@@ -24,20 +24,49 @@ export default function ContactPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const form = e.target as HTMLFormElement
+      const formData = new FormData(form)
+      
+      const contactData = {
+        name: `${formData.get('first-name')} ${formData.get('last-name')}`,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        message: `Subject: ${formData.get('subject')}\n\n${formData.get('message')}`
+      }
 
-    toast({
-      title: "Message sent",
-      description: "We'll get back to you as soon as possible.",
-    })
+      const response = await fetch('/api/email/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactData),
+      })
 
-    setIsLoading(false)
-    setIsSuccess(true)
+      const data = await response.json()
 
-    // Reset form
-    const form = e.target as HTMLFormElement
-    form.reset()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message')
+      }
+
+      toast({
+        title: "Message sent",
+        description: "We'll get back to you as soon as possible.",
+      })
+
+      // Reset form
+      form.reset()
+      setIsSuccess(true)
+    } catch (error) {
+      console.error('Contact form error:', error)
+      toast({
+        title: "Message failed",
+        description: error instanceof Error ? error.message : "There was an error sending your message. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

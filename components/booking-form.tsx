@@ -52,20 +52,56 @@ export function BookingForm({ carId, price }: BookingFormProps) {
 
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Simulate API call for booking creation
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      
+      const firstName = document.getElementById('first-name') as HTMLInputElement
+      const lastName = document.getElementById('last-name') as HTMLInputElement
+      const email = document.getElementById('email') as HTMLInputElement
+      const phone = document.getElementById('phone') as HTMLInputElement
+      
+      const emailResponse = await fetch("/api/email/booking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerName: `${firstName?.value || ''} ${lastName?.value || ''}`.trim() || "ExoDrive Customer",
+          customerEmail: email?.value || "example@user.com", // This would be the actual user email in production
+          customerPhone: phone?.value,
+          carName: document.title.split('|')[0].trim() || "Exotic Car", // Extract car name from page title
+          startDate: format(startDate, "MMMM d, yyyy"),
+          endDate: format(endDate, "MMMM d, yyyy"),
+          days,
+          basePrice: price,
+          totalPrice,
+          deposit: depositAmount,
+        }),
+      });
 
-    // This would redirect to a checkout page with Stripe in a real app
-    toast({
-      title: "Booking initiated",
-      description: "You'll be redirected to complete your booking",
-    })
+      if (!emailResponse.ok) {
+        const errorData = await emailResponse.json();
+        console.warn("Email sending warning:", errorData);
+      }
 
-    setIsLoading(false)
-    setIsSuccess(true)
+      // This would redirect to a checkout page with Stripe in a real app
+      toast({
+        title: "Booking initiated",
+        description: "You'll be redirected to complete your booking",
+      })
 
-    // In a real app, we would redirect to a checkout page
-    // window.location.href = `/checkout/${bookingId}`
+      setIsSuccess(true)
+    } catch (error) {
+      console.error("Booking error:", error)
+      toast({
+        title: "Booking failed",
+        description: "There was an error processing your booking. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (isSuccess) {
@@ -264,7 +300,7 @@ export function BookingForm({ carId, price }: BookingFormProps) {
                 <Label htmlFor="terms" className="text-sm">
                   I agree to the{" "}
                   <a href="#" className="text-primary underline">
-                    Terms & Conditions
+                    Terms &amp; Conditions
                   </a>{" "}
                   and{" "}
                   <a href="#" className="text-primary underline">
