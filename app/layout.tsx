@@ -69,14 +69,14 @@ export default function RootLayout({
               t.src=v;s=b.getElementsByTagName(e)[0];
               s.parentNode.insertBefore(t,s)}(window, document,'script',
               'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '1155379569298882'); // Meta Pixel ID
+              fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID}'); // Meta Pixel ID
               fbq('track', 'PageView');
             `
           }}
         />
         <Script
           strategy="beforeInteractive"
-          src="https://www.googletagmanager.com/gtag/js?id=G-74NW507JK1"
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}`}
         />
         <Script
           id="google-analytics"
@@ -86,7 +86,7 @@ export default function RootLayout({
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-              gtag('config', 'G-74NW507JK1');
+              gtag('config', '${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}');
             `
           }}
         />
