@@ -19,11 +19,13 @@ export async function POST(request: NextRequest) {
                       'unknown';
     
     const emailContent = emailServiceResend.generateContactEmailHtml(body)
+    const plainTextContent = emailServiceResend.generateContactEmailPlainText(body)
     
     const result = await emailServiceResend.sendEmail({
       to: "exodrivexotics@gmail.com", // Business email from the contact page
       subject: "New Contact Form Submission - ExoDrive",
       content: emailContent,
+      plainText: plainTextContent,
       replyTo: body.email // Allow direct reply to customer
     }, ipAddress.split(',')[0]) // Use first IP if multiple are provided
     

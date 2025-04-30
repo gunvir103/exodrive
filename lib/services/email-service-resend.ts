@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
-import { renderContactTemplate } from '../email-templates/contact-template';
-import { renderBookingTemplate } from '../email-templates/booking-template';
+import { renderContactTemplate, renderContactPlainText } from '../email-templates/contact-template';
+import { renderBookingTemplate, renderBookingPlainText } from '../email-templates/booking-template';
 
 type RateLimitRecord = {
   count: number;
@@ -16,6 +16,7 @@ export type EmailTemplateData = {
   to: string;
   subject: string;
   content: string;
+  plainText?: string;
   replyTo?: string;
 };
 
@@ -79,6 +80,7 @@ export const emailServiceResend = {
         to: [emailData.to],
         subject: emailData.subject,
         html: emailData.content,
+        text: emailData.plainText, // Plain text version for accessibility
         replyTo: emailData.replyTo || 'exodrivexotics@gmail.com', // Fixed property name and email
       });
 
@@ -124,9 +126,23 @@ export const emailServiceResend = {
   },
 
   /**
+   * Generate plain text content for contact form submission
+   */
+  generateContactEmailPlainText: (data: ContactFormData): string => {
+    return renderContactPlainText(data);
+  },
+
+  /**
    * Generate HTML content for booking confirmation
    */
   generateBookingConfirmationHtml: (data: BookingConfirmationData): string => {
     return renderBookingTemplate(data);
+  },
+
+  /**
+   * Generate plain text content for booking confirmation
+   */
+  generateBookingConfirmationPlainText: (data: BookingConfirmationData): string => {
+    return renderBookingPlainText(data);
   }
 };
