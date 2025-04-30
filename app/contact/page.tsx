@@ -24,20 +24,49 @@ export default function ContactPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const form = e.target as HTMLFormElement
+      const formData = new FormData(form)
+      
+      const contactData = {
+        name: `${formData.get('first-name')} ${formData.get('last-name')}`,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        message: `Subject: ${formData.get('subject')}\n\n${formData.get('message')}`
+      }
 
-    toast({
-      title: "Message sent",
-      description: "We'll get back to you as soon as possible.",
-    })
+      const response = await fetch('/api/email/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactData),
+      })
 
-    setIsLoading(false)
-    setIsSuccess(true)
+      const data = await response.json()
 
-    // Reset form
-    const form = e.target as HTMLFormElement
-    form.reset()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message')
+      }
+
+      toast({
+        title: "Message sent",
+        description: "We'll get back to you as soon as possible.",
+      })
+
+      // Reset form
+      form.reset()
+      setIsSuccess(true)
+    } catch (error) {
+      console.error('Contact form error:', error)
+      toast({
+        title: "Message failed",
+        description: error instanceof Error ? error.message : "There was an error sending your message. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -152,28 +181,28 @@ export default function ContactPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="first-name">First Name</Label>
-                        <Input id="first-name" required />
+                        <Input id="first-name" name="first-name" required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="last-name">Last Name</Label>
-                        <Input id="last-name" required />
+                        <Input id="last-name" name="last-name" required />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" required />
+                      <Input id="email" name="email" type="email" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" type="tel" />
+                      <Input id="phone" name="phone" type="tel" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Input id="subject" required />
+                      <Input id="subject" name="subject" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="message">Message</Label>
-                      <Textarea id="message" rows={5} required />
+                      <Textarea id="message" name="message" rows={5} required />
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>
                       {isLoading ? (
