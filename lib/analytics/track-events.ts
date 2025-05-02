@@ -1,5 +1,7 @@
 "use client";
 
+import { track } from '@vercel/analytics';
+
 type EventProperties = Record<string, string | number | boolean | undefined>;
 
 export enum EventCategory {
@@ -84,6 +86,11 @@ export function trackEvent(
   if (typeof window !== "undefined" && typeof window.fbq === "function") {
     const fbEventName = mappedNames.fb ? `${mappedNames.fb}_${properties.car_name ? String(properties.car_name).toLowerCase().replace(/\s+/g, '_') : ''}` : dynamicEventName;
     window.fbq("trackCustom", fbEventName, eventProps);
+  }
+  
+  if (typeof window !== "undefined") {
+    const vercelEventName = mappedNames.vercel ? mappedNames.vercel : dynamicEventName;
+    track(vercelEventName, eventProps);
   }
 
   if (process.env.NODE_ENV === "development") {
