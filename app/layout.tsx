@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import Script from 'next/script';
-import { useMobileAnalytics } from '@/lib/analytics/mobile-analytics';
+import { MobileAnalyticsClient } from '@/components/analytics/mobile-analytics-client';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -41,7 +41,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  useMobileAnalytics();
   
   return (
     <html lang="en" suppressHydrationWarning>
@@ -56,6 +55,7 @@ export default function RootLayout({
             <Toaster />
           </ErrorBoundary>
         </Providers>
+        <MobileAnalyticsClient />
         <Analytics />
         <SpeedInsights />
         {/* Meta Pixel Code */}
