@@ -1,5 +1,7 @@
 "use client";
 
+import { track } from '@vercel/analytics';
+
 type EventProperties = Record<string, string | number | boolean | undefined>;
 
 export enum EventCategory {
@@ -10,17 +12,26 @@ export enum EventCategory {
   ENGAGEMENT = "engagement",
 }
 
+/**
+ * Event name mapping for different analytics platforms
+ * 
+ * Naming conventions:
+ * - Vercel: dot.notation (car.view, booking.initiated)
+ * - Google Analytics: snake_case with prefix (exodrive_car_view)
+ * - Meta Pixel: PascalCase with prefix (ExoDrive_Car_View)
+ */
 const EVENT_NAME_MAP: Record<string, { fb?: string; ga?: string; vercel?: string }> = {
   "car_view": { 
     fb: "ExoDrive_Car_View", 
     ga: "exodrive_car_view", 
-    vercel: "car.view" 
+    vercel: "car.detail.view" 
   },
   "car_card_click": { 
     fb: "ExoDrive_Car_Card_Click", 
     ga: "exodrive_car_card_click", 
     vercel: "car.card.click" 
   },
+  
   "booking_dates_selected": { 
     fb: "ExoDrive_Booking_Dates_Selected", 
     ga: "exodrive_booking_dates_selected", 
@@ -41,6 +52,7 @@ const EVENT_NAME_MAP: Record<string, { fb?: string; ga?: string; vercel?: string
     ga: "exodrive_booking_abandoned", 
     vercel: "booking.abandoned" 
   },
+  
   "navigation_click": { 
     fb: "ExoDrive_Navigation_Click", 
     ga: "exodrive_navigation_click", 
@@ -61,38 +73,40 @@ export function trackEvent(
   category: EventCategory,
   properties: EventProperties = {}
 ) {
-  let dynamicEventName = eventName;
-  
-  if (properties.car_name) {
-    const carNameSlug = String(properties.car_name).toLowerCase().replace(/\s+/g, '_');
-    dynamicEventName = `${eventName}_${carNameSlug}`;
-  }
-  
   const eventProps = {
     event_category: category,
     ...properties,
   };
 
-  const baseEventName = eventName.split('_').slice(0, 2).join('_'); // Get base event name without dynamic parts
-  const mappedNames = EVENT_NAME_MAP[baseEventName] || {};
+  const mappedNames = EVENT_NAME_MAP[eventName] || {};
   
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
-    const gaEventName = mappedNames.ga ? `${mappedNames.ga}_${properties.car_name ? String(properties.car_name).toLowerCase().replace(/\s+/g, '_') : ''}` : dynamicEventName;
+    const gaEventName = mappedNames.ga || eventName;
     window.gtag("event", gaEventName, eventProps);
   }
 
   if (typeof window !== "undefined" && typeof window.fbq === "function") {
-    const fbEventName = mappedNames.fb ? `${mappedNames.fb}_${properties.car_name ? String(properties.car_name).toLowerCase().replace(/\s+/g, '_') : ''}` : dynamicEventName;
+    const fbEventName = mappedNames.fb || eventName;
     window.fbq("trackCustom", fbEventName, eventProps);
+  }
+  
+  if (typeof window !== "undefined") {
+    const vercelEventName = mappedNames.vercel || eventName;
+    track(vercelEventName, eventProps);
   }
 
   if (process.env.NODE_ENV === "development") {
-    console.log(`[Analytics] ${dynamicEventName}`, eventProps);
+    console.log(`[Analytics] ${eventName}`, eventProps);
   }
 }
 
 /**
  * Track when a user views a car detail page
+ * 
+ * @param carId - Unique identifier for the car
+ * @param carName - Name of the car being viewed
+ * @param price - Daily rental price of the car
+ * @param category - Category of the car (luxury, sports, etc.)
  */
 export function trackCarView(
   carId: string,
@@ -113,7 +127,11 @@ export function trackCarView(
 }
 
 /**
- * Track when a user clicks on a car card
+ * Track when a user clicks on a car card in the fleet listing
+ * 
+ * @param carId - Unique identifier for the car
+ * @param carName - Name of the car being clicked
+ * @param position - Position of the car card in the grid (for analyzing which positions get more clicks)
  */
 export function trackCarCardClick(
   carId: string,
@@ -132,6 +150,12 @@ export function trackCarCardClick(
 
 /**
  * Track when a user selects dates for a booking
+ * 
+ * @param carId - Unique identifier for the car being booked
+ * @param startDate - Selected start date (format: YYYY-MM-DD)
+ * @param endDate - Selected end date (format: YYYY-MM-DD)
+ * @param days - Number of days for the rental
+ * @param totalPrice - Total price for the booking
  */
 export function trackDateSelection(
   carId: string,
@@ -153,7 +177,11 @@ export function trackDateSelection(
 }
 
 /**
- * Track when a user views a booking step
+ * Track when a user views a specific step in the booking process
+ * 
+ * @param carId - Unique identifier for the car being booked
+ * @param step - Step number in the booking flow
+ * @param stepName - Descriptive name of the booking step (e.g., "Date Selection", "Personal Information")
  */
 export function trackBookingStep(
   carId: string,
@@ -171,7 +199,12 @@ export function trackBookingStep(
 }
 
 /**
- * Track when a user initiates a booking
+ * Track when a user initiates a booking (submits booking form)
+ * 
+ * @param carId - Unique identifier for the car being booked
+ * @param carName - Name of the car being booked
+ * @param days - Number of days for the rental
+ * @param totalPrice - Total price for the booking
  */
 export function trackBookingInitiated(
   carId: string,
@@ -191,7 +224,11 @@ export function trackBookingInitiated(
 }
 
 /**
- * Track when a user abandons a booking
+ * Track when a user abandons a booking (leaves booking form without completing)
+ * 
+ * @param carId - Unique identifier for the car being booked
+ * @param step - Step number in the booking flow where abandonment occurred
+ * @param timeSpent - Time spent on the booking form in seconds
  */
 export function trackBookingAbandoned(
   carId: string,
@@ -209,7 +246,10 @@ export function trackBookingAbandoned(
 }
 
 /**
- * Track when a user clicks on a navigation item
+ * Track when a user clicks on a navigation menu item
+ * 
+ * @param navItem - Name of the navigation item clicked (e.g., "Fleet", "About", "Contact")
+ * @param currentPage - Path of the current page where the navigation occurred
  */
 export function trackNavigation(
   navItem: string,
@@ -225,7 +265,10 @@ export function trackNavigation(
 }
 
 /**
- * Track when a user applies a filter
+ * Track when a user applies a filter to the car fleet
+ * 
+ * @param filterType - Type of filter applied (e.g., "category", "search", "sort")
+ * @param filterValue - Value of the filter (e.g., "luxury", "price-asc", search term)
  */
 export function trackFilterApplied(
   filterType: string,
