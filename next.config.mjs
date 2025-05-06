@@ -1,3 +1,4 @@
+import {withSentryConfig} from '@sentry/nextjs';
 let userConfig = undefined
 try {
   // try to import ESM first
@@ -70,7 +71,7 @@ const nextConfig = {
       chunkIds: 'deterministic',
       minimize: true,
       minimizer: [
-        ...config.optimization.minimizer || [],
+        ...(config.optimization.minimizer || []),
       ]
     }
     
@@ -97,4 +98,12 @@ if (userConfig) {
   }
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  org: "exo-gu",
+  project: "exodrive",
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  // tunnelRoute: "/monitoring", // Optional: uncomment to enable tunneling
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});

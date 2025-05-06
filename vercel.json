@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": "nextjs",
-  "regions": ["sfo1"],
+  "regions": ["iad1"],
   "buildCommand": "next build",
   "installCommand": "npm install",
   "env": {

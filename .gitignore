@@ -31,3 +31,6 @@ PayPal-Integration-Plan.md
 CLAUDE.md
 PayPal-Integration-Plan.md
 next-env.d.ts
+
+# Sentry Config File
+.env.sentry-build-plugin
