@@ -34,3 +34,14 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# macOS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Generated files
+db-verification-report.json
+/reports/
