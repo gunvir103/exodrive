@@ -249,8 +249,24 @@ async function main() {
     report.safety_status = 'PASSED';
   }
 
-  // Save report to file
-  fs.writeFileSync('db-verification-report.json', JSON.stringify(report, null, 2));
+  // Save report to file - ensure it's written to the expected location
+  const reportPath = 'db-verification-report.json';
+  try {
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    console.log(`\nReport file saved to: ${reportPath}`);
+  } catch (writeError) {
+    console.error(`Error writing report file: ${writeError.message}`);
+    // Try to save to the 'reports' directory as a fallback
+    try {
+      if (!fs.existsSync('reports')) {
+        fs.mkdirSync('reports', { recursive: true });
+      }
+      fs.writeFileSync('reports/db-verification-report.json', JSON.stringify(report, null, 2));
+      console.log(`\nFallback: Report file saved to reports/db-verification-report.json`);
+    } catch (fallbackError) {
+      console.error(`Error writing fallback report file: ${fallbackError.message}`);
+    }
+  }
   
   // Print summary
   console.log('\n-------------------------------------------');

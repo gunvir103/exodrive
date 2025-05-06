@@ -40,8 +40,22 @@ jobs:
       - name: 🚦 Run database verification script
         id: verify-db
         run: |
+          # Create reports directory
+          mkdir -p reports
+          
+          # Run verification script and save output to a specific location
           bun scripts/verify-database.mjs
           EXIT_CODE=$?
+          
+          # Create a minimal report even if the script fails
+          if [ ! -f "db-verification-report.json" ]; then
+            echo "Report file not found, creating a minimal report..."
+            echo '{"timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'","status":"ERROR","summary":{"errors":["Verification script did not generate a report file"]}}' > reports/db-verification-report.json
+          else
+            # Move the report to the reports directory
+            cp db-verification-report.json reports/
+          fi
+          
           if [ $EXIT_CODE -eq 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "::notice title=Database Check Passed::All database integrity and security checks have passed ✅"
@@ -50,21 +64,30 @@ jobs:
             echo "::error title=Database Check Failed::Database verification failed with exit code $EXIT_CODE ❌"
           fi
       
+      - name: 📂 Debug directory contents
+        if: always()
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          echo "Reports directory contents:"
+          ls -la reports || echo "Reports directory not found"
+        
       - name: 📊 Parse verification report
         id: parse-report
         if: always()
         run: |
-          if [ -f db-verification-report.json ]; then
+          REPORT_PATH="reports/db-verification-report.json"
+          if [ -f "$REPORT_PATH" ]; then
             echo "VERIFICATION REPORT:"
-            cat db-verification-report.json
+            cat "$REPORT_PATH"
             
             # Extract key metrics
-            SAFETY_STATUS=$(cat db-verification-report.json | jq -r '.safety_status')
-            TOTAL_CARS=$(cat db-verification-report.json | jq -r '.summary.totalCars')
-            HIDDEN_CARS=$(cat db-verification-report.json | jq -r '.summary.hiddenCars')
-            TESTS_PASSED=$(cat db-verification-report.json | jq -r '.summary.passedTests')
-            TESTS_FAILED=$(cat db-verification-report.json | jq -r '.summary.failedTests')
-            CRITICAL_ISSUES=$(cat db-verification-report.json | jq -r '.summary.critical_issues | length')
+            SAFETY_STATUS=$(cat "$REPORT_PATH" | jq -r '.safety_status // "ERROR"')
+            TOTAL_CARS=$(cat "$REPORT_PATH" | jq -r '.summary.totalCars // 0')
+            HIDDEN_CARS=$(cat "$REPORT_PATH" | jq -r '.summary.hiddenCars // 0')
+            TESTS_PASSED=$(cat "$REPORT_PATH" | jq -r '.summary.passedTests // 0')
+            TESTS_FAILED=$(cat "$REPORT_PATH" | jq -r '.summary.failedTests // 0')
+            CRITICAL_ISSUES=$(cat "$REPORT_PATH" | jq -r '.summary.critical_issues | length // 0')
             
             # Set output variables
             echo "safety_status=$SAFETY_STATUS" >> $GITHUB_OUTPUT
@@ -95,23 +118,27 @@ jobs:
             if [ "$CRITICAL_ISSUES" -gt 0 ]; then
               echo "::error title=Critical Database Issues::$CRITICAL_ISSUES critical database issues detected! Check the report for details."
               echo "### ❌ Critical Issues" >> $GITHUB_STEP_SUMMARY
-              cat db-verification-report.json | jq -r '.summary.critical_issues[]' | while read issue; do
+              cat "$REPORT_PATH" | jq -r '.summary.critical_issues[]' | while read issue; do
                 echo "- $issue" >> $GITHUB_STEP_SUMMARY
               done
             fi
             
             # Add warnings if any
-            WARNING_COUNT=$(cat db-verification-report.json | jq -r '.summary.warnings | length')
+            WARNING_COUNT=$(cat "$REPORT_PATH" | jq -r '.summary.warnings | length // 0')
             if [ "$WARNING_COUNT" -gt 0 ]; then
               echo "::warning title=Database Warnings::$WARNING_COUNT database warnings detected."
               echo "### ⚠️ Warnings" >> $GITHUB_STEP_SUMMARY
-              cat db-verification-report.json | jq -r '.summary.warnings[]' | while read warning; do
+              cat "$REPORT_PATH" | jq -r '.summary.warnings[]' | while read warning; do
                 echo "- $warning" >> $GITHUB_STEP_SUMMARY
               done
             fi
           else
-            echo "::error title=Missing Report::Verification report file not found"
+            echo "::error title=Missing Report::Verification report file not found at $REPORT_PATH"
             echo "report_found=false" >> $GITHUB_OUTPUT
+            
+            # Create a minimal summary for the GitHub UI
+            echo "## ❌ Database Verification Failed" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** ERROR - Report file not found" >> $GITHUB_STEP_SUMMARY
           fi
         
       - name: 📦 Archive test results
@@ -119,7 +146,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: database-verification-report
-          path: db-verification-report.json
+          path: reports/
+          if-no-files-found: warn
       
       # Fail the workflow if verification failed
       - name: 🚫 Check verification status
