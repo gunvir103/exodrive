@@ -10,6 +10,7 @@
     "clean": "rm -rf .next",
     "db:migrate": "bun run scripts/run-migrations.js",
     "verify:db": "bun run scripts/run-db-verification.mjs",
+    "verify:db:force": "bun run scripts/run-db-verification.mjs --force",
     "test": "jest"
   },
   "dependencies": {
