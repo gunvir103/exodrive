@@ -2,8 +2,8 @@
 // This script verifies database cars and specifically checks for hidden cars
 // Acts as a safety and stability check for all code commits
 
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
 
 // Initialize Supabase client with service role key for admin access
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

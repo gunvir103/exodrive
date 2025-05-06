@@ -21,14 +21,16 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
       
-      - name: 🔧 Set up Node.js
-        uses: actions/setup-node@v4
+      - name: 🔧 Set up Node.js and Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '20'
-          cache: 'npm'
+          bun-version: latest
       
       - name: 📦 Install dependencies
-        run: npm ci
+        run: |
+          # Use Bun for faster package installation
+          echo "Installing dependencies with Bun"
+          bun install
       
       - name: 🛠️ Install jq
         run: |
@@ -38,7 +40,7 @@ jobs:
       - name: 🚦 Run database verification script
         id: verify-db
         run: |
-          node scripts/verify-database.js
+          bun scripts/verify-database.mjs
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT

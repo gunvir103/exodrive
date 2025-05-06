@@ -9,7 +9,7 @@
     "lint": "next lint",
     "clean": "rm -rf .next",
     "db:migrate": "bun run scripts/run-migrations.js",
-    "verify:db": "node scripts/run-db-verification.js",
+    "verify:db": "bun run scripts/run-db-verification.mjs",
     "test": "jest"
   },
   "dependencies": {
