@@ -236,10 +236,12 @@ export const carServiceSupabase = {
      * Includes minimal related data (e.g., primary image URL, price)
      */
     getAllCarsForAdminList: async (supabase: SupabaseClient): Promise<OptimizedCarListItem[]> => {
+      console.log("Call to getAllCarsForAdminList");
       try {
         const { data, error } = await supabase
             .from("cars")
             .select(` id, slug, name, category, available, featured, hidden, created_at, pricing:car_pricing(base_price), images:car_images(url, is_primary, sort_order) `)
+            // No filtering by hidden status - we want ALL cars
             .order("created_at", { ascending: false });
 
         if (error) {
@@ -247,6 +249,12 @@ export const carServiceSupabase = {
           throw error;
         }
         if (!data) return [];
+
+        // Log raw data to see if hidden cars are included
+        console.log(`getAllCarsForAdminList raw DB results: ${data.length} cars total`);
+        const hiddenCars = data.filter(car => car.hidden === true);
+        console.log(`Hidden cars in DB results: ${hiddenCars.length}`);
+        hiddenCars.forEach(car => console.log(`DB hidden car: ${car.name}, ${car.id}, hidden=${car.hidden}`));
 
         return data.map((car: any): OptimizedCarListItem => {
             let primaryImage = null;

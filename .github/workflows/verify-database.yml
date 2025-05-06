@@ -1,0 +1,117 @@
+name: Database Verification and Safety Check
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    - cron: '0 0 * * 1'  # Run weekly on Mondays at midnight
+  push:  # Run on every push/commit
+  pull_request:  # Also run on pull requests to catch issues before they're merged
+
+jobs:
+  verify-database:
+    name: Verify Database Safety
+    runs-on: ubuntu-latest
+    
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+        
+      - name: Run database verification script
+        id: verify-db
+        run: |
+          node scripts/verify-database.js
+          if [ $? -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "::notice::Database verification check PASSED ✅"
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "::error::Database verification check FAILED ❌"
+          fi
+      
+      - name: Parse verification report
+        id: parse-report
+        if: always()
+        run: |
+          if [ -f db-verification-report.json ]; then
+            echo "VERIFICATION REPORT:"
+            cat db-verification-report.json
+            
+            # Extract key metrics
+            SAFETY_STATUS=$(cat db-verification-report.json | jq -r '.safety_status')
+            TOTAL_CARS=$(cat db-verification-report.json | jq -r '.summary.totalCars')
+            HIDDEN_CARS=$(cat db-verification-report.json | jq -r '.summary.hiddenCars')
+            TESTS_PASSED=$(cat db-verification-report.json | jq -r '.summary.passedTests')
+            TESTS_FAILED=$(cat db-verification-report.json | jq -r '.summary.failedTests')
+            CRITICAL_ISSUES=$(cat db-verification-report.json | jq -r '.summary.critical_issues | length')
+            
+            # Set output variables
+            echo "safety_status=$SAFETY_STATUS" >> $GITHUB_OUTPUT
+            echo "total_cars=$TOTAL_CARS" >> $GITHUB_OUTPUT
+            echo "hidden_cars=$HIDDEN_CARS" >> $GITHUB_OUTPUT
+            echo "tests_passed=$TESTS_PASSED" >> $GITHUB_OUTPUT
+            echo "tests_failed=$TESTS_FAILED" >> $GITHUB_OUTPUT
+            echo "critical_issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
+            
+            # Create job summary
+            echo "## Database Verification Results" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** ${SAFETY_STATUS}" >> $GITHUB_STEP_SUMMARY
+            echo "**Total Cars:** ${TOTAL_CARS}" >> $GITHUB_STEP_SUMMARY
+            echo "**Hidden Cars:** ${HIDDEN_CARS}" >> $GITHUB_STEP_SUMMARY
+            echo "**Tests Passed:** ${TESTS_PASSED}" >> $GITHUB_STEP_SUMMARY
+            echo "**Tests Failed:** ${TESTS_FAILED}" >> $GITHUB_STEP_SUMMARY
+            echo "**Critical Issues:** ${CRITICAL_ISSUES}" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$CRITICAL_ISSUES" -gt 0 ]; then
+              echo "::error::$CRITICAL_ISSUES critical database issues detected! Check the report for details."
+              echo "### Critical Issues" >> $GITHUB_STEP_SUMMARY
+              cat db-verification-report.json | jq -r '.summary.critical_issues[]' | while read issue; do
+                echo "- ❌ $issue" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
+            
+            # Add warnings if any
+            WARNING_COUNT=$(cat db-verification-report.json | jq -r '.summary.warnings | length')
+            if [ "$WARNING_COUNT" -gt 0 ]; then
+              echo "::warning::$WARNING_COUNT database warnings detected."
+              echo "### Warnings" >> $GITHUB_STEP_SUMMARY
+              cat db-verification-report.json | jq -r '.summary.warnings[]' | while read warning; do
+                echo "- ⚠️ $warning" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
+          else
+            echo "::error::Verification report not found"
+            echo "report_found=false" >> $GITHUB_OUTPUT
+          fi
+        
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: database-verification-report
+          path: db-verification-report.json
+      
+      # Fail the workflow if verification failed
+      - name: Check verification status
+        if: always() && steps.parse-report.outputs.safety_status == 'FAILED'
+        run: |
+          echo "Database verification FAILED with critical issues"
+          exit 1 

@@ -11,6 +11,12 @@ export async function toggleCarVisibilityAction(formData: FormData) {
   const carId = formData.get('carId') as string
   const currentHiddenStatus = formData.get('isHidden') === 'true' // Check current status
 
+  // Add detailed logging
+  console.log('toggleCarVisibilityAction called with:')
+  console.log('- carId:', carId)
+  console.log('- currentHiddenStatus:', currentHiddenStatus)
+  console.log('- isHidden form value:', formData.get('isHidden'))
+
   if (!carId) {
     console.error('toggleCarVisibilityAction: Car ID missing')
     // Handle error appropriately, maybe redirect with error message
@@ -22,14 +28,22 @@ export async function toggleCarVisibilityAction(formData: FormData) {
 
   const supabaseAdmin = createSupabaseServiceRoleClient()
   const newHiddenStatus = !currentHiddenStatus
+  console.log('- newHiddenStatus (to be applied):', newHiddenStatus)
 
   try {
     // Use the appropriate service function based on the new status
     if (newHiddenStatus) {
+      console.log(`Archiving car ${carId} (setting hidden=true)`)
       await carServiceSupabase.archiveCar(supabaseAdmin, carId)
     } else {
+      console.log(`Unarchiving car ${carId} (setting hidden=false)`)
       await carServiceSupabase.unarchiveCar(supabaseAdmin, carId)
     }
+    
+    // Verify the change was applied
+    const updatedCar = await carServiceSupabase.getCarById(supabaseAdmin, carId)
+    console.log(`Car ${carId} after toggle: hidden=${updatedCar?.hidden}`)
+    
     // Revalidate paths to update caches
     revalidatePath('/admin/cars')
     revalidatePath('/fleet')
@@ -76,4 +90,38 @@ export async function deleteCarPermanentlyAction(formData: FormData): Promise<{ 
         console.error(`Error in deleteCarPermanentlyAction for car ${carId}:`, error);
         return { success: false, message: error.message || 'Failed to delete car.' };
     }
+}
+
+// New server action to fetch ALL cars for admin list, including hidden ones
+export async function fetchAllCarsForAdmin() {
+  console.log('fetchAllCarsForAdmin server action called');
+  try {
+    const supabaseAdmin = createSupabaseServiceRoleClient();
+    const allCars = await carServiceSupabase.getAllCarsForAdminList(supabaseAdmin);
+    
+    console.log(`fetchAllCarsForAdmin: Found ${allCars.length} total cars`);
+    const visibleCount = allCars.filter(car => !car.hidden).length;
+    const hiddenCount = allCars.filter(car => car.hidden === true).length;
+    console.log(`fetchAllCarsForAdmin: ${visibleCount} visible, ${hiddenCount} hidden`);
+    
+    // Debug log each hidden car
+    if (hiddenCount > 0) {
+      allCars
+        .filter(car => car.hidden === true)
+        .forEach(car => console.log(`Hidden car: ${car.name} (${car.id})`));
+    }
+    
+    // Return value must be serializable
+    return { 
+      cars: allCars, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('Error in fetchAllCarsForAdmin:', error);
+    // Return error in expected structure
+    return { 
+      cars: [], 
+      error: error.message || 'Failed to fetch cars' 
+    };
+  }
 }

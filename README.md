@@ -12,6 +12,7 @@ This is the codebase for exoDrive, a luxury and exotic car rental service operat
 - [Backend Integration](#backend-integration)
 - [Deployment](#deployment)
 - [Homepage Settings](#homepage-settings)
+- [Database Verification](#database-verification)
 
 ## Overview
 
@@ -159,4 +160,47 @@ The homepage features a car section that can be dynamically configured through t
 ## Deployment
 
 # ... (Deployment instructions remain the same) ...
+
+## Database Verification
+
+ExoDrive includes tools to verify the database configuration and check for archived cars:
+
+### Local Verification
+
+Run the database verification script locally:
+
+```bash
+npm run verify:db
+```
+
+This script will:
+- Connect to your Supabase database
+- Verify that all cars have required fields
+- Test Row Level Security policies for hidden cars
+- Generate a detailed report in `db-verification-report.json`
+
+### GitHub Action Verification
+
+A GitHub Action is set up to run the database verification automatically:
+- On every push/commit to ensure code stability and data safety
+- On all pull requests to catch issues before they're merged
+- Weekly on Monday at midnight
+- Manually through the GitHub Actions interface
+
+The verification serves as a critical safety check that:
+- Confirms database connectivity
+- Verifies data integrity (e.g., all required fields are present)
+- Tests that RLS policies properly protect hidden cars
+- Ensures admin routes can access all cars including hidden ones
+
+Results are stored as artifacts in the GitHub Actions workflow, with detailed summaries provided directly in the GitHub interface.
+
+### Archived Cars
+
+The database verification script specifically checks for cars with `hidden=true` to ensure:
+1. Archived cars exist in the database
+2. RLS policies correctly protect archived cars from public access
+3. Admin routes can access archived cars for editing purposes
+
+Archived cars are visible in the admin panel at `/admin/cars` but not in the public fleet at `/fleet`.
 
