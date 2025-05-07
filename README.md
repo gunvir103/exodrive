@@ -1,6 +1,6 @@
 # exoDrive - Exotic Car Rental Website
 
-This is the codebase for exoDrive, a luxury and exotic car rental service operating in the DMV area. The website showcases the fleet of exotic cars and allows customers to browse and contact the business for rentals.
+This document provides an overview of the exoDrive project, a luxury and exotic car rental service. It covers setup, project structure, key features, and backend integration.
 
 ## Table of Contents
 
@@ -8,199 +8,155 @@ This is the codebase for exoDrive, a luxury and exotic car rental service operat
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation & Setup](#installation--setup)
 - [Project Structure](#project-structure)
-- [Backend Integration](#backend-integration)
-- [Deployment](#deployment)
+- [Backend Integration (Supabase)](#backend-integration-supabase)
+- [Admin Dashboard](#admin-dashboard)
 - [Homepage Settings](#homepage-settings)
 - [Database Verification](#database-verification)
+- [Crawler Configuration](#crawler-configuration)
+- [Deployment](#deployment)
 
 ## Overview
 
-exoDrive is a Next.js application that provides a modern, responsive interface for customers to browse exotic cars available for rent. The website includes a public-facing frontend for customers and an admin dashboard for managing the car fleet and bookings.
+exoDrive is a Next.js application designed to provide a modern, responsive interface for customers to browse and inquire about renting exotic cars. It includes a public-facing website and an administrative dashboard for managing the car fleet and related settings.
 
 ## Features
 
 - **Public Website**:
-  - Homepage with featured cars and company information
-  - Fleet page with filtering and search capabilities
-  - Detailed car pages with specifications and booking options
-  - Contact page for customer inquiries
-  - Instagram integration for rental requests
+  - Engaging homepage with featured cars and company information.
+  - Comprehensive fleet page with filtering and search capabilities.
+  - Detailed car pages showcasing specifications, images, and booking options.
+  - Contact page for customer inquiries.
+  - Instagram integration for direct rental requests.
 
 - **Admin Dashboard**:
-  - Secure login system
-  - Dashboard overview with key metrics
-  - Car management (add, edit, delete)
-  - Booking management
-  - Settings and configuration
+  - Secure login system for administrators.
+  - Dashboard overview (placeholder for key metrics).
+  - Full car management capabilities (add, edit, delete, hide/unhide).
+  - Booking management (placeholder for future implementation).
+  - Configuration for homepage settings and other site parameters.
 
 ## Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
+- **Package Manager**: Bun
 - **Styling**: Tailwind CSS with custom gradient utilities
 - **UI Components**: shadcn/ui
 - **Animations**: Framer Motion
-- **Authentication**: Custom auth with localStorage (for demo purposes)
+- **Authentication**: Supabase Auth (with email/password for admins)
+- **Database**: Supabase (PostgreSQL)
+- **Storage**: Supabase Storage (for car images, hero backgrounds)
 - **Icons**: Lucide React
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18.x or later
-- npm or yarn
+- Node.js (version 18.x or later recommended, for Next.js compatibility)
+- Bun (latest version recommended)
 
-### Installation
+### Installation & Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/gunvir103/exodrive.git
-   cd exodrive
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/gunvir103/exodrive.git
+    cd exodrive
+    ```
+2.  **Install dependencies** using Bun:
+    ```bash
+    bun install
+    ```
+3.  **Set up environment variables**:
+    -   Copy the example environment file: `cp .env.example .env.local`
+    -   Populate `.env.local` with your Supabase project URL, anon key, service role key, and any other required API keys (e.g., Resend for emails).
+4.  **Run database migrations** (if setting up a new Supabase project or to ensure schema is up-to-date):
+    ```bash
+    bun run db:migrate
+    ```
+5.  **Run the development server**:
+    ```bash
+    bun dev
+    ```
+    The application should now be running on `http://localhost:3005` (or your configured port).
 
 ## Project Structure
 
+(Brief explanation of key directories)
+
 ```
-/app
-  /(main)          # Routes for the public-facing website
-    /about
-    /contact
-    /fleet
-      /[carSlug]    # Dynamic car detail page
-    page.tsx        # Homepage
-    layout.tsx      # Main layout for public site
-  /admin            # Routes for the admin dashboard
-    /cars
-      /new          # Add new car page
-      /[carSlug]    # Edit car page
-      page.tsx        # List cars page
-    /bookings       # (Placeholder/Future Implementation)
-    /settings       # (Placeholder/Future Implementation)
-    login           # Admin login page
-    page.tsx        # Admin dashboard homepage
-    layout.tsx      # Main layout for admin section
-  /api              # API routes (if any)
-  /auth             # Auth-related routes (e.g., callback)
-  layout.tsx        # Root layout
-  globals.css
-/components
-  /ui               # shadcn/ui components
-  /auth-provider.tsx # Context for managing auth state
-  /car-card.tsx      # Component for displaying car previews
-  /car-detail       # Components specific to the car detail page
-  /car-form.tsx      # The main form for adding/editing cars
-  # ... other shared components (Navbar, Footer, etc.)
-/lib
-  /supabase         # Supabase client/server helpers
-  /services         # Data fetching/mutation logic (e.g., carServiceSupabase)
-  /types            # TypeScript type definitions (AppCar, database.types.ts)
-  /utils            # Utility functions
-/public             # Static assets (images, etc.)
-# ... config files (tailwind.config.js, next.config.js, etc.)
+/app              # Next.js App Router: pages, layouts, API routes
+  /(main)        # Routes for the public-facing website
+  /admin          # Routes for the admin dashboard
+  /api            # API backend routes
+/components       # Shared React components (UI, specific features)
+/lib              # Core logic, services, utilities, Supabase helpers
+/public           # Static assets (images, fonts, etc.)
+/scripts          # Utility scripts (e.g., database migrations, verification)
+/supabase         # Supabase local development configuration and migrations
+  /migrations     # SQL migration files
+# ... other configuration files (next.config.mjs, tailwind.config.ts, etc.)
 ```
 
 ## Backend Integration (Supabase)
 
-This project uses Supabase for its backend needs:
+This project heavily relies on Supabase for its backend services:
 
-- **Database:** PostgreSQL database to store car details, pricing, features, specifications, images, etc. See `SUPABASE_SETUP.md` for the detailed schema.
-- **Authentication:** Supabase Auth handles user authentication. Admin access is controlled via RLS policies checking against the `app.admin_emails` database setting.
-- **Storage:** Supabase Storage is used to store car images in the `vehicle-images` bucket.
-- **RLS:** Row Level Security policies are crucial for securing data access. Public users can only read non-hidden car data, while admins have full CRUD access (requires manual policy setup).
-- **Atomic Operations:** Database functions (RPC) like `create_car_atomic` are used to ensure data consistency during multi-table operations.
+- **Database**: PostgreSQL for storing car details, pricing, features, specifications, images, user data, and application settings.
+- **Authentication**: Supabase Auth for managing admin user authentication.
+- **Storage**: Supabase Storage for hosting car images (in the `vehicle-images` bucket) and other assets like hero backgrounds.
+- **Row Level Security (RLS)**: Implemented to secure data access. Public users have read-only access to non-hidden car data, while authenticated admins have broader CRUD permissions (requires correct RLS policy setup in Supabase).
+- **Database Functions (RPC)**: Used for atomic operations (e.g., `create_car_atomic`, `update_car_atomic`) to ensure data consistency across multiple tables.
 
-See `SUPABASE_SETUP.md` for detailed setup instructions, schema, and required RLS policies.
+For detailed schema information and RLS policy setup, refer to the SQL files in `supabase/migrations/` and your Supabase project dashboard.
 
 ## Admin Dashboard
 
-The admin dashboard provides authenticated users (whose emails are listed in the `app.admin_emails` Supabase setting) with tools to manage the car fleet.
+The admin dashboard (`/admin`) allows authorized users to manage the car fleet and site settings.
 
-- **Access:** Navigate to `/admin`. If not logged in, you'll be redirected to `/admin/login`.
-- **Login:** Use the email/password of an admin user account created in Supabase Auth.
-- **Core Routes:**
-    - `/admin`: Dashboard homepage (currently basic).
-    - `/admin/cars`: View, search, and manage all car listings (including hidden ones).
-    - `/admin/cars/new`: Add a new car listing using the `CarForm`.
-    - `/admin/cars/[carSlug]`: Edit an existing car listing using the `CarForm`.
-- **Car Management:**
-    - **Add/Edit:** The `CarForm` allows managing all car details: basic info, pricing, descriptions, visibility (Available, Featured, Hidden), image uploads (drag-and-drop reordering, primary image selection), features (key-value), and specifications (key-value, including common fields like Make, Model, Year, Engine, etc.).
-    - **Delete:** (Button currently disabled in UI) Deleting a car removes its record and all associated data (pricing, images, features, specs) from the database and deletes its images from storage.
-- **Important Setup:** For CRUD operations to function, the Admin RLS Policies and the `app.admin_emails` setting **must** be correctly configured in your Supabase project as detailed in `SUPABASE_SETUP.md` and previous setup instructions.
+- **Access Control**: Login is required. Access to administrative functions should be protected by role-based checks (ensure these are active in API routes and Supabase RLS policies).
+- **Car Management**: Add, edit, and delete car listings, including details like pricing, descriptions, visibility, image uploads (with drag-and-drop reordering and primary image selection), features, and specifications.
 
 ## Homepage Settings
 
-### Set Up the Featured Car
+Dynamic configuration of the homepage's featured car section via the admin panel (`/admin/homepage-settings`).
 
-The homepage features a car section that can be dynamically configured through the admin panel. To set this up:
-
-1. **Run Database Migrations**
-   
-   Before using the homepage settings feature, you need to run the database migrations to create the required tables:
-   ```bash
-   npm run db:migrate
-   ```
-
-2. **Configure Featured Car**
-   
-   After running the migration, go to the admin dashboard and:
-   
-   - Navigate to "Homepage Settings" in the sidebar
-   - Select a car from the dropdown to feature on the homepage
-   - Click "Save Settings"
-   
-   The selected car will now appear in the featured section on the homepage.
-
-3. **Troubleshooting**
-   
-   If you encounter issues:
-   
-   - Make sure your Supabase project is properly set up
-   - Ensure you have admin rights to modify the settings
-   - Check that you have at least one car in your database
-
-## Deployment
-
-# ... (Deployment instructions remain the same) ...
+1.  **Ensure Database Migrations are Run**: The necessary tables (`homepage_settings`, `hero_content`) are created by migrations.
+    ```bash
+    bun run db:migrate
+    ```
+2.  **Configure in Admin**: Navigate to "Homepage Settings" in the admin dashboard sidebar, select a car, and save.
 
 ## Database Verification
 
-ExoDrive includes tools to verify the database configuration and check for archived cars:
+Includes tools to verify database configuration and integrity.
 
 ### Local Verification
 
-Run the database verification script locally:
-
+Run the script locally:
 ```bash
-npm run verify:db
+bun run verify:db
 ```
-
-This script will:
-- Connect to your Supabase database
-- Verify that all cars have required fields
-- Test Row Level Security policies for hidden cars
-- Generate a detailed report in `db-verification-report.json`
+This script connects to your Supabase database, verifies car data, tests RLS policies, and generates `db-verification-report.json`.
 
 ### GitHub Action Verification
 
-A GitHub Action is set up to run the database verification automatically:
-- On every push/commit to ensure code stability and data safety
-- On all pull requests to catch issues before they're merged
-- Weekly on Monday at midnight
-- Manually through the GitHub Actions interface
+A GitHub Action (`.github/workflows/verify-database.yml`) runs these checks automatically on pushes, pull requests, weekly, and manually. This ensures data integrity and RLS policy enforcement.
 
-The verification serves as a critical safety check that:
-- Confirms database connectivity
-- Verifies data integrity (e.g., all required fields are present)
-- Tests that RLS policies properly protect hidden cars
-- Ensures admin routes can access all cars including hidden ones
+## Crawler Configuration
 
-Results are stored as artifacts in the GitHub Actions workflow, with detailed summaries provided directly in the GitHub interface.
+This project includes files to guide web crawlers:
 
-### Archived Cars
+- **`robots.txt`**: Provides rules for search engine crawlers (e.g., Googlebot). It allows general site indexing while disallowing access to `/admin/` and `/api/` paths. Remember to update the `Sitemap` directive in this file with your actual sitemap URL.
+- **`llms.txt`**: Provides directives for AI crawlers, typically used to disallow content scraping for training LLMs.
 
-The database verification script specifically checks for cars with `hidden=true` to ensure:
-1. Archived cars exist in the database
-2. RLS policies correctly protect archived cars from public access
-3. Admin routes can access archived cars for editing purposes
+## Deployment
 
-Archived cars are visible in the admin panel at `/admin/cars` but not in the public fleet at `/fleet`.
+(Placeholder: Add specific deployment instructions for your chosen platform, e.g., Vercel, Netlify, Docker.)
+
+Considerations for deployment:
+- Environment variable setup for production (Supabase keys, API keys).
+- Automated CI/CD pipeline for builds, tests, and deployments.
+- Database migration strategy for production environments.
 

@@ -35,7 +35,7 @@ migrations.forEach((migration, index) => {
 try {
   // Run the migrations using Supabase CLI
   console.log('\n🚀 Applying migrations...');
-  execSync('npx supabase db push', { stdio: 'inherit' });
+  execSync('bunx supabase db push', { stdio: 'inherit' });
   
   console.log('\n✅ Migrations applied successfully!');
   console.log('\n💡 Next steps:');
@@ -45,7 +45,7 @@ try {
 } catch (error) {
   console.error(`\n❌ Migration failed: ${error.message}`);
   console.error('\n💡 Troubleshooting:');
-  console.error('   1. Make sure Supabase CLI is installed: npm install -g supabase');
+  console.error('   1. Make sure Supabase CLI is installed: bun install -g supabase');
   console.error('   2. Check that your Supabase project is linked correctly');
   console.error('   3. Verify your database credentials in .env.local');
   process.exit(1);
