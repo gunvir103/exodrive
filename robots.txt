@@ -1,6 +1,4 @@
 User-agent: *
-Allow: /
 Disallow: /admin/
-Disallow: /api/
-
-Sitemap: https://exodrive.co/sitemap.xml 
+Allow: /
+Sitemap: https://exodrive.co/sitemap.xml

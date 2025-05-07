@@ -1,2 +1,12 @@
-User-agent: *
-Disallow: / 
+# Required
+version: 1
+site: https://exodrive.co
+contact: mailto:exodrivexotics@gmail.com
+
+# Optional sections
+allow:
+  - /
+disallow:
+  - /admin/
+credits: >
+  © 2025 exoDrive. All rights reserved.
