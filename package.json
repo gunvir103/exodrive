@@ -71,7 +71,7 @@
     "react-tsparticles": "latest",
     "recharts": "2.15.0",
     "resend": "^4.4.1",
-    "sanitize-html": "latest",
+    "sanitize-html": "2.16.0",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
