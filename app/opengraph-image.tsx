@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { getValidImageUrl } from '@/lib/utils/image-utils'
 
 export const runtime = 'edge'
 
@@ -11,6 +12,8 @@ export const size = {
 export const contentType = 'image/png'
 
 export default async function Image() {
+  const logoUrl = getValidImageUrl('/exodrive.svg', 'exoDrive Logo')
+
   return new ImageResponse(
     (
       <div
@@ -27,12 +30,13 @@ export default async function Image() {
         }}
       >
         <img
-          src="https://www.exodrive.co/exodrive_logo.ico"
+          src={logoUrl}
           alt="exoDrive Logo"
           style={{
             width: '400px',
             height: '400px',
             marginBottom: '20px',
+            objectFit: 'contain',
           }}
         />
         <div
