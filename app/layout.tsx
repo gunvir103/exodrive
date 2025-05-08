@@ -28,11 +28,22 @@ export const metadata: Metadata = {
     url: 'https://www.exodrive.co',
     siteName: 'exoDrive',
     type: 'website',
+    locale: 'en_US',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'exoDrive - Exotic Car Rentals in DMV',
+      }
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: "exoDrive | Exotic Car Rentals in DMV",
     description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
+    images: ['/opengraph-image'],
+    creator: '@exodrive',
   }
 }
 
