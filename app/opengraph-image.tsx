@@ -27,7 +27,7 @@ export default async function Image() {
         }}
       >
         <img
-          src="https://www.exodrive.co/exo drive square.svg"
+          src="https://www.exodrive.co/exodrive_logo.ico"
           alt="exoDrive Logo"
           style={{
             width: '400px',
