@@ -12,7 +12,7 @@ export const size = {
 export const contentType = 'image/png'
 
 export default async function Image() {
-  const logoUrl = getValidImageUrl('/exodrive.svg', 'exoDrive Logo')
+  const logoUrl = getValidImageUrl('/@exo_drive_og_image.png', 'exoDrive OG Image')
 
   return new ImageResponse(
     (
@@ -31,34 +31,14 @@ export default async function Image() {
       >
         <img
           src={logoUrl}
-          alt="exoDrive Logo"
+          alt="exoDrive OG Image"
           style={{
-            width: '400px',
-            height: '400px',
+            width: '1000px',
+            height: 'auto',
             marginBottom: '20px',
             objectFit: 'contain',
           }}
         />
-        <div
-          style={{
-            fontSize: 60,
-            fontWeight: 'bold',
-            color: '#000',
-            textAlign: 'center',
-          }}
-        >
-          exoDrive
-        </div>
-        <div
-          style={{
-            fontSize: 32,
-            color: '#666',
-            textAlign: 'center',
-            marginTop: '10px',
-          }}
-        >
-          Exotic Car Rentals in DMV
-        </div>
       </div>
     ),
     {
