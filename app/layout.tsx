@@ -45,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/exodrive_logo.png" type="image/png" />
+        <link rel="icon" href="/exodrive_logo.ico" />
       </head>
       <body className={inter.className}>
         <Providers>
