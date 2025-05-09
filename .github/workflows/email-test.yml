@@ -7,21 +7,26 @@ on:
       - 'lib/services/email-service-resend.ts'
       - 'app/api/email/**'
       - '__tests__/email-service.test.ts'
+      - '.github/workflows/email-test.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'lib/services/email-service-resend.ts'
       - 'app/api/email/**'
       - '__tests__/email-service.test.ts'
+      - '.github/workflows/email-test.yml'
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     
     steps:
     - uses: actions/checkout@v3
     
-    - name: 🔧 Set up Node.js and Bun
+    - name: 🔧 Set up Bun
       uses: oven-sh/setup-bun@v1
       with:
         bun-version: latest
@@ -38,7 +43,19 @@ jobs:
           exit 1
         fi
     
+    - name: Create reports directory
+      run: mkdir -p reports
+
     - name: Run email service tests
-      run: bun test -- __tests__/email-service.test.ts
+      run: bun vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml --preload __tests__/setup.ts -- __tests__/email-service.test.ts
       env:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
+    - name: Publish Test Report
+      uses: dorny/test-reporter@v2
+      if: success() || failure()
+      with:
+        name: Email Service Tests Report
+        path: reports/junit.xml
+        reporter: jest-junit
+        fail-on-error: 'true'
