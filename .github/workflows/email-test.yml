@@ -19,34 +19,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      with:
-        fetch-depth: 1  # Fetch only the latest commit to speed up checkout
     
-    - name: 🔧 Set up Bun
+    - name: Set up Bun
       uses: oven-sh/setup-bun@v1
       with:
         bun-version: latest
     
     - name: Install dependencies
-      run: bun install --frozen-lockfile
-      
-    - name: Verify workspace structure
-      run: |
-        echo "Current directory structure:"
-        ls -la
-        echo "Testing directory structure:"
-        ls -la __tests__ || echo "__tests__ directory not found"
-        echo "API directory structure:"
-        ls -la app/api/email || echo "app/api/email directory not found"
-        echo "Services directory structure:"
-        ls -la lib/services || echo "lib/services directory not found"
+      run: bun install
     
     - name: Verify email service files exist
       run: |
@@ -71,11 +55,7 @@ jobs:
     - name: Run email service tests
       run: |
         echo "Running tests with Bun version: $(bun --version)"
-        echo "Content of __tests__/setup.ts:"
-        cat __tests__/setup.ts
-        # Run vitest without the --preload flag
-        bun vitest run __tests__/email-service.test.ts
+        # Simple command - just run the specific test file
+        bun test __tests__/email-service.test.ts
       env:
-        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-        # Add Node options to increase memory limit if needed
-        NODE_OPTIONS: "--max-old-space-size=4096"
+        RESEND_API_KEY: test-api-key
