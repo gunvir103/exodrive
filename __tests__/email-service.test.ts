@@ -1,12 +1,13 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { emailServiceResend } from '../lib/services/email-service-resend';
+import { Resend } from 'resend';
 
-jest.mock('resend', () => {
+vi.mock('resend', () => {
   return {
-    Resend: jest.fn().mockImplementation(() => {
+    Resend: vi.fn().mockImplementation(() => {
       return {
         emails: {
-          send: jest.fn().mockImplementation(async ({ to }) => {
+          send: vi.fn().mockImplementation(async ({ to }: { to: string }) => {
             if (to.includes('delivered@resend.dev')) {
               return { data: { id: 'test-id' }, error: null };
             } else if (to.includes('bounced@resend.dev')) {
@@ -25,7 +26,7 @@ jest.mock('resend', () => {
 
 describe('Email Service Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     process.env.RESEND_API_KEY = 'test-api-key';
   });
@@ -68,12 +69,11 @@ describe('Email Service Tests', () => {
     });
 
     it('should handle domain authorization errors', async () => {
-      jest.spyOn(global.console, 'error').mockImplementation(() => {});
+      vi.spyOn(global.console, 'error').mockImplementation(() => {});
       
-      const mockResend = require('resend').Resend;
-      mockResend.mockImplementationOnce(() => ({
+      (Resend as any).mockImplementationOnce(() => ({
         emails: {
-          send: jest.fn().mockRejectedValue({
+          send: vi.fn().mockRejectedValue({
             statusCode: 403,
             message: 'Not authorized to send emails from domain.com',
             name: 'validation_error'
