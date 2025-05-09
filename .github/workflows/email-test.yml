@@ -47,7 +47,7 @@ jobs:
       run: mkdir -p reports
 
     - name: Run email service tests
-      run: bun vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml --preload __tests__/setup.ts -- __tests__/email-service.test.ts
+      run: bun vitest run --preload __tests__/setup.ts -- __tests__/email-service.test.ts
       env:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
 
