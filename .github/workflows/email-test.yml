@@ -52,28 +52,31 @@ jobs:
           echo "✅ All required files verified successfully"
         fi
     
-    - name: Create setup.ts file in root
+    - name: Create setup.ts file
       run: |
-        # Copy the existing setup.ts from __tests__ to root
-        if [ -f "__tests__/setup.ts" ]; then
-          echo "Copying __tests__/setup.ts to root directory"
-          cp __tests__/setup.ts ./setup.ts
-        else
-          # Create a minimal setup.ts file if the original doesn't exist
-          echo "Creating minimal setup.ts file in root directory"
-          echo '// setup.ts' > setup.ts
-          echo 'console.log("Setup file loaded");' >> setup.ts
-          echo 'process.env.RESEND_API_KEY = "test-api-key";' >> setup.ts
-        fi
+        # Create a proper setup.ts file using the actual content
+        echo '// setup.ts' > setup.ts
+        echo "import { beforeAll, afterAll } from 'vitest';" >> setup.ts
+        echo "" >> setup.ts
+        echo "// Setup logic before all tests" >> setup.ts
+        echo "beforeAll(() => {" >> setup.ts
+        echo "    console.log('Setting up test environment...');" >> setup.ts
+        echo "    process.env.RESEND_API_KEY = 'test-api-key'; // Example environment variable" >> setup.ts
+        echo "});" >> setup.ts
+        echo "" >> setup.ts
+        echo "// Cleanup logic after all tests" >> setup.ts
+        echo "afterAll(() => {" >> setup.ts
+        echo "    console.log('Cleaning up test environment...');" >> setup.ts
+        echo "});" >> setup.ts
         
-        # Show the content of the setup file
+        # Verify the setup.ts file was created
         echo "Content of setup.ts:"
         cat setup.ts
 
     - name: Run email service tests
       run: |
         echo "Running tests with Bun version: $(bun --version)"
-        # Run the test
+        # Run the test without specifying preload as it's already in bunfig.toml
         bun test __tests__/email-service.test.ts
       env:
-        RESEND_API_KEY: test-api-key
+        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
