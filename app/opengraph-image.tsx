@@ -12,31 +12,27 @@ export const size = {
 export const contentType = 'image/png'
 
 export default async function Image() {
-  const logoUrl = getValidImageUrl('/@exo_drive_og_image.png', 'exoDrive OG Image')
+  const imageUrl = getValidImageUrl('/exo_drive_og_image.png')
 
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 128,
           background: 'white',
           width: '100%',
           height: '100%',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '40px',
         }}
       >
         <img
-          src={logoUrl}
-          alt="exoDrive OG Image"
+          src={imageUrl}
+          alt="exoDrive - Exotic Car Rentals in DMV"
           style={{
-            width: '1000px',
-            height: 'auto',
-            marginBottom: '20px',
-            objectFit: 'contain',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
           }}
         />
       </div>
