@@ -61,7 +61,7 @@ jobs:
         echo "// Setup logic before all tests" >> setup.ts
         echo "beforeAll(() => {" >> setup.ts
         echo "    console.log('Setting up test environment...');" >> setup.ts
-        echo "    process.env.RESEND_API_KEY = 'test-api-key'; // Example environment variable" >> setup.ts
+        echo "    process.env.RESEND_API_KEY = 'test-api-key'; // Example environment variable for setup file" >> setup.ts
         echo "});" >> setup.ts
         echo "" >> setup.ts
         echo "// Cleanup logic after all tests" >> setup.ts
@@ -76,7 +76,9 @@ jobs:
     - name: Run email service tests
       run: |
         echo "Running tests with Bun version: $(bun --version)"
-        # Run the test without specifying preload as it's already in bunfig.toml
-        bun test __tests__/email-service.test.ts
+        echo "Listing files in root before test run:"
+        ls -la
+        echo "Running bun test (will use bunfig.toml for preload)"
+        bun test
       env:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
