@@ -32,9 +32,6 @@ CLAUDE.md
 PayPal-Integration-Plan.md
 next-env.d.ts
 
-# Sentry Config File
-.env.sentry-build-plugin
-
 # macOS files
 .DS_Store
 .DS_Store?
