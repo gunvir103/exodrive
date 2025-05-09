@@ -68,23 +68,14 @@ jobs:
           echo "✅ All required files verified successfully"
         fi
     
-    - name: Create reports directory
-      run: mkdir -p reports
-
     - name: Run email service tests
       run: |
         echo "Running tests with Bun version: $(bun --version)"
-        bun vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml --preload __tests__/setup.ts -- __tests__/email-service.test.ts
+        echo "Content of __tests__/setup.ts:"
+        cat __tests__/setup.ts
+        # Run vitest without the --preload flag
+        bun vitest run __tests__/email-service.test.ts
       env:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         # Add Node options to increase memory limit if needed
         NODE_OPTIONS: "--max-old-space-size=4096"
-
-    - name: Publish Test Report
-      uses: dorny/test-reporter@v2
-      if: success() || failure()  # Run this step even if previous step failed
-      with:
-        name: Email Service Tests Report
-        path: reports/junit.xml
-        reporter: jest-junit
-        fail-on-error: 'true'
