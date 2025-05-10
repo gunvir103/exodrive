@@ -18,17 +18,21 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "exoDrive | Exotic Car Rentals in DMV",
-  description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
+  title: {
+    template: '%s | exoDrive Exotic Car Rentals',
+    default: 'exoDrive | Exotic Car Rentals in DMV',
+  },
+  description: 'Premium exotic and luxury car rentals in the DC, Maryland, and Virginia area. Experience the thrill of driving the world\'s finest automobiles.',
   generator: 'v0.dev',
   metadataBase: new URL('https://www.exodrive.co'),
+  keywords: ['exotic car rental', 'luxury car rental', 'DMV', 'DC', 'Maryland', 'Virginia', 'supercar', 'sports car', 'ferrari rental', 'lamborghini rental'],
   openGraph: {
-    title: "exoDrive | Exotic Car Rentals in DMV",
-    description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
-    url: 'https://www.exodrive.co',
-    siteName: 'exoDrive',
     type: 'website',
     locale: 'en_US',
+    url: 'https://www.exodrive.co',
+    siteName: 'exoDrive Exotic Car Rentals',
+    title: 'exoDrive | Exotic Car Rentals in DMV',
+    description: 'Premium exotic and luxury car rentals in the DC, Maryland, and Virginia area. Experience the thrill of driving the world\'s finest automobiles.',
     images: [
       {
         url: '/opengraph-image',
@@ -40,11 +44,21 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "exoDrive | Exotic Car Rentals in DMV",
-    description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
+    title: 'exoDrive | Exotic Car Rentals in DMV',
+    description: 'Premium exotic and luxury car rentals in the DC, Maryland, and Virginia area.',
     images: ['/opengraph-image'],
     creator: '@exodrive',
-  }
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 }
 
 export default function RootLayout({

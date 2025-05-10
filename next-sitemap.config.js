@@ -1,6 +1,6 @@
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {
   siteUrl: 'https://exodrive.co',
-  generateRobotsTxt: true,       // also creates robots.txt
+  generateRobotsTxt: false, // We'll use App Router's robots.ts instead
   exclude: ['/admin/**'],
-}; 
+};  
