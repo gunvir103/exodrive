@@ -3,6 +3,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server" // Use s
 import { carServiceSupabase } from "@/lib/services/car-service-supabase"
 import { CarDetailClient } from "@/components/car-detail/car-detail-client"
 import { Metadata, ResolvingMetadata } from 'next'
+import { generateCarJsonLd } from '@/lib/structured-data'
 
 // This is now a Server Component - remove "use client"
 
@@ -110,8 +111,20 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
             ? await carServiceSupabase.getRelatedCars(supabase, car.id, 3)
             : [];
 
+        const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
+        const canonicalUrl = `${baseUrl}/fleet/${carSlug}`;
+        const jsonLd = generateCarJsonLd(car, canonicalUrl);
+        
         // Render the Client Component, passing fetched data as props
-        return <CarDetailClient car={car} relatedCars={relatedCars} />;
+        return (
+          <>
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+            <CarDetailClient car={car} relatedCars={relatedCars} />
+          </>
+        );
 
     } catch (error) {
         console.error("Error fetching car detail page data for slug:", carSlug, error);
