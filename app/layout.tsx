@@ -18,35 +18,31 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: {
-    template: '%s | exoDrive Exotic Car Rentals',
-    default: 'exoDrive | Exotic Car Rentals in DMV',
-  },
-  description: 'Premium exotic and luxury car rentals in the DC, Maryland, and Virginia area. Experience the thrill of driving the world\'s finest automobiles.',
+  title: "exoDrive | Exotic Car Rentals in DMV",
+  description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
   generator: 'v0.dev',
   metadataBase: new URL('https://www.exodrive.co'),
-  keywords: ['exotic car rental', 'luxury car rental', 'DMV', 'DC', 'Maryland', 'Virginia', 'supercar', 'sports car', 'ferrari rental', 'lamborghini rental'],
   openGraph: {
+    title: "exoDrive | Exotic Car Rentals in DMV",
+    description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
+    url: 'https://www.exodrive.co',
+    siteName: 'exoDrive',
     type: 'website',
     locale: 'en_US',
-    url: 'https://www.exodrive.co',
-    siteName: 'exoDrive Exotic Car Rentals',
-    title: 'exoDrive | Exotic Car Rentals in DMV',
-    description: 'Premium exotic and luxury car rentals in the DC, Maryland, and Virginia area. Experience the thrill of driving the world\'s finest automobiles.',
     images: [
       {
-        url: '/opengraph-image',
+        url: '/exodrive_og.png',
         width: 1200,
         height: 630,
-        alt: 'exoDrive - Exotic Car Rentals in DMV',
-      }
+        alt: 'exoDrive | Exotic Car Rentals in DMV',
+      },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'exoDrive | Exotic Car Rentals in DMV',
-    description: 'Premium exotic and luxury car rentals in the DC, Maryland, and Virginia area.',
-    images: ['/opengraph-image'],
+    title: "exoDrive | Exotic Car Rentals in DMV",
+    description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
+    images: ['/exodrive_og.png'],
     creator: '@exodrive',
   },
   robots: {
