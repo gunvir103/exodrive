@@ -1,96 +1,100 @@
 import Link from "next/link"
 import Image from "next/image"
-import { notFound } from "next/navigation"
+import { notFound, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Calendar, Check, CreditCard, FileText, Mail, Phone, User, MapPin, AlertTriangle, ThumbsUp, ThumbsDown, Edit3, Ban, History } from "lucide-react"
+import { ArrowLeft, Calendar, Check, CreditCard, FileText, Mail, Phone, User, MapPin, AlertTriangle, ThumbsUp, ThumbsDown, Edit3, Ban, History, Loader2 } from "lucide-react"
 import { fetchBookingById } from "@/lib/queries/bookings"
 import { format, parseISO } from "date-fns"
+import { useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
 
 // Helper component for client-side actions
-// For now, this will just render buttons. Actual API calls would be added here.
-// To make them functional, this would need to be a client component: "use client"
-// And would need state, handlers for API calls, toast notifications etc.
+"use client";
 
 interface BookingActionsProps {
-  booking: any; // Type this properly based on fetched booking data
-  // onStatusChange: (newStatus: string, paymentStatus?: string) => Promise<void>;
+  booking: any; // TODO: Type this properly based on fetched booking data
 }
 
 // This component would ideally be a client component for actual interactions
 function BookingActionButtons({ booking }: BookingActionsProps) {
-  // const [isLoading, setIsLoading] = useState(false);
-  // const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState<string | false>(false);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleStatusUpdate = async (newStatus: string, paymentStatus?: string) => {
-    alert(`Action: Change status to ${newStatus}` + (paymentStatus ? ` and payment to ${paymentStatus}` : ``) + ` for booking ${booking.id}. Implement API call.`)
-    // Example API call structure (would need to be in a real client component with fetch):
-    // setIsLoading(true);
-    // try {
-    //   const response = await fetch(`/api/bookings/${booking.id}/status`, {
-    //     method: 'PATCH',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify({ status: newStatus, payment_status: paymentStatus }),
-    //   });
-    //   if (!response.ok) {
-    //     const errorData = await response.json();
-    //     throw new Error(errorData.error || 'Failed to update status');
-    //   }
-    //   toast({ title: "Status Updated", description: `Booking moved to ${newStatus}.` });
-    //   // router.refresh(); or update state locally
-    // } catch (error: any) {
-    //   toast({ title: "Error", description: error.message, variant: "destructive" });
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    const actionKey = `${newStatus}${paymentStatus || ''}`;
+    setIsLoading(actionKey);
+    try {
+      const response = await fetch(`/api/bookings/${booking.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, payment_status: paymentStatus }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+      const updatedBooking = await response.json();
+      toast({ title: "Status Updated", description: `Booking ${booking.id} moved to ${updatedBooking.status}.` });
+      router.refresh();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const renderButton = (label: string, newStatus: string, paymentStatus?: string, icon?: React.ReactNode, variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | null, className?: string) => {
+    const actionKey = `${newStatus}${paymentStatus || ''}`;
+    const specificLoading = isLoading === actionKey;
+    return (
+      <Button 
+        className={`w-full ${className || ''}`} 
+        onClick={() => handleStatusUpdate(newStatus, paymentStatus)}
+        disabled={!!isLoading}
+        variant={variant || "default"}
+      >
+        {specificLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : icon}
+        {label}
+      </Button>
+    );
   }
 
   return (
     <div className="space-y-2">
       {booking.status === 'pending' && (
         <>
-          <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleStatusUpdate('authorized')}>
-            <ThumbsUp className="mr-2 h-4 w-4" /> Approve Booking
-          </Button>
-          <Button variant="destructive" className="w-full" onClick={() => handleStatusUpdate('cancelled')}>
-            <ThumbsDown className="mr-2 h-4 w-4" /> Reject Booking
-          </Button>
+          {renderButton("Approve Booking", 'authorized', undefined, <ThumbsUp className="mr-2 h-4 w-4" />, "default", "bg-green-600 hover:bg-green-700")}
+          {renderButton("Reject Booking", 'cancelled', undefined, <ThumbsDown className="mr-2 h-4 w-4" />, "destructive")}
         </>
       )}
 
       {booking.status === 'authorized' && (
-        <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => handleStatusUpdate('booked', 'captured')}>
-          <Check className="mr-2 h-4 w-4" /> Mark as Booked & Capture Payment
-        </Button>
+        renderButton("Mark as Booked & Capture Payment", 'booked', 'captured', <Check className="mr-2 h-4 w-4" />, "default", "bg-blue-600 hover:bg-blue-700")
       )}
 
       {booking.status === 'active' && (
-        <Button className="w-full" onClick={() => handleStatusUpdate('completed')}>
-          Mark as Completed
-        </Button>
+        renderButton("Mark as Completed", 'completed', undefined, <Check className="mr-2 h-4 w-4" />)
       )}
       
       {booking.status !== 'cancelled' && booking.status !== 'completed' && (
-        <Button variant="outline" className="w-full" onClick={() => alert('Edit booking - not implemented')}>
+        <Button variant="outline" className="w-full" onClick={() => alert('Edit booking - not implemented')} disabled={!!isLoading}>
           <Edit3 className="mr-2 h-4 w-4" /> Edit Booking (Not Implemented)
         </Button>
       )}
 
       {booking.payment_status === 'authorized' && booking.status !== 'completed' && booking.status !== 'cancelled' && (
-        <Button className="w-full" onClick={() => handleStatusUpdate(booking.status, 'captured')}>
-          <CreditCard className="mr-2 h-4 w-4" /> Capture Payment Manually
-        </Button>
+        renderButton("Capture Payment Manually", booking.status, 'captured', <CreditCard className="mr-2 h-4 w-4" />)
       )}
 
       {booking.status !== 'cancelled' && booking.status !== 'completed' && (
-        <Button variant="destructive" className="w-full" onClick={() => handleStatusUpdate('cancelled')}>
-          <Ban className="mr-2 h-4 w-4" /> Cancel Booking
-        </Button>
+        renderButton("Cancel Booking", 'cancelled', undefined, <Ban className="mr-2 h-4 w-4" />, "destructive")
       )}
-      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')}>Send Email to Customer</Button>
-      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')}>Print Booking Details</Button>
+      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')} disabled={!!isLoading}>Send Email to Customer</Button>
+      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')} disabled={!!isLoading}>Print Booking Details</Button>
     </div>
   )
 }
