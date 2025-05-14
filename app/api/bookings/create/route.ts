@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
     // 1. Create the booking
     const booking = await createBooking(payload);
 
-    if (!booking) {
+    if (!booking || !booking.id) {
       return NextResponse.json(
-        { error: "Failed to create booking" },
+        { error: "Failed to create booking or booking ID missing" },
         { status: 500 }
       );
     }
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
 
 
     const emailPayload = {
+      bookingId: booking.id,
       customerName: `${payload.firstName} ${payload.lastName}`,
       customerEmail: payload.email,
       customerPhone: payload.phone || "",
