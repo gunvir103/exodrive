@@ -5,134 +5,181 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Calendar, Check, CreditCard, FileText, Mail, Phone, User, MapPin } from "lucide-react"
+import { ArrowLeft, Calendar, Check, CreditCard, FileText, Mail, Phone, User, MapPin, AlertTriangle, ThumbsUp, ThumbsDown, Edit3, Ban, History } from "lucide-react"
+import { fetchBookingById } from "@/lib/queries/bookings"
+import { format, parseISO } from "date-fns"
 
-// This would normally come from Supabase
-const bookings = [
-  {
-    id: "booking-1",
-    customer: {
-      name: "John Smith",
-      email: "john.smith@example.com",
-      phone: "(202) 555-0123",
-      address: "123 Main St, Washington, DC 20001",
-      driverLicense: "DC12345678",
-      verificationStatus: "verified",
-    },
-    car: {
-      id: "lamborghini-huracan",
-      name: "Lamborghini Huracán",
-      image: "/placeholder.svg?height=400&width=600&text=Lamborghini",
-    },
-    startDate: "2024-03-15",
-    endDate: "2024-03-17",
-    totalDays: 2,
-    dailyRate: 1200,
-    totalPrice: 2400,
-    status: "active",
-    paymentStatus: "authorized",
-    contractStatus: "signed",
-    paymentDetails: {
-      id: "pi_1234567890",
-      last4: "4242",
-      brand: "Visa",
-      authorizedAmount: 2400,
-      capturedAmount: 0,
-    },
-    contractDetails: {
-      id: "contract-1234",
-      signedAt: "2024-03-14T15:30:00Z",
-      documentUrl: "#",
-    },
-    notes: "Customer requested airport pickup.",
-    timeline: [
-      {
-        date: "2024-03-10T12:45:00Z",
-        event: "Booking created",
-        details: "Customer submitted booking request",
-      },
-      {
-        date: "2024-03-10T12:46:00Z",
-        event: "Payment pre-authorized",
-        details: "Pre-authorization hold of $2,400 placed on card ending in 4242",
-      },
-      {
-        date: "2024-03-10T13:15:00Z",
-        event: "Identity verified",
-        details: "Customer completed Stripe Identity verification",
-      },
-      {
-        date: "2024-03-14T15:30:00Z",
-        event: "Contract signed",
-        details: "Customer signed rental agreement via Dropbox Sign",
-      },
-      {
-        date: "2024-03-15T10:00:00Z",
-        event: "Car picked up",
-        details: "Customer picked up the vehicle",
-      },
-    ],
-  },
-]
+// Helper component for client-side actions
+// For now, this will just render buttons. Actual API calls would be added here.
+// To make them functional, this would need to be a client component: "use client"
+// And would need state, handlers for API calls, toast notifications etc.
 
-export default function BookingDetailPage({ params }: { params: { bookingId: string } }) {
-  const booking = bookings.find((b) => b.id === params.bookingId)
+interface BookingActionsProps {
+  booking: any; // Type this properly based on fetched booking data
+  // onStatusChange: (newStatus: string, paymentStatus?: string) => Promise<void>;
+}
 
+// This component would ideally be a client component for actual interactions
+function BookingActionButtons({ booking }: BookingActionsProps) {
+  // const [isLoading, setIsLoading] = useState(false);
+  // const { toast } = useToast();
+
+  const handleStatusUpdate = async (newStatus: string, paymentStatus?: string) => {
+    alert(`Action: Change status to ${newStatus}` + (paymentStatus ? ` and payment to ${paymentStatus}` : ``) + ` for booking ${booking.id}. Implement API call.`)
+    // Example API call structure (would need to be in a real client component with fetch):
+    // setIsLoading(true);
+    // try {
+    //   const response = await fetch(`/api/bookings/${booking.id}/status`, {
+    //     method: 'PATCH',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ status: newStatus, payment_status: paymentStatus }),
+    //   });
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     throw new Error(errorData.error || 'Failed to update status');
+    //   }
+    //   toast({ title: "Status Updated", description: `Booking moved to ${newStatus}.` });
+    //   // router.refresh(); or update state locally
+    // } catch (error: any) {
+    //   toast({ title: "Error", description: error.message, variant: "destructive" });
+    // } finally {
+    //   setIsLoading(false);
+    // }
+  }
+
+  return (
+    <div className="space-y-2">
+      {booking.status === 'pending' && (
+        <>
+          <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleStatusUpdate('authorized')}>
+            <ThumbsUp className="mr-2 h-4 w-4" /> Approve Booking
+          </Button>
+          <Button variant="destructive" className="w-full" onClick={() => handleStatusUpdate('cancelled')}>
+            <ThumbsDown className="mr-2 h-4 w-4" /> Reject Booking
+          </Button>
+        </>
+      )}
+
+      {booking.status === 'authorized' && (
+        <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => handleStatusUpdate('booked', 'captured')}>
+          <Check className="mr-2 h-4 w-4" /> Mark as Booked & Capture Payment
+        </Button>
+      )}
+
+      {booking.status === 'active' && (
+        <Button className="w-full" onClick={() => handleStatusUpdate('completed')}>
+          Mark as Completed
+        </Button>
+      )}
+      
+      {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+        <Button variant="outline" className="w-full" onClick={() => alert('Edit booking - not implemented')}>
+          <Edit3 className="mr-2 h-4 w-4" /> Edit Booking (Not Implemented)
+        </Button>
+      )}
+
+      {booking.payment_status === 'authorized' && booking.status !== 'completed' && booking.status !== 'cancelled' && (
+        <Button className="w-full" onClick={() => handleStatusUpdate(booking.status, 'captured')}>
+          <CreditCard className="mr-2 h-4 w-4" /> Capture Payment Manually
+        </Button>
+      )}
+
+      {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+        <Button variant="destructive" className="w-full" onClick={() => handleStatusUpdate('cancelled')}>
+          <Ban className="mr-2 h-4 w-4" /> Cancel Booking
+        </Button>
+      )}
+      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')}>Send Email to Customer</Button>
+      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')}>Print Booking Details</Button>
+    </div>
+  )
+}
+
+export const dynamic = 'force-dynamic' // Ensure fresh data on each request
+
+export default async function BookingDetailPage({ params }: { params: { bookingId: string } }) {
+  const bookingId = params.bookingId
+  let booking: any = null // Initialize booking as any or a proper type
+  let fetchError: string | null = null
+
+  try {
+    booking = await fetchBookingById(bookingId)
+  } catch (error: any) {
+    console.error(`Failed to fetch booking ${bookingId}:`, error)
+    fetchError = error.message
+  }
+
+  if (fetchError) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
+        <h1 className="mt-4 text-2xl font-bold text-destructive">Error Loading Booking</h1>
+        <p className="mt-2 text-muted-foreground">{fetchError}</p>
+        <Button asChild className="mt-6">
+          <Link href="/admin/bookings">Back to Bookings</Link>
+        </Button>
+      </div>
+    )
+  }
+  
   if (!booking) {
     notFound()
   }
 
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }
-    return new Date(dateString).toLocaleDateString("en-US", options)
-  }
-
-  const formatDateTime = (dateTimeString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-    return new Date(dateTimeString).toLocaleDateString("en-US", options)
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "upcoming":
-        return "bg-blue-100 text-blue-800"
-      case "completed":
-        return "bg-gray-100 text-gray-800"
-      case "cancelled":
-        return "bg-red-100 text-red-800"
-      case "authorized":
-        return "bg-yellow-100 text-yellow-800"
-      case "captured":
-        return "bg-green-100 text-green-800"
-      case "pending":
-        return "bg-orange-100 text-orange-800"
-      case "signed":
-        return "bg-green-100 text-green-800"
-      case "verified":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = parseISO(dateString)
+      if (isNaN(date.getTime())) return "Invalid Date"
+      return format(date, "MMM d, yyyy")
+    } catch (e) {
+      return "Invalid Date"
     }
   }
+
+  const formatDateTime = (dateTimeString: string | null | undefined) => {
+    if (!dateTimeString) return "N/A"
+    try {
+      const date = parseISO(dateTimeString)
+      if (isNaN(date.getTime())) return "Invalid Date"
+      return format(date, "MMM d, yyyy, p")
+    } catch (e) {
+      return "Invalid Date"
+    }
+  }
+
+  const getStatusBadgeVariant = (status: string | null | undefined): string => {
+    switch (status?.toLowerCase()) {
+      case "active": return "bg-green-100 text-green-800"
+      case "upcoming": return "bg-blue-100 text-blue-800" // Note: 'upcoming' from db enum
+      case "booked": return "bg-sky-100 text-sky-800" // 'booked' is a valid status
+      case "completed": return "bg-gray-100 text-gray-800"
+      case "cancelled": return "bg-red-100 text-red-800"
+      case "authorized": return "bg-yellow-100 text-yellow-800"
+      case "pending": return "bg-orange-100 text-orange-800" // For display, if data somehow has it
+      // Payment statuses for payment badge
+      case "captured": return "bg-green-100 text-green-800"
+      case "refunded": return "bg-purple-100 text-purple-800"
+      case "voided": return "bg-gray-100 text-gray-500"
+      default: return "bg-gray-200 text-gray-700"
+    }
+  }
+
+  // Calculate total days if possible
+  const totalDays = booking.start_date && booking.end_date ? 
+    (parseISO(booking.end_date).getTime() - parseISO(booking.start_date).getTime()) / (1000 * 3600 * 24) + 1 
+    : 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-center">
         <Button variant="ghost" asChild className="mr-4">
-          <Link href="/admin/bookings">
+          <Link href={booking.status === 'pending' ? "/admin/inbox" : "/admin/bookings"}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Bookings
+            {booking.status === 'pending' ? 'Back to Inbox' : 'Back to Bookings'}
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold">Booking Details</h1>
+        <h1 className="text-2xl font-bold">Booking Details: <span className="font-mono text-xl text-muted-foreground">{booking.id}</span></h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -141,39 +188,41 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xl">Booking Summary</CardTitle>
               <div className="flex gap-2">
-                <Badge className={getStatusColor(booking.status)}>
-                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                </Badge>
-                <Badge className={getStatusColor(booking.paymentStatus)}>
-                  Payment: {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
-                </Badge>
-                <Badge className={getStatusColor(booking.contractStatus)}>
-                  Contract: {booking.contractStatus.charAt(0).toUpperCase() + booking.contractStatus.slice(1)}
-                </Badge>
+                {booking.status && 
+                  <Badge className={getStatusBadgeVariant(booking.status)}>
+                    Status: {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                  </Badge>
+                }
+                {booking.payment_status && 
+                  <Badge className={getStatusBadgeVariant(booking.payment_status)}>
+                    Payment: {booking.payment_status.charAt(0).toUpperCase() + booking.payment_status.slice(1)}
+                  </Badge>
+                }
               </div>
             </CardHeader>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
-                <div className="relative w-full md:w-48 h-32 rounded-md overflow-hidden">
+                <div className="relative w-full md:w-48 h-32 rounded-md overflow-hidden bg-muted">
                   <Image
-                    src={booking.car.image || "/placeholder.svg"}
-                    alt={booking.car.name}
+                    src={booking.car?.car_images?.[0]?.url || booking.car?.image || "/placeholder.svg?text=No+Car+Image"}
+                    alt={booking.car?.name || "Car Image"}
                     fill
                     className="object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg?text=Error'; }}
                   />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold">{booking.car.name}</h3>
+                  <h3 className="text-lg font-bold">{booking.car?.name || "N/A"}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <div className="flex items-start gap-2">
                       <Calendar className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Rental Period</p>
                         <p className="text-sm">
-                          {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+                          {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {booking.totalDays} day{booking.totalDays !== 1 ? "s" : ""}
+                          {totalDays} day{totalDays !== 1 ? "s" : ""}
                         </p>
                       </div>
                     </div>
@@ -181,16 +230,16 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                       <CreditCard className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Payment</p>
-                        <p className="text-sm">${booking.dailyRate}/day</p>
-                        <p className="text-sm font-bold">Total: ${booking.totalPrice}</p>
+                        <p className="text-sm">${(booking.total_price / totalDays).toFixed(2)}/day (approx)</p> 
+                        <p className="text-sm font-bold">Total: ${booking.total_price?.toLocaleString()}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <User className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Customer</p>
-                        <p className="text-sm">{booking.customer.name}</p>
-                        <p className="text-sm text-muted-foreground">{booking.customer.email}</p>
+                        <p className="text-sm">{booking.customer?.first_name} {booking.customer?.last_name}</p>
+                        <p className="text-sm text-muted-foreground">{booking.customer?.email}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -198,7 +247,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                       <div>
                         <p className="text-sm font-medium">Booking ID</p>
                         <p className="text-sm font-mono">{booking.id}</p>
-                        <p className="text-sm text-muted-foreground">Created on Mar 10, 2024</p>
+                        <p className="text-sm text-muted-foreground">Created: {formatDateTime(booking.created_at)}</p>
                       </div>
                     </div>
                   </div>
@@ -206,18 +255,10 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
               </div>
               {booking.notes && (
                 <div className="mt-6 p-4 bg-muted rounded-md">
-                  <p className="text-sm font-medium">Notes</p>
+                  <p className="text-sm font-medium">Notes from Customer</p>
                   <p className="text-sm">{booking.notes}</p>
                 </div>
               )}
-              <div className="flex flex-wrap gap-2 mt-6">
-                {booking.status === "active" && <Button>Mark as Completed</Button>}
-                {booking.status === "completed" && booking.paymentStatus === "authorized" && (
-                  <Button>Capture Payment</Button>
-                )}
-                {booking.contractStatus === "pending" && <Button variant="outline">Send Contract Reminder</Button>}
-                <Button variant="outline">Edit Booking</Button>
-              </div>
             </CardContent>
           </Card>
 
@@ -228,53 +269,14 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <div className="flex items-start gap-2">
-                    <User className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Full Name</p>
-                      <p>{booking.customer.name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Mail className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Email</p>
-                      <p>{booking.customer.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Phone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Phone</p>
-                      <p>{booking.customer.phone}</p>
-                    </div>
-                  </div>
+                  <InfoItem icon={<User />} label="Full Name" value={`${booking.customer?.first_name || "N/A"} ${booking.customer?.last_name || ""}`} />
+                  <InfoItem icon={<Mail />} label="Email" value={booking.customer?.email || "N/A"} />
+                  <InfoItem icon={<Phone />} label="Phone" value={booking.customer?.phone || "N/A"} />
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Address</p>
-                      <p>{booking.customer.address}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Driver's License</p>
-                      <p>{booking.customer.driverLicense}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Verification Status</p>
-                      <Badge className={getStatusColor(booking.customer.verificationStatus)}>
-                        {booking.customer.verificationStatus.charAt(0).toUpperCase() +
-                          booking.customer.verificationStatus.slice(1)}
-                      </Badge>
-                    </div>
-                  </div>
+                  <InfoItem icon={<MapPin />} label="Address" value={"N/A (not fetched)"} /> 
+                  <InfoItem icon={<FileText />} label="Driver's License" value={"N/A (not fetched)"} />
+                  <InfoItem icon={<Check />} label="Verification Status" value={<Badge className={getStatusBadgeVariant("N/A")}>N/A</Badge>} />
                 </div>
               </div>
             </CardContent>
@@ -289,44 +291,23 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Payment Method</p>
-                    <p>
-                      {booking.paymentDetails.brand} ending in {booking.paymentDetails.last4}
-                    </p>
+                    <p>N/A (Details from payments table not fetched)</p>
                   </div>
-                  <Badge className={getStatusColor(booking.paymentStatus)}>
-                    {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
-                  </Badge>
+                  {booking.payment_status && 
+                    <Badge className={getStatusBadgeVariant(booking.payment_status)}>
+                      {booking.payment_status.charAt(0).toUpperCase() + booking.payment_status.slice(1)}
+                    </Badge>
+                  }
                 </div>
                 <Separator />
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <p className="text-sm">Daily Rate</p>
-                    <p className="text-sm">${booking.dailyRate}/day</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <p className="text-sm">Duration</p>
-                    <p className="text-sm">
-                      {booking.totalDays} day{booking.totalDays !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-bold">
-                    <p>Total Amount</p>
-                    <p>${booking.totalPrice}</p>
-                  </div>
-                </div>
+                <InfoItem label="Total Amount" value={`$${booking.total_price?.toLocaleString()}`} isBold={true} />
+                <InfoItem label="Currency" value={booking.currency || "USD"} />
                 <div className="mt-4 p-4 bg-muted rounded-md">
-                  <p className="text-sm font-medium">Payment Status</p>
+                  <p className="text-sm font-medium">Payment Status Note</p>
                   <p className="text-sm">
-                    Pre-authorization hold of ${booking.paymentDetails.authorizedAmount} placed on card.
-                    {booking.paymentDetails.capturedAmount > 0
-                      ? ` ${booking.paymentDetails.capturedAmount} has been captured.`
-                      : " Payment will be captured after rental completion."}
+                    Current status is {booking.payment_status}. Further payment actions might be available depending on status.
                   </p>
                 </div>
-                {booking.status === "completed" && booking.paymentStatus === "authorized" && (
-                  <Button className="w-full">Capture Payment</Button>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -341,23 +322,23 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                   <div>
                     <p className="text-sm font-medium">Contract Status</p>
                     <p>
-                      {booking.contractStatus === "signed"
-                        ? `Signed on ${formatDateTime(booking.contractDetails.signedAt)}`
+                      {booking.contract_status === "signed"
+                        ? `Signed on ${formatDateTime(booking.signed_at)}`
                         : "Pending signature"}
                     </p>
                   </div>
-                  <Badge className={getStatusColor(booking.contractStatus)}>
-                    {booking.contractStatus.charAt(0).toUpperCase() + booking.contractStatus.slice(1)}
+                  <Badge className={getStatusBadgeVariant(booking.contract_status)}>
+                    {booking.contract_status.charAt(0).toUpperCase() + booking.contract_status.slice(1)}
                   </Badge>
                 </div>
-                {booking.contractStatus === "signed" && (
+                {booking.contract_status === "signed" && (
                   <Button variant="outline" asChild className="w-full">
-                    <Link href={booking.contractDetails.documentUrl} target="_blank">
+                    <Link href={booking.contract_document_url} target="_blank">
                       View Signed Contract
                     </Link>
                   </Button>
                 )}
-                {booking.contractStatus === "pending" && <Button className="w-full">Send Contract Reminder</Button>}
+                {booking.contract_status === "pending" && <Button className="w-full">Send Contract Reminder</Button>}
               </div>
             </CardContent>
           </Card>
@@ -366,43 +347,21 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Booking Timeline</CardTitle>
+              <CardTitle>Actions</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-6">
-                {booking.timeline.map((event, index) => (
-                  <div key={index} className="relative pl-6 pb-6">
-                    {index !== booking.timeline.length - 1 && (
-                      <div className="absolute top-2 left-2 bottom-0 w-px bg-border" />
-                    )}
-                    <div className="absolute top-2 left-0 w-4 h-4 rounded-full bg-primary" />
-                    <div>
-                      <p className="font-medium">{event.event}</p>
-                      <p className="text-sm text-muted-foreground">{formatDateTime(event.date)}</p>
-                      <p className="text-sm mt-1">{event.details}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <BookingActionButtons booking={booking} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
+              <CardTitle>Booking History</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-2">
-                <Button className="w-full">Send Email to Customer</Button>
-                <Button variant="outline" className="w-full">
-                  Print Booking Details
-                </Button>
-                {booking.status !== "cancelled" && (
-                  <Button variant="destructive" className="w-full">
-                    Cancel Booking
-                  </Button>
-                )}
-              </div>
+              <InfoItem icon={<History />} label="Created At" value={formatDateTime(booking.created_at)} />
+              <InfoItem icon={<History />} label="Last Updated" value={formatDateTime(booking.updated_at)} />
+              <p className="mt-4 text-sm text-muted-foreground">Detailed event timeline not yet implemented.</p>
             </CardContent>
           </Card>
         </div>
@@ -410,4 +369,15 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
     </div>
   )
 }
+
+// Helper component for consistent info display
+const InfoItem = ({ icon, label, value, isBold }: { icon?: React.ReactNode, label: string, value: React.ReactNode, isBold?: boolean }) => (
+  <div className="flex items-start gap-3">
+    {icon && <span className="text-muted-foreground shrink-0 mt-0.5">{icon}</span>}
+    <div>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className={`text-sm ${isBold ? 'font-bold' : ''}`}>{value}</p>
+    </div>
+  </div>
+)
 
