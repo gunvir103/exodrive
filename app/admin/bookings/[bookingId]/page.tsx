@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link"
 import Image from "next/image"
 import { notFound, useRouter } from "next/navigation"
@@ -10,9 +12,6 @@ import { fetchBookingById } from "@/lib/queries/bookings"
 import { format, parseISO } from "date-fns"
 import { useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
-
-// Helper component for client-side actions
-"use client";
 
 interface BookingActionsProps {
   booking: any; // TODO: Type this properly based on fetched booking data
