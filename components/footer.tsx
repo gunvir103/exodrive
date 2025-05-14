@@ -80,11 +80,11 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Follow Us</h4>
             <div className="flex space-x-4">
-              <a href="https://instagram.com" className="text-muted-foreground hover:text-foreground transition-colors">
+              <a href="https://www.instagram.com/exodriveexotics/" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Instagram className="h-5 w-5" />
                 <span className="sr-only">Instagram</span>
               </a>
-              <a href="https://tiktok.com" className="text-muted-foreground hover:text-foreground transition-colors">
+              <a href="https://tiktok.com/@exodriveer" className="text-muted-foreground hover:text-foreground transition-colors">
                 <TikTokIcon className="h-5 w-5" />
                 <span className="sr-only">TikTok</span>
               </a>
