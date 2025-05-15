@@ -46,7 +46,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      router.push("/admin")
+      router.push("/admin?auth=success")
     }
   }, [user, isLoading, router])
 

@@ -21,7 +21,7 @@ export async function login(formData: FormData) {
     return redirect('/admin/login?error=Could+not+authenticate+user')
   }
 
-  return redirect('/admin')
+  return redirect('/admin?auth=success')
 }
 
 export async function signup(formData: FormData) {
@@ -45,4 +45,4 @@ export async function signup(formData: FormData) {
   }
 
   return redirect('/admin/login?message=Check+email+to+continue+sign+up+process')
-} 
+}  
