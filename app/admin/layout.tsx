@@ -15,11 +15,28 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   const [permissionDenied, setPermissionDenied] = useState(false)
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const authParam = searchParams.get('auth');
+    const isAuthSuccess = authParam === 'success';
+    
     if (!isLoading) {
       if (!user && pathname !== "/admin/login") {
-        console.log("AdminLayout: No user found, redirecting to login.")
-        setShouldRedirect(true)
-        setPermissionDenied(false)
+        if (isAuthSuccess) {
+          console.log("AdminLayout: Auth success param detected, waiting for auth state to update.")
+          const timer = setTimeout(() => {
+            if (!user) {
+              console.log("AdminLayout: Auth state not updated after wait, redirecting to login.")
+              setShouldRedirect(true)
+              setPermissionDenied(false)
+            }
+          }, 1000); // 1 second grace period
+          
+          return () => clearTimeout(timer);
+        } else {
+          console.log("AdminLayout: No user found, redirecting to login.")
+          setShouldRedirect(true)
+          setPermissionDenied(false)
+        }
       } else if (user && user.user_metadata?.role !== 'admin') {
         console.log(`AdminLayout: User ${user.email} is not admin, setting permission denied.`)
         setPermissionDenied(true) 
@@ -37,8 +54,16 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     } else if (permissionDenied) {
       console.log("AdminLayout: Redirecting non-admin user to homepage.")
       router.push("/")
+    } else {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.has('auth') && user) {
+        searchParams.delete('auth');
+        const newQuery = searchParams.toString();
+        const newPath = window.location.pathname + (newQuery ? `?${newQuery}` : '');
+        router.replace(newPath, { scroll: false });
+      }
     }
-  }, [shouldRedirect, permissionDenied, router])
+  }, [shouldRedirect, permissionDenied, router, user])
 
   if (pathname === "/admin/login") {
     return <>{children}</>
