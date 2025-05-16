@@ -46,6 +46,15 @@ function BookingActionButtons({ booking }: BookingActionsProps) {
     }
   }
 
+  // New: Handler for unimplemented features
+  const handleNotImplemented = (feature: string) => {
+    toast({
+      title: 'Not Implemented',
+      description: `${feature} is not available yet.`,
+      variant: 'default',
+    });
+  };
+
   const renderButton = (label: string, newStatus: string, paymentStatus?: string, icon?: React.ReactNode, variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | null, className?: string) => {
     const actionKey = `${newStatus}${paymentStatus || ''}`;
     const specificLoading = isLoading === actionKey;
@@ -80,7 +89,7 @@ function BookingActionButtons({ booking }: BookingActionsProps) {
       )}
       
       {booking.status !== 'cancelled' && booking.status !== 'completed' && (
-        <Button variant="outline" className="w-full" onClick={() => alert('Edit booking - not implemented')} disabled={!!isLoading}>
+        <Button variant="outline" className="w-full" onClick={() => handleNotImplemented('Edit Booking')} disabled={!!isLoading}>
           <Edit3 className="mr-2 h-4 w-4" /> Edit Booking (Not Implemented)
         </Button>
       )}
@@ -92,8 +101,8 @@ function BookingActionButtons({ booking }: BookingActionsProps) {
       {booking.status !== 'cancelled' && booking.status !== 'completed' && (
         renderButton("Cancel Booking", 'cancelled', undefined, <Ban className="mr-2 h-4 w-4" />, "destructive")
       )}
-      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')} disabled={!!isLoading}>Send Email to Customer</Button>
-      <Button variant="outline" className="w-full" onClick={() => alert('Not implemented')} disabled={!!isLoading}>Print Booking Details</Button>
+      <Button variant="outline" className="w-full" onClick={() => handleNotImplemented('Send Email to Customer')} disabled={!!isLoading}>Send Email to Customer</Button>
+      <Button variant="outline" className="w-full" onClick={() => handleNotImplemented('Print Booking Details')} disabled={!!isLoading}>Print Booking Details</Button>
     </div>
   )
 }
