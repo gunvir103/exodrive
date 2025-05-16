@@ -18,6 +18,7 @@ export type EmailTemplateData = {
   content: string;
   plainText?: string;
   replyTo?: string;
+  tags?: Array<{ name: string; value: string }>;
 };
 
 export type ContactFormData = {
@@ -28,6 +29,7 @@ export type ContactFormData = {
 };
 
 export type BookingConfirmationData = {
+  bookingId?: string;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
@@ -82,6 +84,7 @@ export const emailServiceResend = {
         html: emailData.content,
         text: emailData.plainText, // Plain text version for accessibility
         replyTo: emailData.replyTo || 'exodrivexotics@gmail.com', // Fixed property name and email
+        tags: emailData.tags,
       });
 
       if (error) {
