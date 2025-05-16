@@ -28,6 +28,16 @@ export function BookingForm({ carId, price }: BookingFormProps) {
   const [step, setStep] = useState(1)
   const { toast } = useToast()
 
+  // State for form inputs
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    termsAccepted: false,
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
   // Calculate rental days and total price
   const days = startDate && endDate ? Math.max(1, differenceInDays(endDate, startDate) + 1) : 0
   const totalPrice = days * price
@@ -40,6 +50,41 @@ export function BookingForm({ carId, price }: BookingFormProps) {
   // Get dates 3 months from now for max date constraint
   const maxDate = addDays(today, 90)
 
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target
+    const checked = (e.target as HTMLInputElement).checked // For checkbox
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }))
+    // Clear error for this field if it exists
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+  }
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email is invalid"
+    }
+    if (!formData.phone.trim()) newErrors.phone = "Phone number is required" // Optional based on your needs
+    if (!formData.termsAccepted) newErrors.termsAccepted = "You must accept the terms"
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleBooking = async () => {
     if (!startDate || !endDate) {
       toast({
@@ -50,49 +95,51 @@ export function BookingForm({ carId, price }: BookingFormProps) {
       return
     }
 
+    if (!validateForm()) {
+      toast({
+        title: "Form Error",
+        description: "Please correct the errors in the form.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      // Simulate API call for booking creation
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      
-      const firstName = document.getElementById('first-name') as HTMLInputElement
-      const lastName = document.getElementById('last-name') as HTMLInputElement
-      const email = document.getElementById('email') as HTMLInputElement
-      const phone = document.getElementById('phone') as HTMLInputElement
-      
-      const emailResponse = await fetch("/api/email/booking", {
+      const bookingPayload = {
+        carId,
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        totalPrice,
+        // currency and notes can be added if needed, default to USD and null respectively in API
+      }
+
+      const response = await fetch("/api/bookings/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          customerName: `${firstName?.value || ''} ${lastName?.value || ''}`.trim() || "ExoDrive Customer",
-          customerEmail: email?.value || "example@user.com", // This would be the actual user email in production
-          customerPhone: phone?.value,
-          carName: document.title.split('|')[0].trim() || "Exotic Car", // Extract car name from page title
-          startDate: format(startDate, "MMMM d, yyyy"),
-          endDate: format(endDate, "MMMM d, yyyy"),
-          days,
-          basePrice: price,
-          totalPrice,
-          deposit: depositAmount,
-        }),
-      });
-
-      if (!emailResponse.ok) {
-        const errorData = await emailResponse.json();
-        console.warn("Email sending warning:", errorData);
-      }
-
-      // This would redirect to a checkout page with Stripe in a real app
-      toast({
-        title: "Booking initiated",
-        description: "You'll be redirected to complete your booking",
+        body: JSON.stringify(bookingPayload),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Booking creation failed")
+      }
+
+      // const result = await response.json() // Contains { success: true, booking: ... }
+
+      toast({
+        title: "Booking Initiated!",
+        description: "Your booking request has been received. We will contact you shortly.",
+      })
       setIsSuccess(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Booking error:", error)
       toast({
         title: "Booking failed",
@@ -277,26 +324,30 @@ export function BookingForm({ carId, price }: BookingFormProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="first-name">First Name</Label>
-                  <Input id="first-name" placeholder="John" />
+                  <Input id="first-name" name="firstName" placeholder="John" value={formData.firstName} onChange={handleInputChange} />
+                  {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="last-name">Last Name</Label>
-                  <Input id="last-name" placeholder="Doe" />
+                  <Input id="last-name" name="lastName" placeholder="Doe" value={formData.lastName} onChange={handleInputChange} />
+                  {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="john.doe@example.com" />
+                <Input id="email" name="email" type="email" placeholder="john.doe@example.com" value={formData.email} onChange={handleInputChange} />
+                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="(123) 456-7890" />
+                <Input id="phone" name="phone" type="tel" placeholder="(123) 456-7890" value={formData.phone} onChange={handleInputChange} />
+                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
               </div>
 
               <div className="flex items-center space-x-2 pt-2">
-                <Checkbox id="terms" />
+                <Checkbox id="terms" name="termsAccepted" checked={formData.termsAccepted} onCheckedChange={(checked) => setFormData(prev => ({...prev, termsAccepted: Boolean(checked)}))} />
                 <Label htmlFor="terms" className="text-sm">
                   I agree to the{" "}
                   <a href="#" className="text-primary underline">
@@ -308,6 +359,7 @@ export function BookingForm({ carId, price }: BookingFormProps) {
                   </a>
                 </Label>
               </div>
+              {errors.termsAccepted && <p className="text-xs text-destructive pt-1">{errors.termsAccepted}</p>}
             </div>
 
             <Separator className="my-2" />
