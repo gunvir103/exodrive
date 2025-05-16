@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, Suspense } from "react"
+import { useEffect, Suspense, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,11 +13,50 @@ import { useAuth } from "@/components/auth-provider"
 // Separate component to use search params
 function LoginForm() {
   const searchParams = useSearchParams()
-  const errorMessage = searchParams.get('error')
-  const successMessage = searchParams.get('message')
+  const router = useRouter()
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const { user } = useAuth();
+  const [pendingRedirect, setPendingRedirect] = useState(false);
+
+  useEffect(() => {
+    const errorQuery = searchParams.get('error')
+    const messageQuery = searchParams.get('message')
+    if (errorQuery) setErrorMessage(errorQuery)
+    if (messageQuery) setSuccessMessage(messageQuery)
+  }, [searchParams])
+
+  const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage(null)
+    setSuccessMessage(null);
+
+    const formData = new FormData(event.currentTarget)
+    const result = await login(formData)
+
+    if (result && result.error) {
+      setErrorMessage(result.error)
+    } else if (result && result.success) {
+      // Force full page navigation to /admin to ensure session cookies
+      if (typeof window !== 'undefined') {
+        window.location.assign('/admin');
+      } else {
+        setPendingRedirect(true);
+      }
+    }
+  }
+
+  // Wait until AuthProvider provides user, then redirect
+  useEffect(() => {
+    if (pendingRedirect && user) {
+      router.push('/admin');
+      setPendingRedirect(false);
+    }
+  }, [pendingRedirect, user, router]);
 
   return (
-    <form className="space-y-4">
+    <form className="space-y-4" onSubmit={handleLoginSubmit}>
        {errorMessage && (
           <p className="text-center text-sm text-red-600 bg-red-100 p-3 rounded-md">{errorMessage}</p>
        )}
@@ -33,7 +72,7 @@ function LoginForm() {
         <Input id="password" name="password" type="password" required />
       </div>
       <div className="flex flex-col sm:flex-row gap-2 pt-2">
-          <Button formAction={login} className="w-full">Log In</Button>
+          <Button type="submit" className="w-full">Log In</Button>
           <Button formAction={signup} variant="outline" className="w-full">Sign Up</Button>
       </div>
     </form>
@@ -53,7 +92,7 @@ export default function LoginPage() {
   if (isLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/40">
-        {/* Optional: Add a loading spinner here */}
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
       </div>
     );
   }
