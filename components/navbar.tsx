@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/navigation-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Car, Menu, X, Instagram, ChevronRight } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 
 export function Navbar() {
   const pathname = usePathname()
@@ -22,20 +23,25 @@ export function Navbar() {
   const [prevScrollPos, setPrevScrollPos] = useState(0)
   const [visible, setVisible] = useState(true)
 
+
+  // Hide navbar on any admin route
+  if (pathname && pathname.includes("/admin")) {
+    return null 
+  }
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollPos = window.scrollY
 
-      // Determine if we should show or hide the navbar
+      // Show navbar when scrolling up or near top
       if (currentScrollPos > 100) {
         setVisible(prevScrollPos > currentScrollPos || currentScrollPos < 10)
       } else {
         setVisible(true)
       }
 
-      // Determine if the navbar should have background
+      // Add background after scrolling past threshold
       setIsScrolled(currentScrollPos > 10)
-
       setPrevScrollPos(currentScrollPos)
     }
 
@@ -44,27 +50,14 @@ export function Navbar() {
   }, [prevScrollPos])
 
   const routes = [
-    {
-      href: "/",
-      label: "Home",
-      active: pathname === "/",
-    },
-    {
-      href: "/fleet",
-      label: "Fleet",
-      active: pathname === "/fleet" || pathname.startsWith("/fleet/"),
-    },
-    // Removing the About page from navigation
-    {
-      href: "/contact",
-      label: "Contact",
-      active: pathname === "/contact",
-    },
+    { href: "/", label: "Home", active: pathname === "/" },
+    { href: "/fleet", label: "Fleet", active: pathname === "/fleet" || pathname.startsWith("/fleet/") },
+    { href: "/contact", label: "Contact", active: pathname === "/contact" },
   ]
 
   const navVariants = {
     hidden: { y: -100, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.2 } }, // Reduced duration
+    visible: { y: 0, opacity: 1, transition: { duration: 0.2 } },
   }
 
   return (
@@ -74,8 +67,10 @@ export function Navbar() {
         initial="hidden"
         animate={visible ? "visible" : "hidden"}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-200", // Reduced duration
-          isScrolled ? "bg-[#0a0a0a]/90 backdrop-blur-md border-b border-[#333333]" : "bg-transparent",
+          "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-200",
+          isScrolled
+            ? "bg-[#0a0a0a]/90 backdrop-blur-md border-b border-[#333333]"
+            : "bg-transparent",
         )}
       >
         <div className="container flex h-12 md:h-14 items-center justify-between">
@@ -86,7 +81,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Nav */}
           <div className="hidden md:flex md:items-center md:space-x-4">
             <NavigationMenu>
               <NavigationMenuList>
@@ -101,8 +96,8 @@ export function Navbar() {
                         )}
                         onClick={() => {
                           import("@/lib/analytics/track-events").then(({ trackNavigation }) => {
-                            trackNavigation(route.label, pathname);
-                          });
+                            trackNavigation(route.label, pathname)
+                          })
                         }}
                       >
                         {route.label}
@@ -125,7 +120,7 @@ export function Navbar() {
             </Button>
           </div>
 
-          {/* Mobile Navigation */}
+          {/* Mobile Nav */}
           <div className="md:hidden">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
@@ -160,11 +155,10 @@ export function Navbar() {
                               : "text-gray-300 hover:bg-[#333333] hover:text-white",
                           )}
                           onClick={() => {
-                            setIsOpen(false);
-                            
+                            setIsOpen(false)
                             import("@/lib/analytics/track-events").then(({ trackNavigation }) => {
-                              trackNavigation(route.label, pathname);
-                            });
+                              trackNavigation(route.label, pathname)
+                            })
                           }}
                         >
                           <span>{route.label}</span>
@@ -195,4 +189,3 @@ export function Navbar() {
     </AnimatePresence>
   )
 }
-
