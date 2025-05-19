@@ -42,3 +42,5 @@ next-env.d.ts
 # Generated files
 db-verification-report.json
 /reports/
+playwright-report/
+test-results/

@@ -46,11 +46,11 @@ export function Footer() {
                   Our Fleet
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
                   About Us
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
                   Contact

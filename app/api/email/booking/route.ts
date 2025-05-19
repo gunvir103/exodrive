@@ -18,6 +18,8 @@ export async function POST(request: NextRequest) {
                       request.headers.get('x-real-ip') || 
                       'unknown';
     
+    const bookingTags = body.bookingId ? [{ name: 'booking_id', value: body.bookingId }] : undefined;
+    
     const customerEmailContent = emailServiceResend.generateBookingConfirmationHtml(body)
     const customerPlainTextContent = emailServiceResend.generateBookingConfirmationPlainText(body)
     
@@ -25,7 +27,8 @@ export async function POST(request: NextRequest) {
       to: body.customerEmail,
       subject: "Your ExoDrive Booking Confirmation",
       content: customerEmailContent,
-      plainText: customerPlainTextContent
+      plainText: customerPlainTextContent,
+      tags: bookingTags
     }, ipAddress.split(',')[0]) // Use first IP if multiple are provided
     
     if (!customerResult.success) {
@@ -68,7 +71,8 @@ Deposit (Due Now): $${body.deposit.toLocaleString()}
       subject: `New Booking: ${body.carName}`,
       content: businessEmailContent,
       plainText: businessPlainTextContent,
-      replyTo: body.customerEmail // Allow direct reply to customer
+      replyTo: body.customerEmail, // Allow direct reply to customer
+      tags: bookingTags
     }, ipAddress.split(',')[0]) // Use first IP if multiple are provided
     
     if (!customerResult.success && !businessResult.success) {

@@ -9,27 +9,27 @@ export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) 
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: async (name: string) => {
+        get: (name: string) => {
           try {
-            const cookie = await cookieStore.get(name)
+            const cookie = cookieStore.get(name)
             return cookie?.value
           } catch (error) {
             console.error(`Error getting cookie '${name}':`, error);
             return undefined;
           }
         },
-        set: async (name: string, value: string, options: CookieOptions) => {
+        set: (name: string, value: string, options: CookieOptions) => {
           try {
-            await cookieStore.set({ name, value, ...options })
+            cookieStore.set({ name, value, ...options })
           } catch (error) {
-            // Ignore errors in Server Components (middleware handles refresh)
+            console.error(`Error setting cookie '${name}':`, error);
           }
         },
-        remove: async (name: string, options: CookieOptions) => {
+        remove: (name: string, options: CookieOptions) => {
           try {
-            await cookieStore.set({ name, value: '', ...options })
+            cookieStore.set({ name, value: '', ...options })
           } catch (error) {
-            // Ignore errors in Server Components (middleware handles refresh)
+            console.error(`Error removing cookie '${name}':`, error);
           }
         },
       },

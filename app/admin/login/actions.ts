@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
-export async function login(formData: FormData) {
+export async function login(formData: FormData): Promise<{ success: boolean; error: string | null }> {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const cookieStore = await cookies()
@@ -17,11 +17,12 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    console.error("Login error:", error.message);
-    return redirect('/admin/login?error=Could+not+authenticate+user')
+    console.error("Login error:", error.message)
+    return { success: false, error: 'Could not authenticate user' }
   }
 
-  return redirect('/admin?auth=success')
+  // Redirect to admin dashboard upon success
+  redirect('/admin?auth=success')
 }
 
 export async function signup(formData: FormData) {
@@ -40,9 +41,9 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-     console.error("Signup error:", error.message);
+    console.error("Signup error:", error.message)
     return redirect('/admin/login?error=Could+not+sign+up+user')
   }
 
   return redirect('/admin/login?message=Check+email+to+continue+sign+up+process')
-}  
+}
