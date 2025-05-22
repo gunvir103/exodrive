@@ -1,0 +1,45 @@
+name: Email Service Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'lib/services/email-service-resend.ts'
+      - 'app/api/email/**'
+      - '__tests__/email-service.test.ts'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'lib/services/email-service-resend.ts'
+      - 'app/api/email/**'
+      - '__tests__/email-service.test.ts'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'bun'
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Verify email service files exist
+      run: |
+        if [ -f "lib/services/email-service-resend.ts" ] && [ -f "app/api/email/contact/route.ts" ] && [ -f "app/api/email/booking/route.ts" ]; then
+          echo "Email service files verified successfully"
+        else
+          echo "Email service files missing"
+          exit 1
+        fi
+    
+    - name: Run email service tests
+      run: bun test -- __tests__/email-service.test.ts
+      env:
+        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
