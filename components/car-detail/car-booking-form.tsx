@@ -139,82 +139,75 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
 
     setIsLoading(true)
 
-    try {
-      // Prepare booking data
-      const bookingData = {
-        carId,
-        startDate: format(startDate, "yyyy-MM-dd"),
-        endDate: format(endDate, "yyyy-MM-dd"),
-        totalPrice,
-        depositAmount: deposit,
-        customer: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-        },
-      }
+    // Prepare payload for our /api/bookings endpoint
+    const apiBookingPayload = {
+      car_id: carId,
+      start_date: format(startDate, "yyyy-MM-dd"),
+      end_date: format(endDate, "yyyy-MM-dd"),
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      // notes: formData.notes, // Add if you have a notes field in your form
+    };
 
-      import("@/lib/analytics/track-events").then(({ trackBookingInitiated }) => {
-        const carName = document.title.split('|')[0].trim() || "Exotic Car"; // Extract car name from page title
-        trackBookingInitiated(
-          carId,
-          carName,
-          days,
-          totalPrice
-        );
+    try {
+      // Call the backend API to create the booking
+      const response = await fetch("/api/bookings", { // Corrected endpoint
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(apiBookingPayload),
       });
 
-      // In a real app, this would be an API call to create a booking
-      console.log("Booking data:", bookingData)
+      if (response.ok) {
+        const result = await response.json();
+        toast({
+          title: "Booking Request Received!",
+          description: `Your booking ID is ${result.booking_id}. We will contact you shortly.`, 
+        });
+        setIsSuccess(true);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      try {
-        const emailResponse = await fetch("/api/email/booking", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            customerName: `${formData.firstName} ${formData.lastName}`,
-            customerEmail: formData.email,
-            customerPhone: formData.phone,
-            carName: document.title.split('|')[0].trim() || "Exotic Car", // Extract car name from page title
-            startDate: format(startDate, "MMMM d, yyyy"),
-            endDate: format(endDate, "MMMM d, yyyy"),
-            days,
-            basePrice,
-            totalPrice,
-            deposit,
-          }),
+        // Track booking initiated event after successful API call
+        import("@/lib/analytics/track-events").then(({ trackBookingInitiated }) => {
+            const carName = document.title.split('|')[0].trim() || "Exotic Car"; 
+            trackBookingInitiated(
+              carId,
+              carName,
+              days, // days should be calculated and available in this scope
+              totalPrice // totalPrice should be calculated and available in this scope
+            );
         });
 
-        if (!emailResponse.ok) {
-          const errorData = await emailResponse.json();
-          console.warn("Email sending warning:", errorData);
+      } else {
+        // Handle errors from the API
+        const errorResult = await response.json();
+        let errorMessage = errorResult.error || "An unknown error occurred.";
+        if (errorResult.details) {
+          // Format Zod error details if present
+          const fieldErrors = Object.entries(errorResult.details)
+            .map(([field, errors]) => `${field}: ${(errors as string[]).join(', ')}`)
+            .join('; ');
+          errorMessage = `${errorMessage} Details: ${fieldErrors}`;
         }
-      } catch (emailError) {
-        console.error("Email sending error:", emailError);
+        toast({
+          title: "Booking Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setIsSuccess(false); // Ensure isSuccess is false on failure
       }
-
-      // This would redirect to a checkout page with Stripe in a real app
-      toast({
-        title: "Booking initiated",
-        description: "You'll be redirected to complete your booking",
-      })
-
-      setIsSuccess(true)
     } catch (error) {
-      console.error("Booking error:", error)
+      console.error("Booking submission error:", error);
       toast({
-        title: "Booking failed",
-        description: "There was an error processing your booking. Please try again.",
+        title: "Booking Failed",
+        description: "There was an error submitting your booking. Please try again.",
         variant: "destructive",
-      })
+      });
+      setIsSuccess(false); // Ensure isSuccess is false on catch
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 

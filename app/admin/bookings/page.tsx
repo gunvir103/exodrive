@@ -5,140 +5,97 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { Search, Inbox, AlertTriangle } from "lucide-react"
+import { fetchBookings as queryFetchBookings } from "@/lib/queries/bookings"
 
 // Force dynamic rendering for this admin page
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// export const revalidate = 0; // Can be set if needed, or use time-based revalidation from fetch
 
-// This would normally come from Supabase
-const bookings = [
-  {
-    id: "booking-1",
-    customer: {
-      name: "John Smith",
-      email: "john.smith@example.com",
-      phone: "(202) 555-0123",
-    },
-    car: {
-      id: "lamborghini-huracan",
-      name: "Lamborghini Huracán",
-      image: "/placeholder.svg?height=400&width=600&text=Lamborghini",
-    },
-    startDate: "2024-03-15",
-    endDate: "2024-03-17",
-    totalPrice: 2400,
-    status: "active",
-    paymentStatus: "authorized",
-    contractStatus: "signed",
-  },
-  {
-    id: "booking-2",
-    customer: {
-      name: "Sarah Johnson",
-      email: "sarah.johnson@example.com",
-      phone: "(202) 555-0124",
-    },
-    car: {
-      id: "ferrari-488",
-      name: "Ferrari 488",
-      image: "/placeholder.svg?height=400&width=600&text=Ferrari",
-    },
-    startDate: "2024-03-12",
-    endDate: "2024-03-14",
-    totalPrice: 2800,
-    status: "completed",
-    paymentStatus: "captured",
-    contractStatus: "signed",
-  },
-  {
-    id: "booking-3",
-    customer: {
-      name: "Michael Brown",
-      email: "michael.brown@example.com",
-      phone: "(202) 555-0125",
-    },
-    car: {
-      id: "porsche-911-turbo",
-      name: "Porsche 911 Turbo",
-      image: "/placeholder.svg?height=400&width=600&text=Porsche",
-    },
-    startDate: "2024-03-18",
-    endDate: "2024-03-20",
-    totalPrice: 1800,
-    status: "upcoming",
-    paymentStatus: "authorized",
-    contractStatus: "pending",
-  },
-  {
-    id: "booking-4",
-    customer: {
-      name: "Emily Davis",
-      email: "emily.davis@example.com",
-      phone: "(202) 555-0126",
-    },
-    car: {
-      id: "aston-martin-vantage",
-      name: "Aston Martin Vantage",
-      image: "/placeholder.svg?height=400&width=600&text=Aston+Martin",
-    },
-    startDate: "2024-03-10",
-    endDate: "2024-03-12",
-    totalPrice: 1900,
-    status: "completed",
-    paymentStatus: "captured",
-    contractStatus: "signed",
-  },
-]
+// This is now a Server Component that fetches data
+export default async function AdminBookingsPage() {
+  let bookings: any[] = []
+  let fetchError: string | null = null
 
-export default function AdminBookingsPage() {
+  try {
+    // Directly call the query function instead of fetching from the API route
+    const statuses = ["authorized", "active", "completed"]
+    const fetchedData = await queryFetchBookings(statuses)
+    bookings = fetchedData || [] // Ensure bookings is an array, even if fetchedData is null/undefined
+  } catch (error: any) {
+    console.error("Failed to fetch bookings for admin page:", error)
+    fetchError = error.message || "An unknown error occurred while fetching bookings."
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Manage Bookings</h1>
-        <div className="relative w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input type="search" placeholder="Search bookings..." className="w-full pl-8" />
+        <div className="flex items-center gap-4">
+          <Button variant="outline" asChild>
+            <Link href="/admin/inbox" className="flex items-center gap-2">
+              <Inbox className="h-4 w-4" />
+              View Pending Inbox
+            </Link>
+          </Button>
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input type="search" placeholder="Search bookings..." className="w-full pl-8" />
+          </div>
         </div>
       </div>
 
+      {fetchError && (
+        <Card className="border-destructive bg-destructive/10">
+          <CardContent className="p-4 flex items-center text-destructive">
+            <AlertTriangle className="h-5 w-5 mr-2" /> {fetchError}
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="all">
         <TabsList>
-          <TabsTrigger value="all">All Bookings</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="all">All Bookings ({bookings.length})</TabsTrigger>
+          <TabsTrigger value="active">Active ({bookings.filter((b:any) => b.status === 'active').length})</TabsTrigger>
+          <TabsTrigger value="authorized">Authorized ({bookings.filter((b:any) => b.status === 'authorized').length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed ({bookings.filter((b:any) => b.status === 'completed').length})</TabsTrigger>
         </TabsList>
+
+        {/* Render content based on fetched bookings */}
         <TabsContent value="all" className="mt-6">
+          {bookings.length === 0 && !fetchError && <p className="text-center text-muted-foreground py-4">No bookings match the current filters.</p>}
           <div className="grid gap-6">
-            {bookings.map((booking) => (
+            {bookings.map((booking: any) => (
               <BookingCard key={booking.id} booking={booking} />
             ))}
           </div>
         </TabsContent>
         <TabsContent value="active" className="mt-6">
+          {bookings.filter((b:any) => b.status === 'active').length === 0 && !fetchError && <p className="text-center text-muted-foreground py-4">No active bookings.</p>}
           <div className="grid gap-6">
             {bookings
-              .filter((booking) => booking.status === "active")
-              .map((booking) => (
+              .filter((booking: any) => booking.status === "active")
+              .map((booking: any) => (
                 <BookingCard key={booking.id} booking={booking} />
               ))}
           </div>
         </TabsContent>
-        <TabsContent value="upcoming" className="mt-6">
+        <TabsContent value="authorized" className="mt-6">
+          {bookings.filter((b:any) => b.status === 'authorized').length === 0 && !fetchError && <p className="text-center text-muted-foreground py-4">No bookings awaiting payment authorization.</p>}
           <div className="grid gap-6">
             {bookings
-              .filter((booking) => booking.status === "upcoming")
-              .map((booking) => (
+              .filter((booking: any) => booking.status === "authorized")
+              .map((booking: any) => (
                 <BookingCard key={booking.id} booking={booking} />
               ))}
           </div>
         </TabsContent>
         <TabsContent value="completed" className="mt-6">
+          {bookings.filter((b:any) => b.status === 'completed').length === 0 && !fetchError && <p className="text-center text-muted-foreground py-4">No completed bookings.</p>}
           <div className="grid gap-6">
             {bookings
-              .filter((booking) => booking.status === "completed")
-              .map((booking) => (
+              .filter((booking: any) => booking.status === "completed")
+              .map((booking: any) => (
                 <BookingCard key={booking.id} booking={booking} />
               ))}
           </div>
@@ -149,67 +106,92 @@ export default function AdminBookingsPage() {
 }
 
 function BookingCard({ booking }: { booking: any }) {
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }
-    return new Date(dateString).toLocaleDateString("en-US", options)
-  }
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+      return date.toLocaleDateString("en-US", options);
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return "Invalid Date";
+    }
+  };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "active":
         return "bg-green-100 text-green-800"
       case "upcoming":
         return "bg-blue-100 text-blue-800"
+      case "booked":
+        return "bg-sky-100 text-sky-800"
       case "completed":
         return "bg-gray-100 text-gray-800"
       case "cancelled":
         return "bg-red-100 text-red-800"
       case "authorized":
         return "bg-yellow-100 text-yellow-800"
-      case "captured":
-        return "bg-green-100 text-green-800"
       case "pending":
         return "bg-orange-100 text-orange-800"
-      case "signed":
+      case "captured":
         return "bg-green-100 text-green-800"
+      case "refunded":
+        return "bg-purple-100 text-purple-800"
+      case "voided":
+        return "bg-gray-300 text-gray-900"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-200 text-gray-700"
     }
   }
+
+  const customerName = `${booking.customer?.first_name || ''} ${booking.customer?.last_name || 'Customer'}`.trim()
+  const carName = booking.car?.name || "Unknown Car"
+  const carImage = booking.car?.car_images?.[0]?.url || "/placeholder.svg?text=No+Image"
 
   return (
     <Card>
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="relative w-full md:w-48 h-32 rounded-md overflow-hidden">
-            <Image src={booking.car.image || "/placeholder.svg"} alt={booking.car.name} fill className="object-cover" />
+          <div className="relative w-full md:w-48 h-32 rounded-md overflow-hidden bg-muted">
+            <Image 
+              src={carImage} 
+              alt={carName} 
+              fill 
+              className="object-cover" 
+              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg?text=Error'; }}
+            />
           </div>
           <div className="flex-1 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div>
-                <h3 className="text-lg font-bold">{booking.car.name}</h3>
+                <h3 className="text-lg font-bold">{carName}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+                  {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge className={getStatusColor(booking.status)}>
-                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                </Badge>
-                <Badge className={getStatusColor(booking.paymentStatus)}>
-                  Payment: {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
-                </Badge>
-                <Badge className={getStatusColor(booking.contractStatus)}>
-                  Contract: {booking.contractStatus.charAt(0).toUpperCase() + booking.contractStatus.slice(1)}
-                </Badge>
+                {booking.status && (
+                    <Badge className={getStatusColor(booking.status)}>
+                    {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                    </Badge>
+                )}
+                {booking.payment_status && (
+                    <Badge className={getStatusColor(booking.payment_status)}>
+                    Payment: {booking.payment_status.charAt(0).toUpperCase() + booking.payment_status.slice(1)}
+                    </Badge>
+                )}
               </div>
             </div>
             <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
               <div>
                 <p className="text-sm font-medium">Customer</p>
-                <p className="font-medium">{booking.customer.name}</p>
-                <p className="text-sm text-muted-foreground">{booking.customer.email}</p>
-                <p className="text-sm text-muted-foreground">{booking.customer.phone}</p>
+                <p className="font-medium">
+                  {customerName}
+                </p>
+                <p className="text-sm text-muted-foreground">{booking.customer?.email || "N/A"}</p>
+                <p className="text-sm text-muted-foreground">{booking.customer?.phone || "N/A"}</p>
               </div>
               <div>
                 <p className="text-sm font-medium">Booking ID</p>
@@ -217,28 +199,13 @@ function BookingCard({ booking }: { booking: any }) {
               </div>
               <div>
                 <p className="text-sm font-medium">Total</p>
-                <p className="font-medium">${booking.totalPrice}</p>
+                <p className="font-medium">${booking.total_price?.toLocaleString() || '0.00'}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
               <Button asChild size="sm">
                 <Link href={`/admin/bookings/${booking.id}`}>View Details</Link>
               </Button>
-              {booking.status === "active" && (
-                <Button variant="outline" size="sm">
-                  Mark as Completed
-                </Button>
-              )}
-              {booking.status === "upcoming" && booking.contractStatus === "pending" && (
-                <Button variant="outline" size="sm">
-                  Send Contract Reminder
-                </Button>
-              )}
-              {booking.status === "completed" && booking.paymentStatus === "authorized" && (
-                <Button variant="outline" size="sm">
-                  Capture Payment
-                </Button>
-              )}
             </div>
           </div>
         </div>

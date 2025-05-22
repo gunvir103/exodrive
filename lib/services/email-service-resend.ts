@@ -18,6 +18,7 @@ export type EmailTemplateData = {
   content: string;
   plainText?: string;
   replyTo?: string;
+  tags?: Array<{ name: string; value: string }>;
 };
 
 export type ContactFormData = {
@@ -28,6 +29,7 @@ export type ContactFormData = {
 };
 
 export type BookingConfirmationData = {
+  bookingId?: string;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
@@ -64,7 +66,7 @@ export const emailServiceResend = {
   /**
    * Send an email using Resend
    */
-  sendEmail: async (emailData: EmailTemplateData, ipAddress: string = 'unknown'): Promise<{ success: boolean; error?: string }> => {
+  sendEmail: async (emailData: EmailTemplateData, ipAddress: string = 'unknown'): Promise<{ success: boolean; error?: string; messageId?: string }> => {
     if (emailServiceResend.isRateLimited(ipAddress)) {
       return {
         success: false,
@@ -82,6 +84,7 @@ export const emailServiceResend = {
         html: emailData.content,
         text: emailData.plainText, // Plain text version for accessibility
         replyTo: emailData.replyTo || 'exodrivexotics@gmail.com', // Fixed property name and email
+        tags: emailData.tags,
       });
 
       if (error) {
@@ -89,7 +92,7 @@ export const emailServiceResend = {
         throw error;
       }
 
-      return { success: true };
+      return { success: true, messageId: data?.id };
     } catch (error) {
       console.error('Error sending email:', error);
 

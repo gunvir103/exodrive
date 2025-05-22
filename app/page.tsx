@@ -32,6 +32,9 @@ import { Suspense } from "react"
 
 import { carServiceSupabase } from "@/lib/services/car-service-supabase";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { generateOrganizationJsonLd } from '@/lib/structured-data';
+
+export const revalidate = 60; // Revalidate every 60 seconds
 
 // Fallback car data in case of error
 const fallbackCars: AppCar[] = [
@@ -180,15 +183,23 @@ export default async function HomePage() {
 
   // Render the client component, passing the fetched data as props
   return (
-    <ErrorBoundary>
-      <Suspense fallback={<div className="h-screen w-full bg-black flex items-center justify-center text-white">Loading...</div>}>
-        <HomeClientComponent 
-          initialCars={initialCars} 
-          initialError={initialError} 
-          featuredCar={featuredCarData}
-        />
-      </Suspense>
-    </ErrorBoundary>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ 
+          __html: JSON.stringify(generateOrganizationJsonLd()) 
+        }}
+      />
+      <ErrorBoundary>
+        <Suspense fallback={<div className="h-screen w-full bg-black flex items-center justify-center text-white">Loading...</div>}>
+          <HomeClientComponent 
+            initialCars={initialCars} 
+            initialError={initialError} 
+            featuredCar={featuredCarData}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </>
   );
 }
 

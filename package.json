@@ -84,7 +84,8 @@
     "tsparticles": "latest",
     "tsparticles-engine": "latest",
     "uuid": "latest",
-    "vaul": "^0.9.6"
+    "vaul": "^0.9.6",
+    "zod": "3.25.20"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
