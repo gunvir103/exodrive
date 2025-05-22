@@ -28,33 +28,12 @@ export const metadata: Metadata = {
     url: 'https://www.exodrive.co',
     siteName: 'exoDrive',
     type: 'website',
-    locale: 'en_US',
-    images: [
-      {
-        url: '/exodrive_og.png',
-        width: 1200,
-        height: 630,
-        alt: 'exoDrive | Exotic Car Rentals in DMV',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: "exoDrive | Exotic Car Rentals in DMV",
     description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
-    images: ['/exodrive_og.png'],
-    creator: '@exodrive',
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
-  },
+  }
 }
 
 export default function RootLayout({
@@ -65,9 +44,6 @@ export default function RootLayout({
   
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/exodrive_logo.ico" />
-      </head>
       <body className={inter.className}>
         <Providers>
           <ErrorBoundary>

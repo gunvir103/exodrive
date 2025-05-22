@@ -9,66 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      bookings: {
-        Row: {
-          car_id: string
-          created_at: string | null
-          currency: string
-          customer_id: string
-          end_date: string
-          id: string
-          notes: string | null
-          payment_status: Database["public"]["Enums"]["payment_status_enum"]
-          start_date: string
-          status: Database["public"]["Enums"]["booking_status_enum"]
-          total_price: number
-          updated_at: string | null
-        }
-        Insert: {
-          car_id: string
-          created_at?: string | null
-          currency?: string
-          customer_id: string
-          end_date: string
-          id?: string
-          notes?: string | null
-          payment_status?: Database["public"]["Enums"]["payment_status_enum"]
-          start_date: string
-          status?: Database["public"]["Enums"]["booking_status_enum"]
-          total_price: number
-          updated_at?: string | null
-        }
-        Update: {
-          car_id?: string
-          created_at?: string | null
-          currency?: string
-          customer_id?: string
-          end_date?: string
-          id?: string
-          notes?: string | null
-          payment_status?: Database["public"]["Enums"]["payment_status_enum"]
-          start_date?: string
-          status?: Database["public"]["Enums"]["booking_status_enum"]
-          total_price?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bookings_car_id_fkey"
-            columns: ["car_id"]
-            isOneToOne: false
-            referencedRelation: "cars"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bookings_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       car_additional_fees: {
         Row: {
           amount: number
@@ -262,7 +202,7 @@ export type Database = {
           {
             foreignKeyName: "car_pricing_car_id_fkey"
             columns: ["car_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "cars"
             referencedColumns: ["id"]
           },
@@ -389,36 +329,6 @@ export type Database = {
         }
         Relationships: []
       }
-      customers: {
-        Row: {
-          created_at: string | null
-          email: string
-          first_name: string
-          id: string
-          last_name: string
-          phone: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          first_name: string
-          id?: string
-          last_name: string
-          phone?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          first_name?: string
-          id?: string
-          last_name?: string
-          phone?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       hero_content: {
         Row: {
           background_src: string
@@ -467,204 +377,20 @@ export type Database = {
         }
         Relationships: []
       }
-      homepage_settings: {
-        Row: {
-          created_at: string | null
-          featured_car_id: string | null
-          id: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          featured_car_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          featured_car_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "homepage_settings_featured_car_id_fkey"
-            columns: ["featured_car_id"]
-            isOneToOne: false
-            referencedRelation: "cars"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payments: {
-        Row: {
-          amount: number
-          booking_id: string
-          captured_at: string | null
-          created_at: string | null
-          currency: string
-          id: string
-          paypal_authorization_id: string | null
-          paypal_invoice_id: string | null
-          paypal_order_id: string | null
-          status: Database["public"]["Enums"]["payment_status_enum"]
-          updated_at: string | null
-        }
-        Insert: {
-          amount: number
-          booking_id: string
-          captured_at?: string | null
-          created_at?: string | null
-          currency?: string
-          id?: string
-          paypal_authorization_id?: string | null
-          paypal_invoice_id?: string | null
-          paypal_order_id?: string | null
-          status?: Database["public"]["Enums"]["payment_status_enum"]
-          updated_at?: string | null
-        }
-        Update: {
-          amount?: number
-          booking_id?: string
-          captured_at?: string | null
-          created_at?: string | null
-          currency?: string
-          id?: string
-          paypal_authorization_id?: string | null
-          paypal_invoice_id?: string | null
-          paypal_order_id?: string | null
-          status?: Database["public"]["Enums"]["payment_status_enum"]
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: true
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      paypal_invoices: {
-        Row: {
-          booking_id: string | null
-          created_at: string | null
-          currency: string | null
-          gross_amount: number | null
-          invoice_id: string
-          status: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          booking_id?: string | null
-          created_at?: string | null
-          currency?: string | null
-          gross_amount?: number | null
-          invoice_id: string
-          status?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          booking_id?: string | null
-          created_at?: string | null
-          currency?: string | null
-          gross_amount?: number | null
-          invoice_id?: string
-          status?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "paypal_invoices_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      create_car_atomic: {
-        Args:
-          | {
-              p_name: string
-              p_category: string
-              p_description: string
-              p_short_description: string
-              p_available: boolean
-              p_featured: boolean
-              p_hidden: boolean
-              p_created_by: string
-              p_pricing: Json
-              p_images: Json
-              p_features: Json
-              p_specifications: Json
-            }
-          | {
-              p_name: string
-              p_category: string
-              p_description: string
-              p_short_description: string
-              p_available: boolean
-              p_featured: boolean
-              p_hidden: boolean
-              p_pricing: Json
-              p_images: Json
-              p_features: Json
-              p_specifications: Json
-            }
-        Returns: string
-      }
-      delete_car_atomic: {
-        Args: { p_car_id: string }
-        Returns: undefined
-      }
-      is_admin: {
-        Args: { email: string }
-        Returns: boolean
-      }
       set_active_hero: {
-        Args: { hero_id: string }
-        Returns: undefined
-      }
-      update_car_atomic: {
         Args: {
-          p_car_id: string
-          p_name: string
-          p_category: string
-          p_description: string
-          p_short_description: string
-          p_available: boolean
-          p_featured: boolean
-          p_hidden: boolean
-          p_pricing: Json
-          p_images: Json
-          p_features: Json
-          p_specifications: Json
+          hero_id: string
         }
         Returns: undefined
       }
     }
     Enums: {
-      booking_status_enum:
-        | "pending"
-        | "authorized"
-        | "upcoming"
-        | "active"
-        | "completed"
-        | "cancelled"
-        | "booked"
-      payment_status_enum:
-        | "pending"
-        | "authorized"
-        | "captured"
-        | "refunded"
-        | "voided"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -672,29 +398,27 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
     | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -702,22 +426,20 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -725,22 +447,20 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -748,23 +468,21 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
     | { schema: keyof Database },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
+    | keyof PublicSchema["CompositeTypes"]
     | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof Database
@@ -773,29 +491,6 @@ export type CompositeTypes<
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      booking_status_enum: [
-        "pending",
-        "authorized",
-        "upcoming",
-        "active",
-        "completed",
-        "cancelled",
-        "booked",
-      ],
-      payment_status_enum: [
-        "pending",
-        "authorized",
-        "captured",
-        "refunded",
-        "voided",
-      ],
-    },
-  },
-} as const
