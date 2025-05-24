@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     title: "exoDrive | Exotic Car Rentals in DMV",
     description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
     url: 'https://www.exodrive.co',
-    siteName: 'exoDrive',
+    siteName: 'ExoDrive Exotics',
     type: 'website',
     locale: 'en_US',
     images: [
