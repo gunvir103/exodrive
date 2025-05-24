@@ -82,7 +82,7 @@ export function Navbar() {
           <Link href="/" className="flex items-center space-x-2 z-10">
             <Car className={cn("h-5 w-5", isScrolled || isOpen ? "text-foreground" : "text-white")} />
             <span className={cn("font-medium text-base", isScrolled || isOpen ? "text-foreground" : "text-white")}>
-              exoDrive
+              ExoDrive Exotics
             </span>
           </Link>
 
