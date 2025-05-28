@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { Redis } from '@upstash/redis/next';
+import { Redis } from '@upstash/redis';
 
 // Initialize Redis client from environment variables
 const redis = Redis.fromEnv();
