@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Component Development Guidelines
+
+- **Styling**: Always use Tailwind CSS for styling.
+- **UI Primitives**: Utilize `shadcn/ui` primitives.
+- **Accessibility**: Ensure components are accessible (WCAG AA).
+- **Mobile-First**: Design with a mobile-first approach.
+- **Structure**:
+    - Props interface at the top.
+    - Component as a named export.
+    - JSDoc/TSDoc for the component and its props.
+- **State Management**: Prefer local component state or React Context for simple cases. For more complex global state, consider Zustand or other established libraries if already in use in the project.
+- **Client Components**: Only use `"use client"` when strictly necessary (e.g., for hooks like `useState`, `useEffect`, or event handlers). Prefer Server Components for better performance.
+
