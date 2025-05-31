@@ -54,7 +54,11 @@ export function Navbar() {
       label: "Fleet",
       active: pathname === "/fleet" || pathname.startsWith("/fleet/"),
     },
-    // Removing the About page from navigation
+    {
+      href: "/policies",
+      label: "Policies",
+      active: pathname === "/policies",
+    },
     {
       href: "/contact",
       label: "Contact",
