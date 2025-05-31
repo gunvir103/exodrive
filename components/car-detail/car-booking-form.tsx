@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -16,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+
 type DateAvailability = {
   date: string;
   available: boolean;
@@ -586,13 +588,13 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
                 <div className="space-y-1">
                   <Label htmlFor="termsAccepted" className={cn("text-xs", errors.termsAccepted && "text-red-500")}>
                     I agree to the{" "}
-                    <a href="#" className="text-primary underline">
+                    <Link href="/policies" className="text-primary underline" target="_blank" rel="noopener noreferrer">
                       Terms &amp; Conditions
-                    </a>{" "}
+                    </Link>{" "}
                     and{" "}
-                    <a href="#" className="text-primary underline">
+                    <Link href="/policies" className="text-primary underline" target="_blank" rel="noopener noreferrer">
                       Privacy Policy
-                    </a>
+                    </Link>
                   </Label>
                   {errors.termsAccepted && <p className="text-xs text-red-500">{errors.termsAccepted}</p>}
                 </div>
