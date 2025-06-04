@@ -1,212 +1,263 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServiceRoleClient } from '@/lib/supabase/server'
-import { createHmac } from 'crypto'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { z } from 'zod'
+import crypto from 'crypto'
 
 // DocuSeal webhook event types
-type DocuSealWebhookEvent = 
-  | 'form.viewed'     // Customer opened the contract
-  | 'form.started'    // Customer began filling
-  | 'form.completed'  // Contract signed
-  | 'form.declined'   // Customer declined to sign
-
-interface DocuSealWebhookPayload {
-  event_type: DocuSealWebhookEvent
-  timestamp: string
-  data: {
-    id: number
-    submission_id: number
-    email: string
-    status: 'completed' | 'declined' | 'opened' | 'sent' | 'awaiting'
-    completed_at?: string
-    declined_at?: string
-    documents?: Array<{
-      name: string
-      url: string
-    }>
-    metadata?: {
-      booking_id: string
-      customer_id?: string
-    }
-  }
+const DOCUSEAL_EVENT_TYPES = {
+  SUBMISSION_CREATED: 'submission.created',
+  SUBMISSION_VIEWED: 'submission.viewed',
+  SUBMISSION_COMPLETED: 'submission.completed',
+  SUBMISSION_EXPIRED: 'submission.expired',
+  SUBMISSION_ARCHIVED: 'submission.archived',
+  TEMPLATE_CREATED: 'template.created',
+  TEMPLATE_UPDATED: 'template.updated'
 }
 
-// Map DocuSeal events to our booking events
-const eventTypeMapping = {
-  'form.viewed': 'contract_viewed',
-  'form.started': 'contract_viewed', // We treat started as viewed
-  'form.completed': 'contract_signed',
-  'form.declined': 'contract_declined'
-} as const
+// DocuSeal webhook payload schema
+const docusealWebhookSchema = z.object({
+  event_type: z.string(),
+  timestamp: z.number(),
+  data: z.object({
+    id: z.number(),
+    submission_id: z.number().optional(),
+    slug: z.string().optional(),
+    source: z.string().optional(),
+    submitters: z.array(z.object({
+      id: z.number(),
+      email: z.string().email(),
+      slug: z.string(),
+      sent_at: z.string().nullable(),
+      viewed_at: z.string().nullable(),
+      completed_at: z.string().nullable(),
+      declined_at: z.string().nullable().optional(),
+      name: z.string().optional(),
+      phone: z.string().optional(),
+      status: z.enum(['pending', 'sent', 'opened', 'completed', 'declined']).optional(),
+      metadata: z.record(z.any()).optional()
+    })).optional(),
+    template: z.object({
+      id: z.number(),
+      name: z.string(),
+      slug: z.string().optional(),
+      folder_name: z.string().optional()
+    }).optional(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    archived_at: z.string().nullable().optional(),
+    completed_at: z.string().nullable().optional(),
+    expire_at: z.string().nullable().optional(),
+    documents: z.array(z.object({
+      id: z.number(),
+      name: z.string(),
+      url: z.string()
+    })).optional(),
+    metadata: z.record(z.any()).optional()
+  })
+})
 
-// Map DocuSeal status to our contract status
-const statusMapping = {
-  'sent': 'sent',
-  'opened': 'viewed',
-  'completed': 'signed',
-  'declined': 'declined',
-  'awaiting': 'not_sent'
-} as const
+// Verify DocuSeal webhook signature
+function verifyDocusealWebhook(
+  request: NextRequest,
+  body: string
+): boolean {
+  const signature = request.headers.get('x-docuseal-signature')
+  if (!signature) {
+    console.error('Missing DocuSeal signature header')
+    return false
+  }
+
+  const secret = process.env.DOCUSEAL_WEBHOOK_SECRET
+  if (!secret) {
+    console.warn('DOCUSEAL_WEBHOOK_SECRET not set, skipping verification')
+    return true // In development, allow unverified webhooks
+  }
+
+  // DocuSeal uses HMAC-SHA256 for webhook signatures
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(body)
+    .digest('hex')
+
+  return signature === expectedSignature
+}
 
 export async function POST(request: NextRequest) {
+  const supabase = createSupabaseServerClient(request.cookies as any)
+  
   try {
     // Get raw body for signature verification
     const rawBody = await request.text()
     
     // Verify webhook signature
-    const signature = request.headers.get('X-DocuSeal-Signature')
-    if (!signature) {
-      console.error('DocuSeal webhook: Missing signature')
-      return NextResponse.json(
-        { error: 'Missing signature' },
-        { status: 401 }
-      )
+    const isValid = verifyDocusealWebhook(request, rawBody)
+    if (!isValid) {
+      console.error('Invalid DocuSeal webhook signature')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    // Verify HMAC signature
-    const webhookSecret = process.env.DOCUSEAL_WEBHOOK_SECRET
-    if (!webhookSecret) {
-      console.error('DocuSeal webhook: Missing webhook secret configuration')
+    // Parse JSON body
+    const body = JSON.parse(rawBody)
+
+    // Validate webhook payload
+    const validationResult = docusealWebhookSchema.safeParse(body)
+    if (!validationResult.success) {
+      console.error('Invalid DocuSeal webhook payload:', validationResult.error)
       return NextResponse.json(
-        { error: 'Webhook configuration error' },
-        { status: 500 }
-      )
-    }
-
-    const expectedSignature = createHmac('sha256', webhookSecret)
-      .update(rawBody)
-      .digest('hex')
-
-    if (`sha256=${expectedSignature}` !== signature) {
-      console.error('DocuSeal webhook: Invalid signature')
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      )
-    }
-
-    // Parse the payload
-    const payload: DocuSealWebhookPayload = JSON.parse(rawBody)
-    console.log('DocuSeal webhook received:', {
-      event_type: payload.event_type,
-      submission_id: payload.data.submission_id,
-      status: payload.data.status,
-      booking_id: payload.data.metadata?.booking_id
-    })
-
-    // Extract booking ID from metadata
-    const bookingId = payload.data.metadata?.booking_id
-    if (!bookingId) {
-      console.error('DocuSeal webhook: Missing booking_id in metadata')
-      return NextResponse.json(
-        { error: 'Missing booking_id in metadata' },
+        { error: 'Invalid payload', details: validationResult.error.flatten() },
         { status: 400 }
       )
     }
 
-    // Create Supabase client with service role for webhook operations
-    const supabase = createSupabaseServiceRoleClient()
+    const webhookData = validationResult.data
+    const { event_type, data } = webhookData
 
-    // Get the current booking
+    // Extract booking ID from metadata
+    const bookingId = data.metadata?.booking_id || 
+                     data.submitters?.[0]?.metadata?.booking_id
+    
+    if (!bookingId) {
+      console.warn('No booking ID found in DocuSeal webhook:', webhookData)
+      return NextResponse.json({ message: 'No booking ID found' }, { status: 200 })
+    }
+
+    // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, contract_status, contract_submission_id, customer_id')
+      .select('*')
       .eq('id', bookingId)
       .single()
 
     if (bookingError || !booking) {
-      console.error('DocuSeal webhook: Booking not found', bookingError)
-      return NextResponse.json(
-        { error: 'Booking not found' },
-        { status: 404 }
-      )
+      console.error('Booking not found for DocuSeal webhook:', bookingId)
+      return NextResponse.json({ message: 'Booking not found' }, { status: 200 })
     }
 
-    // Map the event type to our booking event type
-    const bookingEventType = eventTypeMapping[payload.event_type]
-    const newContractStatus = statusMapping[payload.data.status]
-
-    // Prepare booking update data
-    const updateData: any = {
-      contract_status: newContractStatus,
-      updated_at: new Date().toISOString()
+    // Handle different event types
+    let updateData: any = {}
+    let eventType = 'contract_webhook_received'
+    let eventMetadata: any = {
+      docuseal_event_type: event_type,
+      docuseal_submission_id: data.submission_id || data.id,
+      template_name: data.template?.name
     }
 
-    // Add specific fields based on event type
-    if (payload.event_type === 'form.completed' && payload.data.completed_at) {
-      updateData.contract_signed_at = payload.data.completed_at
-      
-      // Store the document URL if available
-      const signedDoc = payload.data.documents?.[0]
-      if (signedDoc) {
-        updateData.contract_document_id = String(payload.data.id)
+    switch (event_type) {
+      case DOCUSEAL_EVENT_TYPES.SUBMISSION_CREATED:
+        updateData.contract_status = 'sent'
+        eventType = 'contract_sent'
+        eventMetadata.sent_at = data.created_at
+        
+        // Store DocuSeal submission ID if not already stored
+        if (!booking.docuseal_submission_id) {
+          updateData.docuseal_submission_id = data.id.toString()
+        }
+        break
+
+      case DOCUSEAL_EVENT_TYPES.SUBMISSION_VIEWED:
+        if (booking.contract_status === 'sent') {
+          updateData.contract_status = 'viewed'
+        }
+        eventType = 'contract_viewed'
+        eventMetadata.viewed_at = data.submitters?.[0]?.viewed_at
+        break
+
+      case DOCUSEAL_EVENT_TYPES.SUBMISSION_COMPLETED:
+        updateData.contract_status = 'signed'
+        eventType = 'contract_signed'
+        eventMetadata.signed_at = data.completed_at
+        eventMetadata.documents = data.documents
+        
+        // Store signed document URL
+        if (data.documents && data.documents.length > 0) {
+          updateData.contract_document_url = data.documents[0].url
+        }
+        
+        // If payment is authorized and contract is signed, mark as upcoming
+        if (booking.payment_status === 'authorized' && 
+            ['pending_contract', 'contract_pending_signature'].includes(booking.overall_status)) {
+          updateData.overall_status = 'upcoming'
+        }
+
+        // Store signed contract as booking media
+        if (data.documents) {
+          for (const doc of data.documents) {
+            await supabase.from('booking_media').insert({
+              booking_id: bookingId,
+              media_type: 'signed_contract',
+              file_url: doc.url,
+              file_name: doc.name,
+              uploaded_at: new Date().toISOString(),
+              uploaded_by_type: 'system',
+              uploaded_by_id: 'docuseal-webhook',
+              metadata: {
+                docuseal_document_id: doc.id,
+                docuseal_submission_id: data.id
+              }
+            })
+          }
+        }
+        break
+
+      case DOCUSEAL_EVENT_TYPES.SUBMISSION_EXPIRED:
+        updateData.contract_status = 'expired'
+        eventType = 'contract_expired'
+        eventMetadata.expired_at = data.expire_at
+        break
+
+      case DOCUSEAL_EVENT_TYPES.SUBMISSION_ARCHIVED:
+        eventType = 'contract_archived'
+        eventMetadata.archived_at = data.archived_at
+        break
+
+            default:
+        console.log('Unhandled DocuSeal event type:', event_type);
+    }
+
+    // Check if submitter declined
+    const submitter = data.submitters?.[0]
+    if (submitter?.declined_at && submitter.status === 'declined') {
+      updateData.contract_status = 'declined'
+      eventType = 'contract_declined'
+      eventMetadata.declined_at = submitter.declined_at
+      eventMetadata.declined_by = submitter.email
+    }
+
+    // Update booking if needed
+    if (Object.keys(updateData).length > 0) {
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', bookingId)
+
+      if (updateError) {
+        console.error('Error updating booking from DocuSeal webhook:', updateError)
       }
     }
 
-    // Update booking with new contract status
-    const { error: updateError } = await supabase
-      .from('bookings')
-      .update(updateData)
-      .eq('id', bookingId)
-
-    if (updateError) {
-      console.error('DocuSeal webhook: Failed to update booking', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update booking' },
-        { status: 500 }
-      )
-    }
-
-    // Create booking event for timeline
-    const eventSummary = {
-      'contract_viewed': `Contract viewed by ${payload.data.email}`,
-      'contract_signed': `Contract signed by ${payload.data.email}`,
-      'contract_declined': `Contract declined by ${payload.data.email}`
-    }[bookingEventType] || `Contract event: ${payload.event_type}`
-
-    const { error: eventError } = await supabase
-      .from('booking_events')
-      .insert({
-        booking_id: bookingId,
-        event_type: bookingEventType,
-        actor_type: 'webhook_esignature',
-        actor_id: 'docuseal',
-        summary_text: eventSummary,
-        details: {
-          docuseal_event: payload.event_type,
-          submission_id: payload.data.submission_id,
-          email: payload.data.email,
-          status: payload.data.status,
-          timestamp: payload.timestamp,
-          documents: payload.data.documents
-        }
-      })
-
-    if (eventError) {
-      console.error('DocuSeal webhook: Failed to create booking event', eventError)
-      // Don't fail the webhook for this, just log it
-    }
-
-    // If contract is signed, we might want to store the PDF
-    if (payload.event_type === 'form.completed' && payload.data.documents?.[0]) {
-      // TODO: Implement PDF download and storage to booking_media
-      // This would involve:
-      // 1. Downloading the PDF from DocuSeal
-      // 2. Uploading to Supabase Storage
-      // 3. Creating a booking_media record
-      console.log('Contract signed, PDF available at:', payload.data.documents[0].url)
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Webhook processed successfully',
+    // Log the event
+    await supabase.from('booking_events').insert({
       booking_id: bookingId,
-      event_type: payload.event_type
+      event_type: eventType,
+      timestamp: new Date().toISOString(),
+      actor_type: 'system',
+      actor_id: 'docuseal-webhook',
+      metadata: eventMetadata
     })
 
-  } catch (error) {
-    console.error('DocuSeal webhook error:', error)
+    return NextResponse.json({ 
+      message: 'Webhook processed successfully',
+      bookingId,
+      eventType 
+    })
+
+  } catch (error: any) {
+    console.error('Error processing DocuSeal webhook:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     )
   }
