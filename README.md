@@ -1,6 +1,6 @@
 # ExoDrive - Exotic Car Rental Platform
 
-This document provides an overview of the ExoDrive project, a luxury and exotic car rental service with comprehensive booking management, automated contracts, and payment processing.
+A comprehensive luxury car rental platform built with Next.js 15, featuring automated booking management, contract generation, payment processing, and administrative tools.
 
 ## Table of Contents
 
@@ -8,170 +8,599 @@ This document provides an overview of the ExoDrive project, a luxury and exotic 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Setup](#installation--setup)
-- [Project Structure](#project-structure)
-- [Backend Integration (Supabase)](#backend-integration-supabase)
+- [Architecture](#architecture)
+  - [Booking System](#booking-system)
+  - [Payment Integration](#payment-integration)
+  - [Contract Automation](#contract-automation)
+  - [Database Design](#database-design)
+- [API Documentation](#api-documentation)
 - [Admin Dashboard](#admin-dashboard)
-- [Homepage Settings](#homepage-settings)
-- [Database Verification](#database-verification)
-- [Crawler Configuration](#crawler-configuration)
+- [Development](#development)
+- [Performance & Optimization](#performance--optimization)
 - [Deployment](#deployment)
+- [Roadmap](#roadmap)
+- [Security & Compliance](#security--compliance)
 
 ## Overview
 
-exoDrive is a Next.js application designed to provide a modern, responsive interface for customers to browse and inquire about renting exotic cars. It includes a public-facing website and an administrative dashboard for managing the car fleet and related settings.
+ExoDrive is a modern, responsive platform that enables customers to browse and rent exotic cars while providing administrators with comprehensive tools for fleet and booking management. The system emphasizes automation, security, and real-time updates.
+
+### Key Capabilities
+- **Automated Booking Flow**: From car selection to contract signing
+- **Real-time Availability**: Redis-powered conflict prevention
+- **Contract Automation**: DocuSeal integration for e-signatures
+- **Payment Processing**: PayPal SDK with dispute management
+- **Admin Dashboard**: Complete booking lifecycle management
+- **Evidence Collection**: Automated dispute preparation
 
 ## Features
 
-- **Public Website**:
-  - Engaging homepage with featured cars and company information
-  - Comprehensive fleet page with filtering and search capabilities
-  - Detailed car pages showcasing specifications, images, and booking options
-  - Complete booking flow with payment processing and contract automation
-  - Secure customer booking pages with real-time status updates
-  - Contact page for customer inquiries
+### Customer-Facing Features
+- **Fleet Browsing**: Interactive car catalog with filtering and search
+- **Booking System**: Date selection with real-time availability
+- **Secure Booking Pages**: Token-based access without account creation
+- **Contract Signing**: Automated e-signature workflow
+- **Payment Processing**: Secure PayPal integration
+- **Mobile Responsive**: Optimized for all devices
 
-- **Admin Dashboard**:
-  - Secure login system for administrators
-  - Complete booking management system with status tracking
-  - Full car management capabilities (add, edit, delete, hide/unhide)
-  - Real-time booking timeline with event tracking
-  - PayPal payment processing and invoice management
-  - Automated contract generation and signing workflow
-  - Email notification system with delivery tracking
-  - Configuration for homepage settings and other site parameters
+### Administrative Features
+- **Booking Management**: Complete CRUD operations with status tracking
+- **Real-time Dashboard**: Live booking updates via webhooks
+- **Contract Management**: Send, track, and manage rental agreements
+- **Payment Tools**: Capture, refund, and invoice generation
+- **Fleet Management**: Car inventory with dynamic pricing
+- **Analytics**: Booking metrics and performance tracking
+- **Dispute Tools**: Automated evidence collection and management
 
-- **Booking System**:
-  - Automated availability checking with Redis-based conflict prevention
-  - PayPal payment authorization and capture
-  - Automated contract generation via DocuSeal
-  - Real-time webhook processing for payment and contract events
-  - Comprehensive dispute management with evidence collection
+### System Features
+- **Atomic Transactions**: Redis locks prevent double-booking
+- **Webhook Processing**: Real-time updates from PayPal, DocuSeal, Resend
+- **Email Automation**: Transactional emails with delivery tracking
+- **File Management**: Supabase Storage for documents and media
+- **Audit Trail**: Complete booking timeline and event logging
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **Package Manager**: Bun
-- **Styling**: Tailwind CSS with custom gradient utilities
-- **UI Components**: shadcn/ui
-- **Animations**: Framer Motion
-- **Authentication**: Supabase Auth (with email/password for admins)
-- **Database**: Supabase (PostgreSQL)
-- **Storage**: Supabase Storage (for car images, hero backgrounds)
-- **Payment Processing**: PayPal SDK for payments and invoicing
-- **Contract Management**: DocuSeal for automated rental agreements
-- **Caching**: Redis (Upstash) for distributed locking and performance
-- **Email Service**: Resend for transactional emails
-- **Icons**: Lucide React
+### Core Framework
+- **Next.js 15** - App Router with React Server Components
+- **TypeScript** - Full type safety throughout the application
+- **Bun** - Package manager and runtime for development
+
+### Backend & Database
+- **Supabase** - PostgreSQL database with Row Level Security
+- **Supabase Auth** - Authentication for admin users
+- **Supabase Storage** - File storage for images and documents
+- **Edge Functions** - Serverless functions for complex transactions
+
+### External Services
+- **PayPal SDK** - Payment processing and invoicing
+- **DocuSeal** - Self-hosted e-signature platform
+- **Resend** - Transactional email delivery
+- **Redis (Upstash)** - Distributed locking and caching
+
+### Frontend & UI
+- **Tailwind CSS** - Utility-first styling
+- **shadcn/ui** - Component library
+- **Framer Motion** - Animations and transitions
+- **Lucide React** - Icon library
+
+### Development Tools
+- **Vitest** - Unit and integration testing
+- **Playwright** - End-to-end testing
+- **ESLint** - Code linting and formatting
 
 ## Getting Started
 
 ### Prerequisites
+- Node.js 18.x or later
+- Bun (latest version)
+- Supabase account and project
+- PayPal Developer account
+- Redis instance (Upstash recommended)
 
-- Node.js (version 18.x or later recommended, for Next.js compatibility)
-- Bun (latest version recommended)
+### Installation
 
-### Installation & Setup
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/gunvir103/exodrive.git
+   cd exodrive
+   ```
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/gunvir103/exodrive.git
-    cd exodrive
-    ```
-2.  **Install dependencies** using Bun:
-    ```bash
-    bun install
-    ```
-3.  **Set up environment variables**:
-    -   Copy the example environment file: `cp .env.example .env.local`
-    -   Populate `.env.local` with your Supabase project URL, anon key, service role key, and any other required API keys (e.g., Resend for emails).
-4.  **Run database migrations** (if setting up a new Supabase project or to ensure schema is up-to-date):
-    ```bash
-    bun run db:migrate
-    ```
-5.  **Run the development server**:
-    ```bash
-    bun dev
-    ```
-    The application should now be running on `http://localhost:3005` (or your configured port).
+2. **Install dependencies**
+   ```bash
+   bun install
+   ```
 
-## Project Structure
+3. **Environment Setup**
+   ```bash
+   cp .env.example .env.local
+   ```
 
-(Brief explanation of key directories)
+   Configure the following variables:
+   ```env
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
+   # PayPal
+   PAYPAL_CLIENT_ID=your_paypal_client_id
+   PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+   PAYPAL_WEBHOOK_ID=your_webhook_id
+   NEXT_PUBLIC_PAYPAL_CLIENT_ID=your_client_id
+
+   # DocuSeal
+   DOCUSEAL_INSTANCE_URL=https://docuseal.yourdomain.com
+   DOCUSEAL_API_TOKEN=your_api_token
+   DOCUSEAL_TEMPLATE_ID=your_template_id
+
+   # Redis
+   UPSTASH_REDIS_REST_URL=your_redis_url
+   UPSTASH_REDIS_REST_TOKEN=your_redis_token
+
+   # Email
+   RESEND_API_KEY=your_resend_key
+
+   # Application
+   NEXT_PUBLIC_BASE_URL=http://localhost:3005
+   ```
+
+4. **Database Setup**
+   ```bash
+   # Run database migrations
+   bun run db:migrate
+   
+   # Verify database integrity
+   bun run verify:db
+   ```
+
+5. **Start Development Server**
+   ```bash
+   bun dev
+   ```
+
+   The application will be available at `http://localhost:3005`
+
+### Development Commands
+
+```bash
+# Development
+bun dev                    # Start development server (port 3005)
+
+# Building
+bun run build             # Build for production
+bun start                 # Start production server
+bun run clean             # Remove .next directory
+
+# Database
+bun run db:migrate        # Run database migrations
+bun run verify:db         # Verify database integrity
+bun run verify:db:force   # Force verification check
+
+# Testing & Quality
+bun run lint              # Run Next.js linting
+bun test                  # Run tests with Vitest
 ```
-/app              # Next.js App Router: pages, layouts, API routes
-  /(main)        # Routes for the public-facing website
-  /admin          # Routes for the admin dashboard
-  /api            # API backend routes
-/components       # Shared React components (UI, specific features)
-/lib              # Core logic, services, utilities, Supabase helpers
-/public           # Static assets (images, fonts, etc.)
-/scripts          # Utility scripts (e.g., database migrations, verification)
-/supabase         # Supabase local development configuration and migrations
-  /migrations     # SQL migration files
-# ... other configuration files (next.config.mjs, tailwind.config.ts, etc.)
+
+## Architecture
+
+### System Overview
+
+```mermaid
+graph TB
+    A[Customer] --> B[Next.js Frontend]
+    B --> C[API Routes]
+    C --> D[Supabase Database]
+    C --> E[Redis Cache]
+    C --> F[PayPal API]
+    C --> G[DocuSeal API]
+    C --> H[Resend API]
+    
+    I[Admin] --> J[Admin Dashboard]
+    J --> C
+    
+    F --> K[PayPal Webhooks]
+    G --> L[DocuSeal Webhooks] 
+    H --> M[Resend Webhooks]
+    
+    K --> C
+    L --> C
+    M --> C
 ```
 
-## Backend Integration (Supabase)
+### Booking System
 
-This project heavily relies on Supabase for its backend services:
+The booking system ensures exactly one booking per car per day through a multi-layered approach:
 
-- **Database**: PostgreSQL for storing car details, pricing, features, specifications, images, user data, and application settings.
-- **Authentication**: Supabase Auth for managing admin user authentication.
-- **Storage**: Supabase Storage for hosting car images (in the `vehicle-images` bucket) and other assets like hero backgrounds.
-- **Row Level Security (RLS)**: Implemented to secure data access. Public users have read-only access to non-hidden car data, while authenticated admins have broader CRUD permissions (requires correct RLS policy setup in Supabase).
-- **Database Functions (RPC)**: Used for atomic operations (e.g., `create_car_atomic`, `update_car_atomic`) to ensure data consistency across multiple tables.
+#### Concurrency Control
+1. **Redis Distributed Locks**: Prevent race conditions during booking creation
+2. **Database Constraints**: `UNIQUE(car_id, date)` in `car_availability`
+3. **Atomic Transactions**: Supabase Edge Functions for consistency
 
-For detailed schema information and RLS policy setup, refer to the SQL files in `supabase/migrations/` and your Supabase project dashboard.
+#### Booking Lifecycle
+
+```mermaid
+graph LR
+    A[Browse Cars] --> B[Select Dates]
+    B --> C[Customer Info]
+    C --> D[Payment Auth]
+    D --> E[Contract Sent]
+    E --> F[Contract Signed]
+    F --> G[Booking Ready]
+    G --> H[Active Rental]
+    H --> I[Completed]
+```
+
+#### Status Management
+- **Booking Status**: `pending_payment` → `upcoming` → `active` → `completed`
+- **Payment Status**: `pending` → `authorized` → `captured`
+- **Contract Status**: `not_sent` → `sent` → `viewed` → `signed`
+
+### Payment Integration
+
+#### PayPal Integration
+- **Authorization**: Hold funds without immediate capture
+- **Invoicing**: Generate invoices with attached documents
+- **Dispute Management**: Automated evidence collection
+- **Webhook Processing**: Real-time payment status updates
+
+#### Security Features
+- Webhook signature verification
+- Secure token storage
+- PCI compliance through PayPal
+- Row Level Security (RLS) for all payment data
+
+### Contract Automation
+
+#### DocuSeal Integration
+ExoDrive uses self-hosted DocuSeal for complete control over the signing process:
+
+1. **Template Creation**: PDF templates with dynamic field mapping
+2. **Automatic Generation**: Triggered after successful booking
+3. **Email Delivery**: Secure signing links sent to customers
+4. **Status Tracking**: Real-time updates via webhooks
+5. **Evidence Storage**: Signed PDFs stored in Supabase Storage
+
+#### Contract Template Structure
+- **Customer Information**: Auto-filled from booking
+- **Vehicle Details**: Dynamic car specifications
+- **Rental Terms**: Dates, locations, pricing
+- **Legal Terms**: Standard rental agreement clauses
+- **Signatures**: Customer e-signature with timestamp
+
+### Database Design
+
+#### Core Tables
+- **`bookings`**: Central booking records with status tracking
+- **`customers`**: Customer information and contact details
+- **`cars`**: Vehicle inventory with specifications and pricing
+- **`car_availability`**: Daily availability status per vehicle
+- **`payments`**: Payment records linked to PayPal transactions
+- **`booking_events`**: Complete audit trail and timeline
+
+#### Advanced Tables
+- **`booking_secure_tokens`**: Secure access tokens for customer pages
+- **`booking_media`**: File attachments (photos, documents, evidence)
+- **`disputes`**: Payment dispute tracking and evidence management
+- **`paypal_invoices`**: Invoice management with attachment tracking
+
+#### Row Level Security (RLS)
+Comprehensive security policies ensure data access control:
+- **Public**: Read-only access to non-hidden car data
+- **Authenticated**: Access to own booking data via secure tokens
+- **Admin**: Full CRUD access to all data
+- **Service Role**: Webhook and system operations
+
+## API Documentation
+
+### Public Endpoints
+
+#### Car Availability
+```typescript
+GET /api/cars/availability?carId={id}&start={date}&end={date}
+Response: {
+  available: boolean,
+  unavailableDates: string[],
+  summary: { total: number, available: number, booked: number }
+}
+```
+
+#### Booking Creation
+```typescript
+POST /api/bookings
+Body: {
+  carId: string,
+  startDate: string,
+  endDate: string,
+  customerDetails: {
+    fullName: string,
+    email: string,
+    phone?: string
+  }
+}
+Response: {
+  bookingId: string,
+  bookingUrl: string,
+  success: boolean
+}
+```
+
+### Admin Endpoints
+
+#### Booking Management
+```typescript
+GET /api/admin/bookings?status={status}&page={page}
+POST /api/admin/bookings/{id}/status
+PATCH /api/admin/bookings/{id}
+DELETE /api/admin/bookings/{id}
+```
+
+#### Payment Operations
+```typescript
+POST /api/admin/bookings/{id}/capture-payment
+POST /api/admin/bookings/{id}/create-invoice
+POST /api/admin/bookings/{id}/refund
+```
+
+#### Contract Management
+```typescript
+POST /api/admin/bookings/{id}/contract/generate
+POST /api/admin/bookings/{id}/contract/resend
+GET /api/admin/bookings/{id}/contract/download
+```
+
+### Webhook Endpoints
+
+#### PayPal Webhooks
+```typescript
+POST /api/webhooks/paypal
+Events: PAYMENT.AUTHORIZATION.CREATED, PAYMENT.CAPTURE.COMPLETED,
+        CUSTOMER.DISPUTE.CREATED, INVOICING.INVOICE.PAID
+```
+
+#### DocuSeal Webhooks
+```typescript
+POST /api/webhooks/docuseal
+Events: form.viewed, form.started, form.completed, form.declined
+```
+
+#### Resend Webhooks
+```typescript
+POST /api/webhooks/resend
+Events: email.sent, email.delivered, email.opened, email.bounced
+```
 
 ## Admin Dashboard
 
-The admin dashboard (`/admin`) allows authorized users to manage the car fleet and site settings.
+### Booking Management
+- **List View**: Filterable table with status badges and quick actions
+- **Detail View**: Complete booking information with timeline
+- **Status Updates**: Real-time status transitions with validation
+- **Bulk Operations**: Multiple booking actions simultaneously
 
-- **Access Control**: Login is required. Access to administrative functions should be protected by role-based checks (ensure these are active in API routes and Supabase RLS policies).
-- **Car Management**: Add, edit, and delete car listings, including details like pricing, descriptions, visibility, image uploads (with drag-and-drop reordering and primary image selection), features, and specifications.
+### Payment Dashboard
+- **Payment Status**: Real-time PayPal integration status
+- **Invoice Generation**: Create invoices with document attachments
+- **Dispute Management**: Evidence collection and tracking
+- **Refund Processing**: Partial and full refund capabilities
 
-## Homepage Settings
+### Contract Management
+- **Auto-Generation**: Triggered by booking creation or manual action
+- **Status Tracking**: Sent, viewed, signed, declined states
+- **Document Storage**: Secure PDF storage and download
+- **Resend Capabilities**: Contract reminder functionality
 
-Dynamic configuration of the homepage's featured car section via the admin panel (`/admin/homepage-settings`).
+### Analytics & Reporting
+- **Booking Metrics**: Volume, conversion rates, status distribution
+- **Revenue Tracking**: Daily, monthly, yearly summaries
+- **Performance Monitoring**: API response times, error rates
+- **Contract Analytics**: Signing rates, completion times
 
-1.  **Ensure Database Migrations are Run**: The necessary tables (`homepage_settings`, `hero_content`) are created by migrations.
-    ```bash
-    bun run db:migrate
-    ```
-2.  **Configure in Admin**: Navigate to "Homepage Settings" in the admin dashboard sidebar, select a car, and save.
+## Development
 
-## Database Verification
-
-Includes tools to verify database configuration and integrity.
-
-### Local Verification
-
-Run the script locally:
-```bash
-bun run verify:db
+### Project Structure
 ```
-This script connects to your Supabase database, verifies car data, tests RLS policies, and generates `db-verification-report.json`.
+/app                    # Next.js App Router
+  /(main)              # Public-facing routes
+  /admin               # Admin dashboard routes
+  /api                 # API endpoints
+/components            # React components
+  /admin               # Admin-specific components
+  /ui                  # shadcn/ui components
+/lib                   # Core utilities and services
+  /services            # Business logic services
+  /supabase           # Database clients and types
+  /types              # TypeScript type definitions
+/supabase              # Database migrations and functions
+  /migrations         # SQL migration files
+  /functions          # Edge functions
+```
 
-### GitHub Action Verification
+### Database Migrations
+Migration files follow timestamp naming: `YYYYMMDD_description.sql`
 
-A GitHub Action (`.github/workflows/verify-database.yml`) runs these checks automatically on pushes, pull requests, weekly, and manually. This ensures data integrity and RLS policy enforcement.
+Key migrations:
+- `20240320_car_tables.sql` - Initial car and pricing schema
+- `20240514_add_booking_core.sql` - Core booking functionality
+- `20240529_create_booking_transactional_function.sql` - Atomic booking creation
+- `20250115_add_car_reviews.sql` - Customer review system
+- `20250116_add_docuseal_contract_fields.sql` - Contract automation
 
-## Crawler Configuration
+### Testing Strategy
 
-This project includes files to guide web crawlers:
+#### Unit Tests (Vitest)
+```bash
+bun test
+```
+- Service layer testing
+- Utility function validation
+- Component logic verification
 
-- **`robots.txt`**: Provides rules for search engine crawlers (e.g., Googlebot). It allows general site indexing while disallowing access to `/admin/` and `/api/` paths. Remember to update the `Sitemap` directive in this file with your actual sitemap URL.
-- **`llms.txt`**: Provides directives for AI crawlers, typically used to disallow content scraping for training LLMs.
+#### Integration Tests
+- API endpoint testing
+- Database operation validation
+- Webhook processing verification
+
+#### End-to-End Tests (Playwright)
+- Complete booking flow
+- Admin dashboard workflows
+- Payment processing scenarios
+
+### Error Handling
+- Comprehensive error boundaries
+- Structured error responses
+- Webhook idempotency handling
+- Redis fallback mechanisms
+
+## Performance & Optimization
+
+### Caching Strategy
+- **Redis Caching**: GraphQL query results (30s-5min TTL)
+- **Static Generation**: ISR for car catalog pages
+- **CDN Optimization**: Vercel Edge Network
+- **Image Optimization**: Next.js Image component with Vercel
+
+### Database Optimization
+- **Connection Pooling**: PgBouncer/Supabase pgcat
+- **Index Strategy**: Optimized queries for car availability and bookings
+- **RLS Policies**: Efficient row-level security
+- **Query Optimization**: Minimized N+1 queries
+
+### Redis Integration
+- **Distributed Locking**: Prevent concurrent booking conflicts
+- **Rate Limiting**: API protection with sliding window
+- **Session Caching**: Reduced database queries
+- **Background Queues**: Async task processing
+
+### Performance Targets
+- **API Response Time**: p95 < 250ms
+- **Webhook Processing**: p95 < 2s
+- **Page Load Time**: FCP < 1.5s, LCP < 2.5s
+- **Booking Creation**: End-to-end < 5s
 
 ## Deployment
 
-(Placeholder: Add specific deployment instructions for your chosen platform, e.g., Vercel, Netlify, Docker.)
+### Environment Setup
+The application is deployed on Vercel with the following services:
 
-Considerations for deployment:
-- Environment variable setup for production (Supabase keys, API keys).
-- Automated CI/CD pipeline for builds, tests, and deployments.
-- Database migration strategy for production environments.
+- **Frontend & API**: Vercel (Next.js)
+- **Database**: Supabase (PostgreSQL)
+- **Storage**: Supabase Storage
+- **Redis**: Upstash Redis
+- **Email**: Resend
+- **Contracts**: Self-hosted DocuSeal
+- **Payments**: PayPal
 
+### Production Configuration
+```bash
+# Build and deployment
+bun run build
+vercel deploy --prod
+
+# Environment variables
+NEXT_PUBLIC_SUPABASE_URL=production_url
+SUPABASE_SERVICE_ROLE_KEY=production_key
+PAYPAL_CLIENT_ID=production_client_id
+# ... other production environment variables
+```
+
+### Monitoring
+- **Error Tracking**: Sentry integration
+- **Performance**: Vercel Analytics
+- **Database**: Supabase Dashboard
+- **Uptime**: Webhook health checks
+
+## Roadmap
+
+### Current Phase: Core Platform (Q1 2024) ✅
+- [x] Complete booking system with Redis locking
+- [x] Admin dashboard with real-time updates
+- [x] PayPal payment integration
+- [x] DocuSeal contract automation
+- [x] Webhook processing for all services
+- [x] Comprehensive admin booking management
+
+### Phase 1: Payment & Contract Polish (Q2 2024)
+- [ ] Advanced payment features (partial captures, complex refunds)
+- [ ] Multi-language contract templates
+- [ ] Enhanced dispute management with AI assistance
+- [ ] Advanced booking analytics and reporting
+- [ ] Mobile app API foundation
+
+### Phase 2: Advanced Features (Q3 2024)
+- [ ] Customer portal for booking history
+- [ ] Automated pricing based on demand/seasonality
+- [ ] Fleet maintenance scheduling integration
+- [ ] Insurance provider integration
+- [ ] Multi-location support
+
+### Phase 3: Platform Expansion (Q4 2024)
+- [ ] Mobile application (React Native)
+- [ ] Advanced analytics and business intelligence
+- [ ] Third-party integration marketplace
+- [ ] White-label solution for other rental companies
+- [ ] AI-powered customer support
+
+### Future Enhancements
+- Blockchain-based vehicle history
+- IoT integration for real-time vehicle monitoring
+- VR/AR vehicle preview experiences
+- Advanced fraud detection
+- International market expansion
+
+## Security & Compliance
+
+### Data Protection
+- **Encryption**: TLS 1.3 for all communications
+- **Data Minimization**: Only necessary data collection
+- **Secure Storage**: Encrypted at rest in Supabase
+- **Access Control**: Row Level Security throughout
+
+### Payment Security
+- **PCI Compliance**: PayPal handles all payment data
+- **Tokenization**: Secure payment method storage
+- **Fraud Detection**: PayPal's built-in protection
+- **Audit Trail**: Complete payment history logging
+
+### GDPR Compliance
+- **Right to Access**: Customer data export capabilities
+- **Right to Deletion**: Automated data anonymization
+- **Data Portability**: Standard format exports
+- **Consent Management**: Clear opt-in processes
+
+### Legal Compliance
+- **E-Signature Validity**: ESIGN Act & UETA compliant
+- **Contract Retention**: 7-year document storage
+- **Audit Requirements**: Complete event logging
+- **Dispute Evidence**: Tamper-evident document storage
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow TypeScript strict mode
+- Write tests for new features
+- Update documentation for API changes
+- Follow the existing code style and patterns
+
+## License
+
+This project is proprietary software. All rights reserved.
+
+---
+
+## Support
+
+For technical support or questions:
+- Create an issue in this repository
+- Contact the development team
+- Review the documentation in `/docs`
+
+**Last Updated**: January 2024
