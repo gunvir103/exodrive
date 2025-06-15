@@ -23,8 +23,15 @@ export async function toggleCarVisibilityAction(formData: FormData) {
     return
   }
 
-  // TODO: Add proper authorization check here - ensure only admins can call this!
-  // You might fetch the user session here and check their email/role
+  // Check admin authorization
+  const cookieStore = require('next/headers').cookies();
+  const { checkAdminAuthServerAction } = await import('@/lib/auth/admin-check');
+  const { isAdmin, error } = await checkAdminAuthServerAction(cookieStore);
+  
+  if (!isAdmin) {
+    console.error('toggleCarVisibilityAction: Unauthorized access attempt:', error);
+    return;
+  }
 
   const supabaseAdmin = createSupabaseServiceRoleClient()
   const newHiddenStatus = !currentHiddenStatus
@@ -75,7 +82,15 @@ export async function deleteCarPermanentlyAction(formData: FormData): Promise<{ 
         return { success: false, message: 'Deletion confirmation failed.' };
     }
 
-    // TODO: Add proper authorization check here
+    // Check admin authorization
+    const cookieStore = require('next/headers').cookies();
+    const { checkAdminAuthServerAction } = await import('@/lib/auth/admin-check');
+    const { isAdmin, error } = await checkAdminAuthServerAction(cookieStore);
+    
+    if (!isAdmin) {
+        console.error('deleteCarPermanentlyAction: Unauthorized access attempt:', error);
+        return { success: false, message: 'Unauthorized - Admin access required' };
+    }
 
     const supabaseAdmin = createSupabaseServiceRoleClient();
 

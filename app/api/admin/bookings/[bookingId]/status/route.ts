@@ -182,14 +182,56 @@ export async function PATCH(
 
     // Send notifications based on status change
     if (newStatus === 'cancelled') {
-      // TODO: Send cancellation email to customer
-      await supabase.from('booking_events').insert({
-        booking_id: bookingId,
-        event_type: 'cancellation_notification_queued',
-        timestamp: new Date().toISOString(),
-        actor_type: 'system',
-        metadata: { reason }
-      });
+      // Get booking and customer details for email
+      const { data: bookingDetails } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:customers!bookings_customer_id_fkey (
+            first_name,
+            last_name,
+            email
+          ),
+          car:cars!bookings_car_id_fkey (
+            name
+          )
+        `)
+        .eq('id', bookingId)
+        .single();
+
+      if (bookingDetails?.customer?.email) {
+        // Send cancellation email
+        const { sendBookingCancellationEmail } = await import('@/lib/email/booking-emails');
+        
+        sendBookingCancellationEmail({
+          customerEmail: bookingDetails.customer.email,
+          customerName: `${bookingDetails.customer.first_name} ${bookingDetails.customer.last_name}`.trim(),
+          bookingId: bookingId,
+          carName: bookingDetails.car?.name || 'Vehicle',
+          startDate: bookingDetails.start_date,
+          endDate: bookingDetails.end_date,
+          reason: reason
+        }).then(() => {
+          // Log successful email send
+          supabase.from('booking_events').insert({
+            booking_id: bookingId,
+            event_type: 'cancellation_email_sent',
+            timestamp: new Date().toISOString(),
+            actor_type: 'system',
+            metadata: { reason, recipient: bookingDetails.customer.email }
+          });
+        }).catch(error => {
+          console.error('Failed to send cancellation email:', error);
+          // Log email failure
+          supabase.from('booking_events').insert({
+            booking_id: bookingId,
+            event_type: 'email_send_failed',
+            timestamp: new Date().toISOString(),
+            actor_type: 'system',
+            metadata: { error: error.message, email_type: 'cancellation', reason }
+          });
+        });
+      }
     }
 
     return NextResponse.json({

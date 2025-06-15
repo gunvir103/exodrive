@@ -165,7 +165,38 @@ export async function POST(request: NextRequest) {
       // Generate secure URL for the customer
       const bookingUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/booking/${secureTokenValue}`;
 
-      // TODO: Send confirmation email (async or queue)
+      // Send confirmation email
+      const { sendBookingConfirmationEmail } = await import('@/lib/email/booking-emails');
+      
+      // Get car details for email
+      const { data: carDetails } = await supabase
+        .from('cars')
+        .select('name')
+        .eq('id', carId)
+        .single();
+      
+      // Send email asynchronously (don't await to avoid blocking response)
+      sendBookingConfirmationEmail({
+        customerEmail: customerDetails.email,
+        customerName: customerDetails.fullName,
+        bookingId: bookingIdFromFunction,
+        carName: carDetails?.name || 'Vehicle',
+        startDate,
+        endDate,
+        totalPrice,
+        currency,
+        bookingUrl
+      }).catch(error => {
+        console.error('Failed to send booking confirmation email:', error);
+        // Log to booking events
+        supabase.from('booking_events').insert({
+          booking_id: bookingIdFromFunction,
+          event_type: 'email_send_failed',
+          timestamp: new Date().toISOString(),
+          actor_type: 'system',
+          metadata: { error: error.message, email_type: 'booking_confirmation' }
+        });
+      });
 
       return NextResponse.json({
         message: 'Booking process initiated successfully!',

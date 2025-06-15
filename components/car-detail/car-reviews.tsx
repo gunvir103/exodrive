@@ -2,15 +2,16 @@
 
 import { motion } from "framer-motion"
 import { Star, CheckCircle } from "lucide-react"
-import type { CarReview } from "@/lib/types/car"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface CarReviewsProps {
-  reviews: CarReview[]
+  reviews: any[]
+  isLoading?: boolean
 }
 
-export function CarReviews({ reviews }: CarReviewsProps) {
-  // Filter to only show approved reviews
-  const approvedReviews = reviews.filter((review) => review.isApproved)
+export function CarReviews({ reviews, isLoading }: CarReviewsProps) {
+  // Reviews from API are already filtered for approved only
+  const approvedReviews = reviews
 
   return (
     <motion.div
@@ -23,7 +24,20 @@ export function CarReviews({ reviews }: CarReviewsProps) {
         <h2 className="text-2xl font-bold">Customer Reviews</h2>
       </div>
 
-      {approvedReviews.length > 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-muted/50 p-4 rounded-lg">
+              <div className="flex justify-between mb-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-4 w-20 mb-2" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ))}
+        </div>
+      ) : approvedReviews.length > 0 ? (
         <div className="space-y-6">
           {approvedReviews.map((review, index) => (
             <motion.div
@@ -35,15 +49,17 @@ export function CarReviews({ reviews }: CarReviewsProps) {
             >
               <div className="flex justify-between mb-2">
                 <div className="flex items-center">
-                  <h3 className="font-bold">{review.name}</h3>
+                  <h3 className="font-bold">{review.reviewerName || review.customerName}</h3>
                   {review.isVerified && (
                     <span className="ml-2 flex items-center text-xs text-green-600">
                       <CheckCircle className="h-3 w-3 mr-1" />
-                      Verified
+                      Verified Renter
                     </span>
                   )}
                 </div>
-                <span className="text-sm text-muted-foreground">{review.date}</span>
+                <span className="text-sm text-muted-foreground">
+                  {new Date(review.createdAt).toLocaleDateString()}
+                </span>
               </div>
               <div className="flex mb-2">
                 {[...Array(5)].map((_, i) => (

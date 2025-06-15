@@ -26,6 +26,8 @@ interface CarDetailClientProps {
 // Extracting the client component logic
 export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
   const [isLiked, setIsLiked] = useState(false); // Like state is client-side
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -42,6 +44,26 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
       );
     });
   }, [car]);
+
+  // Fetch reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        setIsLoadingReviews(true);
+        const response = await fetch(`/api/cars/${car.id}/reviews`);
+        if (response.ok) {
+          const data = await response.json();
+          setReviews(data.reviews || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch reviews:', error);
+      } finally {
+        setIsLoadingReviews(false);
+      }
+    };
+
+    fetchReviews();
+  }, [car.id]);
 
   const handleShare = useCallback(() => {
     const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
@@ -171,8 +193,8 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
             </TabsContent>
 
             <TabsContent value="reviews">
-              {/* Pass empty array for reviews */}
-               <CarReviews reviews={[]} /> 
+              {/* Pass fetched reviews */}
+               <CarReviews reviews={reviews} isLoading={isLoadingReviews} /> 
             </TabsContent>
           </Tabs>
         </div>
@@ -190,11 +212,14 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
                  Have questions about renting this {car.name}? Our team is ready to assist you.
                </p>
                <div className="space-y-4">
-                 {/* TODO: Update button actions/links */}
-                 <Button className="w-full bg-white text-black hover:bg-gray-100">Contact Us</Button>
-                 <Button variant="outline" className="w-full">
-                   View Rental Policy
-                 </Button>
+                 <Link href="/contact">
+                   <Button className="w-full bg-white text-black hover:bg-gray-100">Contact Us</Button>
+                 </Link>
+                 <Link href="/policies">
+                   <Button variant="outline" className="w-full">
+                     View Rental Policy
+                   </Button>
+                 </Link>
                </div>
              </div>
            </motion.div>

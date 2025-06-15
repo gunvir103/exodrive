@@ -41,11 +41,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // TODO: Add Admin Role Check here if necessary
-  // const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  // if (profile?.role !== 'admin') {
-  //    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  // }
+  // Check admin role
+  const { data: profile } = await supabaseUserClient
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  
+  if (profile?.role !== 'admin') {
+    console.error("Delete Image API: User is not admin:", user.id);
+    return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+  }
 
   // 2. Parse request body for storagePath
   let storagePath: string;
