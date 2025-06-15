@@ -466,8 +466,129 @@ export async function DELETE(
       }
     });
 
-    // TODO: Handle payment refunds if necessary
-    // This would depend on payment status and business rules
+    // Handle payment refunds if necessary
+    if (currentBooking.payment_status === 'captured' || currentBooking.payment_status === 'paid') {
+      try {
+        // Get payment records for this booking
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('booking_id', bookingId)
+          .in('status', ['captured', 'paid'])
+          .order('created_at', { ascending: false });
+
+        // Process refunds for captured/paid payments
+        if (payments && payments.length > 0) {
+          const { getPayPalClient } = await import('@/lib/paypal-client');
+          const paypalClient = getPayPalClient();
+
+          for (const payment of payments) {
+            if (payment.transaction_id && payment.gateway_response?.capture_id) {
+              try {
+                // Create refund via PayPal API
+                const refundRequest = {
+                  amount: {
+                    currency_code: payment.currency || 'USD',
+                    value: payment.amount.toString()
+                  },
+                  note_to_payer: `Refund for cancelled booking ${bookingId}`,
+                  invoice_id: bookingId
+                };
+
+                // Process refund through PayPal
+                const refundResponse = await fetch(`https://api-m.${process.env.PAYPAL_MODE === 'sandbox' ? 'sandbox.' : ''}paypal.com/v2/payments/captures/${payment.gateway_response.capture_id}/refund`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${await (await import('@/lib/paypal-client')).getPayPalAccessToken()}`,
+                    'PayPal-Request-Id': `${bookingId}-${Date.now()}`
+                  },
+                  body: JSON.stringify(refundRequest)
+                });
+
+                if (refundResponse.ok) {
+                  const refundData = await refundResponse.json();
+                  
+                  // Update payment status
+                  await supabase
+                    .from('payments')
+                    .update({
+                      status: 'refunded',
+                      gateway_response: {
+                        ...payment.gateway_response,
+                        refund: refundData
+                      },
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', payment.id);
+
+                  // Log refund event
+                  await supabase.from('booking_events').insert({
+                    booking_id: bookingId,
+                    event_type: 'payment_refunded',
+                    timestamp: new Date().toISOString(),
+                    actor_type: 'admin',
+                    actor_id: user.id,
+                    metadata: {
+                      payment_id: payment.id,
+                      refund_id: refundData.id,
+                      refund_amount: payment.amount,
+                      admin_email: user.email
+                    }
+                  });
+
+                  console.log(`Refund processed for payment ${payment.id}:`, refundData.id);
+                } else {
+                  const errorData = await refundResponse.text();
+                  console.error(`Failed to refund payment ${payment.id}:`, errorData);
+                  
+                  // Log failed refund event
+                  await supabase.from('booking_events').insert({
+                    booking_id: bookingId,
+                    event_type: 'refund_failed',
+                    timestamp: new Date().toISOString(),
+                    actor_type: 'system',
+                    metadata: {
+                      payment_id: payment.id,
+                      error: errorData,
+                      reason: 'PayPal refund API error'
+                    }
+                  });
+                }
+              } catch (refundError) {
+                console.error(`Error processing refund for payment ${payment.id}:`, refundError);
+                
+                // Log refund error event
+                await supabase.from('booking_events').insert({
+                  booking_id: bookingId,
+                  event_type: 'refund_failed', 
+                  timestamp: new Date().toISOString(),
+                  actor_type: 'system',
+                  metadata: {
+                    payment_id: payment.id,
+                    error: refundError instanceof Error ? refundError.message : 'Unknown error',
+                    reason: 'Refund processing exception'
+                  }
+                });
+              }
+            }
+          }
+
+          // Update booking payment status to reflect refunds
+          await supabase
+            .from('bookings')
+            .update({
+              payment_status: 'refunded',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', bookingId);
+        }
+      } catch (error) {
+        console.error('Error handling refunds during cancellation:', error);
+        // Continue with cancellation even if refund fails
+        // The refund can be processed manually if needed
+      }
+    }
 
     return NextResponse.json({
       message: 'Booking cancelled successfully',
