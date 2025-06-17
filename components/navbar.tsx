@@ -143,7 +143,7 @@ export function Navbar() {
                   <div className="flex items-center justify-between p-4 border-b border-[#333333]">
                     <Link href="/" className="flex items-center space-x-2" onClick={() => setIsOpen(false)}>
                       <Car className="h-5 w-5" />
-                      <span className="font-medium text-base">exoDrive</span>
+                      <span className="font-medium text-base">ExoDrive</span>
                     </Link>
                     <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                       <X className="h-5 w-5" />

@@ -32,7 +32,7 @@ export const fallbackHeroContent: HeroContentData = {
   primaryButtonText: "Browse Our Fleet",
   primaryButtonLink: "/fleet",
   secondaryButtonText: "Rent Now",
-  secondaryButtonLink: "https://www.instagram.com/exodriveexotics/?igsh=MTNwNzQ3a3c1a2xieQ%3D%3D#",
+  secondaryButtonLink: "https://www.instagram.com/ExoDriveexotics/?igsh=MTNwNzQ3a3c1a2xieQ%3D%3D#",
   isActive: true,
 };
 

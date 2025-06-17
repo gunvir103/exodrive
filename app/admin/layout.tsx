@@ -66,7 +66,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
         <div className="p-6 border-b">
           <Link href="/admin" className="flex items-center gap-2 font-bold text-xl">
             <Car className="h-6 w-6" />
-            <span>exoDrive Admin</span>
+            <span>ExoDrive Admin</span>
           </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1">

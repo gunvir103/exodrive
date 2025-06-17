@@ -169,7 +169,7 @@ export default function ContactPage() {
                   </div>
                   <h2 className="text-2xl font-bold mb-2">Message Sent!</h2>
                   <p className="text-muted-foreground mb-6 max-w-md">
-                    Thank you for contacting exoDrive. We've received your message and will get back to you as soon as
+                    Thank you for contacting ExoDrive. We've received your message and will get back to you as soon as
                     possible.
                   </p>
                   <Button onClick={() => setIsSuccess(false)}>Send Another Message</Button>

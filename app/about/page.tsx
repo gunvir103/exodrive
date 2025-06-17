@@ -10,17 +10,17 @@ export default function AboutPage() {
       <section className="mb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <div>
-            <h1 className="text-4xl font-bold mb-4">About exoDrive</h1>
+            <h1 className="text-4xl font-bold mb-4">About ExoDrive</h1>
             <p className="text-lg text-muted-foreground mb-6">
               Bringing luxury and exotic car experiences to the DMV area
             </p>
             <p className="mb-4">
-              At exoDrive, we believe that everyone deserves to experience the thrill and luxury of driving an exotic
+              At ExoDrive, we believe that everyone deserves to experience the thrill and luxury of driving an exotic
               car. Our mission is to make these extraordinary vehicles accessible to enthusiasts and those seeking a
               special experience in the Washington DC, Maryland, and Virginia area.
             </p>
             <p className="mb-6">
-            Founded by Brendon Pham, exoDrive operates through a strategic partnership with a network of experienced investors. 
+            Founded by Brendon Pham, ExoDrive operates through a strategic partnership with a network of experienced investors. 
             This collaboration enables us to maintain a diverse fleet of luxury vehicles while ensuring efficient distribution 
             across the DMV area. Our innovative business model combines local expertise with investor resources to deliver convenient 
             access to exotic cars, making premium automotive experiences more accessible to our community.
@@ -48,7 +48,7 @@ export default function AboutPage() {
 
       <section className="mb-16">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-4">Why Choose exoDrive</h2>
+          <h2 className="text-3xl font-bold mb-4">Why Choose ExoDrive</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We're committed to providing an exceptional experience from start to finish.
           </p>

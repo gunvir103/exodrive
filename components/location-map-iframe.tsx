@@ -39,7 +39,7 @@ export function LocationMapIframe({ address, className }: LocationMapProps) {
     <div className={`w-full h-[400px] rounded-lg overflow-hidden ${className}`}>
       {isMounted ? (
         <iframe
-          title="exoDrive Location"
+          title="ExoDrive Location"
           width="100%"
           height="100%"
           frameBorder="0"

@@ -71,8 +71,8 @@ export function CarDetailClient({ car, relatedCars }: CarDetailClientProps) {
     
     if (navigator.share) {
       navigator.share({
-          title: `exoDrive - ${car?.name}`,
-          text: `Check out the ${car?.name} at exoDrive!`,
+          title: `ExoDrive - ${car?.name}`,
+          text: `Check out the ${car?.name} at ExoDrive!`,
           url: shareUrl,
       }).catch(console.error);
     } else {

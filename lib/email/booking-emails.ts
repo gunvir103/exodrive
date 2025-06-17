@@ -32,7 +32,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationData
     const { customerEmail, customerName, bookingId, carName, startDate, endDate, totalPrice, currency, bookingUrl } = data;
 
     const result = await resend.emails.send({
-      from: 'exoDrive <bookings@exodrive.co>',
+      from: 'ExoDrive <bookings@exodrive.co>',
       to: customerEmail,
       subject: `Booking Confirmation - ${carName}`,
       html: `
@@ -57,7 +57,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationData
             </div>
             <div class="content">
               <p>Dear ${customerName},</p>
-              <p>Thank you for choosing exoDrive! Your booking has been successfully initiated.</p>
+              <p>Thank you for choosing ExoDrive! Your booking has been successfully initiated.</p>
               
               <div class="booking-details">
                 <h2>Booking Details</h2>
@@ -97,7 +97,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationData
               <p>If you have any questions, please don't hesitate to contact us.</p>
             </div>
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} exoDrive. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} ExoDrive. All rights reserved.</p>
               <p>This is an automated email. Please do not reply directly to this message.</p>
             </div>
           </div>
@@ -122,7 +122,7 @@ export async function sendBookingCancellationEmail(data: CancellationEmailData) 
     const { customerEmail, customerName, bookingId, carName, startDate, endDate, reason } = data;
 
     const result = await resend.emails.send({
-      from: 'exoDrive <bookings@exodrive.co>',
+      from: 'ExoDrive <bookings@exodrive.co>',
       to: customerEmail,
       subject: `Booking Cancellation - ${carName}`,
       html: `
@@ -179,7 +179,7 @@ export async function sendBookingCancellationEmail(data: CancellationEmailData) 
               <p>We apologize for any inconvenience this may cause. If you have any questions or would like to make a new booking, please contact our support team.</p>
             </div>
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} exoDrive. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} ExoDrive. All rights reserved.</p>
               <p>This is an automated email. Please do not reply directly to this message.</p>
             </div>
           </div>

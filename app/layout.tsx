@@ -18,20 +18,20 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "exoDrive | Exotic Car Rentals in DMV",
+  title: "ExoDrive | Exotic Car Rentals in DMV",
   description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
   generator: 'v0.dev',
   metadataBase: new URL('https://www.exodrive.co'),
   openGraph: {
-    title: "exoDrive | Exotic Car Rentals in DMV",
+    title: "ExoDrive | Exotic Car Rentals in DMV",
     description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
     url: 'https://www.exodrive.co',
-    siteName: 'exoDrive',
+    siteName: 'ExoDrive',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: "exoDrive | Exotic Car Rentals in DMV",
+    title: "ExoDrive | Exotic Car Rentals in DMV",
     description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
   }
 }
