@@ -38,7 +38,7 @@ export default function AdminSettingsPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="company-name">Company Name</Label>
-                  <Input id="company-name" defaultValue="exoDrive" />
+                  <Input id="company-name" defaultValue="ExoDrive" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
@@ -58,7 +58,7 @@ export default function AdminSettingsPage() {
                 <Textarea
                   id="about"
                   rows={4}
-                  defaultValue="exoDrive offers luxury and exotic car rentals in the DC, Maryland, and Virginia area."
+                  defaultValue="ExoDrive offers luxury and exotic car rentals in the DC, Maryland, and Virginia area."
                 />
               </div>
               <Button>Save Changes</Button>
@@ -183,7 +183,7 @@ export default function AdminSettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sendgrid-from-name">From Name</Label>
-                <Input id="sendgrid-from-name" defaultValue="exoDrive Rentals" />
+                <Input id="sendgrid-from-name" defaultValue="ExoDrive Rentals" />
               </div>
               <Button>Save Changes</Button>
             </CardContent>

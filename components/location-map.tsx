@@ -89,7 +89,7 @@ export function LocationMap({ address, className }: LocationMapProps) {
                 {isInfoWindowOpen && (
                   <InfoWindow position={defaultCenter} onCloseClick={() => setIsInfoWindowOpen(false)}>
                     <div className="p-2">
-                      <h3 className="font-bold">exoDrive</h3>
+                      <h3 className="font-bold">ExoDrive</h3>
                       <p className="text-sm">{address}</p>
                     </div>
                   </InfoWindow>

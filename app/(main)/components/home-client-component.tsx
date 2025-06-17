@@ -157,7 +157,7 @@ export default function HomeClientComponent({ initialCars, initialError, feature
               className="md:col-span-4 bento-enhanced rounded-xl overflow-hidden shadow-lg bg-gradient-to-br from-[#0a0a0a] to-[#333333] text-white"
             >
               <div className="p-6">
-                <h3 className="text-xl font-bold mb-4">exoDrive Experience</h3>
+                <h3 className="text-xl font-bold mb-4">ExoDrive Experience</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-full">
@@ -266,7 +266,7 @@ export default function HomeClientComponent({ initialCars, initialError, feature
                     </div>
                     <blockquote className="text-lg italic mb-4">
                       "The Ferrari 488 was an absolute dream to drive. The service was impeccable from start to finish.
-                      exoDrive made my weekend getaway truly unforgettable!"
+                      ExoDrive made my weekend getaway truly unforgettable!"
                     </blockquote>
                     <div>
                       <p className="font-bold">Alex Johnson</p>

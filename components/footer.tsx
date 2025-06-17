@@ -28,7 +28,7 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="font-bold text-lg mb-4">exoDrive</h3>
+            <h3 className="font-bold text-lg mb-4">ExoDrive</h3>
             <p className="text-muted-foreground">
               Experience luxury and performance with our premium car rental service.
             </p>
@@ -98,7 +98,7 @@ export function Footer() {
         </div>
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} exoDrive. All rights reserved.
+            &copy; {new Date().getFullYear()} ExoDrive. All rights reserved.
           </p>
           <div className="mt-4 md:mt-0">
             <Link href="/admin/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">

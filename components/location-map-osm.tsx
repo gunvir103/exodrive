@@ -41,7 +41,7 @@ export function LocationMapOSM({ address, className, lat = 39.084, lng = -77.152
       {isMounted ? (
         <div className="relative w-full h-full">
           <iframe
-            title="exoDrive Location"
+            title="ExoDrive Location"
             width="100%"
             height="100%"
             frameBorder="0"
