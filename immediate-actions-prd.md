@@ -1,17 +1,17 @@
-# Product Requirements Document: ExoDrive API Redesign - Immediate Actions (Week 1)
+# Product Requirements Document: ExoDrive API Redesign - Immediate Actions
 
 ## Document Information
 - **Version**: 1.0
 - **Date**: January 21, 2025
 - **Author**: Engineering Team
 - **Status**: Draft
-- **Review Date**: January 28, 2025
+- **Review Date**: Upon completion
 
 ---
 
 ## 1. Executive Summary
 
-This PRD outlines the immediate actions required for the ExoDrive API redesign, focusing on critical performance and reliability improvements that can be implemented within the first week. The primary objectives are to implement Redis caching for high-traffic endpoints, standardize error handling across all API routes, and implement rate limiting to protect against abuse and ensure fair resource allocation.
+This PRD outlines the immediate actions required for the ExoDrive API redesign, focusing on critical performance and reliability improvements. The primary objectives are to implement Redis caching for high-traffic endpoints, standardize error handling across all API routes, and implement rate limiting to protect against abuse and ensure fair resource allocation.
 
 These improvements will serve as the foundation for subsequent API enhancements and will provide immediate benefits in terms of performance, reliability, and user experience.
 
@@ -94,7 +94,7 @@ These improvements will serve as the foundation for subsequent API enhancements 
 
 ### In Scope
 
-#### Week 1 Deliverables
+#### Core Deliverables
 1. **Redis Caching Implementation**
    - Cache car availability data
    - Cache fleet listing data
@@ -149,17 +149,17 @@ interface CacheConfig {
 
 const cacheConfigs = {
   carAvailability: {
-    ttl: 300, // 5 minutes
+    ttl: 300, // Short cache duration
     keyPrefix: 'availability:',
     invalidationEvents: ['booking.created', 'booking.cancelled']
   },
   fleetListing: {
-    ttl: 3600, // 1 hour
+    ttl: 3600, // Standard cache duration
     keyPrefix: 'fleet:',
     invalidationEvents: ['car.updated', 'car.created', 'car.deleted']
   },
   carDetails: {
-    ttl: 1800, // 30 minutes
+    ttl: 1800, // Medium cache duration
     keyPrefix: 'car:',
     invalidationEvents: ['car.updated']
   }
@@ -354,18 +354,18 @@ interface RateLimitConfig {
 
 const rateLimitConfigs = {
   public: {
-    windowMs: 60 * 1000,  // 1 minute
-    max: 60,              // 60 requests per minute
+    windowMs: 60000,  // Rate limit window
+    max: 60,              // Request limit per window
     keyGenerator: (req) => req.headers['x-forwarded-for'] || req.socket.remoteAddress
   },
   authenticated: {
-    windowMs: 60 * 1000,  // 1 minute
-    max: 120,             // 120 requests per minute for authenticated users
+    windowMs: 60000,  // Rate limit window
+    max: 120,             // Authenticated user request limit
     keyGenerator: (req) => req.session?.userId || 'anonymous'
   },
   booking: {
-    windowMs: 60 * 60 * 1000,  // 1 hour
-    max: 10,                   // 10 bookings per hour
+    windowMs: 3600000,  // Extended rate limit window
+    max: 10,                   // Booking creation limit
     keyGenerator: (req) => req.session?.userId || req.headers['x-forwarded-for']
   }
 };
@@ -483,35 +483,35 @@ export function withRateLimit(config: RateLimitConfig) {
 
 ---
 
-## 7. Implementation Timeline
+## 7. Implementation Approach
 
-### Week 1 Schedule
+### Implementation Phases
 
-#### Day 1-2: Redis Setup and Basic Caching
-- **Day 1 Morning**: Set up Redis infrastructure
-- **Day 1 Afternoon**: Implement CacheService class
-- **Day 2 Morning**: Create cache middleware
-- **Day 2 Afternoon**: Implement caching for car availability endpoint
+#### Phase 1: Redis Setup and Basic Caching
+- Set up Redis infrastructure
+- Implement CacheService class
+- Create cache middleware
+- Implement caching for car availability endpoint
 
-#### Day 3-4: Complete Caching and Error Handling
-- **Day 3 Morning**: Add caching to fleet and car details endpoints
-- **Day 3 Afternoon**: Implement cache invalidation logic
-- **Day 4 Morning**: Create error handling middleware
-- **Day 4 Afternoon**: Update all routes to use standardized error handling
+#### Phase 2: Complete Caching and Error Handling
+- Add caching to fleet and car details endpoints
+- Implement cache invalidation logic
+- Create error handling middleware
+- Update all routes to use standardized error handling
 
-#### Day 5: Rate Limiting
-- **Day 5 Morning**: Implement RateLimiter class
-- **Day 5 Afternoon**: Add rate limiting middleware to all endpoints
+#### Phase 3: Rate Limiting
+- Implement RateLimiter class
+- Add rate limiting middleware to all endpoints
 
-#### Day 6-7: Testing and Deployment
-- **Day 6**: Comprehensive testing and bug fixes
-- **Day 7**: Deployment preparation and rollout
+#### Phase 4: Testing and Deployment
+- Comprehensive testing and bug fixes
+- Deployment preparation and rollout
 
-### Milestones
-- **End of Day 2**: Basic caching operational
-- **End of Day 4**: All caching and error handling complete
-- **End of Day 5**: Rate limiting implemented
-- **End of Day 7**: Full deployment to production
+### Key Milestones
+- Basic caching operational
+- All caching and error handling complete
+- Rate limiting implemented
+- Full deployment to production
 
 ---
 
@@ -596,9 +596,9 @@ artillery run load-test-config.yml
 ```
 
 Configuration targets:
-- 1000 requests/second for read endpoints
-- 100 requests/second for write endpoints
-- Sustained load for 10 minutes
+- 1000 concurrent requests for read endpoints
+- 100 concurrent requests for write endpoints
+- Sustained load testing required
 
 ### Acceptance Testing
 - Verify all acceptance criteria from user stories
@@ -618,18 +618,18 @@ Configuration targets:
 
 ### Rollback Procedure
 
-#### Phase 1: Immediate Response (0-5 minutes)
+#### Phase 1: Immediate Response
 1. Alert on-call engineer
 2. Assess impact severity
 3. Make rollback decision
 
-#### Phase 2: Rollback Execution (5-15 minutes)
+#### Phase 2: Rollback Execution
 1. Revert to previous deployment
 2. Flush Redis cache
 3. Verify system stability
 4. Notify stakeholders
 
-#### Phase 3: Post-Rollback (15-30 minutes)
+#### Phase 3: Post-Rollback
 1. Conduct root cause analysis
 2. Document lessons learned
 3. Plan remediation

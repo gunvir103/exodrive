@@ -1,4 +1,4 @@
-# Product Requirements Document: ExoDrive API Redesign - Short-Term Improvements (Weeks 2-4)
+# Product Requirements Document: ExoDrive API Redesign - Short-Term Improvements
 
 ## Document Information
 - **Version**: 1.0
@@ -11,7 +11,7 @@
 
 ## 1. Executive Summary
 
-This PRD outlines the short-term improvements for the ExoDrive API redesign, building upon the foundation established in Week 1 (Redis caching, standardized error handling, and rate limiting). The focus for Weeks 2-4 is on implementing architectural improvements that will significantly enhance code maintainability, type safety, and system reliability.
+This PRD outlines the short-term improvements for the ExoDrive API redesign, building upon the foundation established in Phase 1 (Redis caching, standardized error handling, and rate limiting). The focus is on implementing architectural improvements that will significantly enhance code maintainability, type safety, and system reliability.
 
 The key deliverables include implementing a robust Service Layer Pattern to separate business logic from API routes, integrating BullMQ for reliable background job processing, and adopting tRPC for end-to-end type safety between the frontend and backend.
 
@@ -55,7 +55,7 @@ The key deliverables include implementing a robust Service Layer Pattern to sepa
 ### Impact on Business
 - **Development Velocity**: 40% of development time spent on type-related bugs
 - **System Reliability**: 15% of bookings fail due to email/webhook timeouts
-- **Customer Experience**: 2-3 second delays when booking due to synchronous processing
+- **Customer Experience**: Significant delays when booking due to synchronous processing
 - **Maintenance Cost**: 30% of bugs are related to API contract mismatches
 
 ---
@@ -89,8 +89,8 @@ The key deliverables include implementing a robust Service Layer Pattern to sepa
 
 #### Performance Metrics
 - **API Response Time**: <100ms for all synchronous operations
-- **Job Processing Time**: 95% of jobs completed within 30 seconds
-- **Queue Throughput**: >1000 jobs/minute capacity
+- **Job Processing Time**: 95% of jobs completed successfully
+- **Queue Throughput**: High capacity job processing
 - **Error Recovery Rate**: 99% of failed jobs successfully retried
 
 #### Developer Experience Metrics
@@ -105,7 +105,7 @@ The key deliverables include implementing a robust Service Layer Pattern to sepa
 
 ### In Scope
 
-#### Week 2: Service Layer Pattern
+#### Service Layer Pattern Implementation
 1. **Core Services Implementation**
    - `BookingService`: All booking-related business logic
    - `CarService`: Car management and availability
@@ -124,7 +124,7 @@ The key deliverables include implementing a robust Service Layer Pattern to sepa
    - Maintain backward compatibility
    - Add comprehensive tests
 
-#### Week 3: Queue System (BullMQ)
+#### Queue System (BullMQ) Implementation
 1. **Queue Infrastructure**
    - Redis-backed BullMQ setup
    - Queue monitoring dashboard
@@ -144,7 +144,7 @@ The key deliverables include implementing a robust Service Layer Pattern to sepa
    - Job prioritization
    - Graceful shutdown handling
 
-#### Week 4: Type Safety (tRPC)
+#### Type Safety (tRPC) Implementation
 1. **tRPC Integration**
    - tRPC server setup
    - Context and middleware
@@ -170,7 +170,7 @@ The key deliverables include implementing a robust Service Layer Pattern to sepa
 - Third-party API integrations (beyond current)
 - Real-time features (WebSocket)
 
-### Dependencies on Week 1
+### Dependencies on Phase 1
 - Redis infrastructure (for BullMQ)
 - Error handling middleware (to be extended)
 - Rate limiting (to be integrated with tRPC)
@@ -313,7 +313,7 @@ export class BookingService extends BaseService {
           pageSize: options?.pageSize || 10
         };
       },
-      300 // 5 minutes TTL
+      300 // Short TTL
     );
   }
   
@@ -372,11 +372,11 @@ export const queueConfig = {
   },
   defaultJobOptions: {
     removeOnComplete: {
-      age: 24 * 3600, // 24 hours
+      age: 86400, // Cleanup after completion
       count: 100
     },
     removeOnFail: {
-      age: 7 * 24 * 3600 // 7 days
+      age: 604800 // Extended retention for failed jobs
     },
     attempts: 3,
     backoff: {
@@ -546,7 +546,7 @@ export class EmailWorker {
         concurrency: 10,
         limiter: {
           max: 100,
-          duration: 60000 // 100 emails per minute
+          duration: 60000 // Email rate limit
         }
       }
     );
@@ -632,7 +632,7 @@ export class WebhookWorker {
         concurrency: 20,
         limiter: {
           max: 200,
-          duration: 60000 // 200 webhooks per minute
+          duration: 60000 // Webhook rate limit
         }
       }
     );
@@ -652,7 +652,7 @@ export class WebhookWorker {
           ...headers
         },
         data,
-        timeout: 30000, // 30 seconds
+        timeout: 30000, // Request timeout
         validateStatus: (status) => status < 500 // Don't retry on 4xx errors
       });
       
@@ -1129,115 +1129,88 @@ export default function CreateBooking() {
 ### As a Customer
 1. **Faster Booking Process**: As a customer, I want fast booking confirmation so that I can complete my reservation quickly.
    - **Acceptance Criteria**:
-     - Booking confirmation in < 2 seconds
-     - Email sent within 1 minute
+     - Fast booking confirmation
+     - Quick email delivery
      - No timeout errors during booking
      - Clear progress indicators
 
 2. **Reliable Email Delivery**: As a customer, I want to receive all booking emails so that I have proper documentation.
    - **Acceptance Criteria**:
      - 99.9% email delivery rate
-     - Emails sent within 5 minutes
+     - Reliable email delivery
      - Retry on temporary failures
      - Alternative notification methods available
 
 ---
 
-## 7. Implementation Timeline
+## 7. Implementation Strategy
 
-### Week 2: Service Layer Pattern (Days 8-14)
+### Service Layer Pattern Implementation
 
-#### Days 8-9: Core Infrastructure
-- **Day 8**: 
-  - Morning: Set up dependency injection container
-  - Afternoon: Create BaseService class and utilities
-- **Day 9**:
-  - Morning: Implement transaction management
-  - Afternoon: Create service testing utilities
+#### Core Infrastructure
+- Set up dependency injection container
+- Create BaseService class and utilities
+- Implement transaction management
+- Create service testing utilities
 
-#### Days 10-11: Service Implementation
-- **Day 10**:
-  - Morning: Implement BookingService
-  - Afternoon: Implement CarService
-- **Day 11**:
-  - Morning: Implement PaymentService
-  - Afternoon: Implement EmailService and AuthService
+#### Service Implementation
+- Implement BookingService
+- Implement CarService
+- Implement PaymentService
+- Implement EmailService and AuthService
 
-#### Days 12-13: Migration
-- **Day 12**:
-  - Morning: Migrate booking routes to use services
-  - Afternoon: Migrate car routes to use services
-- **Day 13**:
-  - Morning: Migrate remaining routes
-  - Afternoon: Update tests for service layer
+#### Migration Strategy
+- Migrate booking routes to use services
+- Migrate car routes to use services
+- Migrate remaining routes
+- Update tests for service layer
+- Integration testing and documentation
 
-#### Day 14: Testing & Documentation
-- Morning: Integration testing
-- Afternoon: Documentation and code review
+### Queue System Implementation
 
-### Week 3: Queue System (Days 15-21)
+#### Queue Infrastructure
+- Set up BullMQ with Redis
+- Create QueueService class
+- Implement job monitoring dashboard
+- Set up dead letter queue handling
 
-#### Days 15-16: Queue Infrastructure
-- **Day 15**:
-  - Morning: Set up BullMQ with Redis
-  - Afternoon: Create QueueService class
-- **Day 16**:
-  - Morning: Implement job monitoring dashboard
-  - Afternoon: Set up dead letter queue handling
+#### Worker Implementation
+- Implement email worker
+- Implement webhook worker
+- Implement image processing worker
+- Implement report generation worker
 
-#### Days 17-18: Worker Implementation
-- **Day 17**:
-  - Morning: Implement email worker
-  - Afternoon: Implement webhook worker
-- **Day 18**:
-  - Morning: Implement image processing worker
-  - Afternoon: Implement report generation worker
+#### Integration
+- Integrate queues with BookingService
+- Integrate queues with other services
+- Implement retry logic and circuit breakers
+- Performance testing and optimization
+- Load testing and scaling verification
 
-#### Days 19-20: Integration
-- **Day 19**:
-  - Morning: Integrate queues with BookingService
-  - Afternoon: Integrate queues with other services
-- **Day 20**:
-  - Morning: Implement retry logic and circuit breakers
-  - Afternoon: Performance testing and optimization
+### Type Safety with tRPC Implementation
 
-#### Day 21: Production Readiness
-- Morning: Load testing and scaling verification
-- Afternoon: Monitoring setup and documentation
+#### tRPC Setup
+- Set up tRPC server infrastructure
+- Create context and middleware
+- Implement authentication middleware
+- Set up error handling and logging
 
-### Week 4: Type Safety with tRPC (Days 22-28)
+#### Router Implementation
+- Create booking router
+- Create car and payment routers
+- Create admin routers
+- Create remaining routers
 
-#### Days 22-23: tRPC Setup
-- **Day 22**:
-  - Morning: Set up tRPC server infrastructure
-  - Afternoon: Create context and middleware
-- **Day 23**:
-  - Morning: Implement authentication middleware
-  - Afternoon: Set up error handling and logging
-
-#### Days 24-25: Router Implementation
-- **Day 24**:
-  - Morning: Create booking router
-  - Afternoon: Create car and payment routers
-- **Day 25**:
-  - Morning: Create admin routers
-  - Afternoon: Create remaining routers
-
-#### Days 26-27: Frontend Integration
-- **Day 26**:
-  - Morning: Set up tRPC client
-  - Afternoon: Migrate booking flow to tRPC
-- **Day 27**:
-  - Morning: Migrate remaining frontend calls
-  - Afternoon: Update error handling in frontend
-
-#### Day 28: Final Testing & Deployment
-- Morning: End-to-end testing
-- Afternoon: Deployment and monitoring setup
+#### Frontend Integration
+- Set up tRPC client
+- Migrate booking flow to tRPC
+- Migrate remaining frontend calls
+- Update error handling in frontend
+- End-to-end testing and deployment
 
 ---
 
-## 8. Dependencies on Week 1 Deliverables
+## 8. Dependencies on Phase 1 Deliverables
 
 ### Redis Infrastructure
 - **Required for**: BullMQ queue system
@@ -1696,8 +1669,8 @@ export class BookingService {
 export const servicesConfig = {
   booking: {
     maxConcurrentBookings: 10,
-    reservationTimeout: 15 * 60 * 1000, // 15 minutes
-    cancellationWindow: 24 * 60 * 60 * 1000, // 24 hours
+    reservationTimeout: 900000, // Booking reservation timeout
+    cancellationWindow: 86400000, // Cancellation window duration
   },
   email: {
     provider: 'resend',
@@ -1711,8 +1684,8 @@ export const servicesConfig = {
       imageProcessing: 5,
     },
     retryDelays: {
-      email: [1000, 5000, 30000], // 1s, 5s, 30s
-      webhook: [2000, 10000, 60000], // 2s, 10s, 60s
+      email: [1000, 5000, 30000], // Progressive retry delays
+      webhook: [2000, 10000, 60000], // Progressive retry delays
     },
   },
 };
