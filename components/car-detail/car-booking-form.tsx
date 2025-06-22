@@ -182,7 +182,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
             },
         };
 
-        const response = await fetch('/api/bookings/capture-paypal-order', {
+        const response = await fetch('/api/bookings/authorize-paypal-order', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

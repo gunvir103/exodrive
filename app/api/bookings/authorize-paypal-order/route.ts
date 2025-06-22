@@ -20,21 +20,21 @@ export async function POST(request: Request) {
 
     const accessToken = await getPayPalAccessToken();
 
-    // Capture the payment
-    const captureResponse = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/capture`, {
+    // Authorize the payment (not capture immediately)
+    const authorizeResponse = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/authorize`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
-            'PayPal-Request-Id': `capture-${Date.now()}`,
+            'PayPal-Request-Id': `authorize-${Date.now()}`,
         },
     });
 
-    const capturedData = await captureResponse.json();
+    const authorizedData = await authorizeResponse.json();
 
-    if (!captureResponse.ok || capturedData.status !== 'COMPLETED') {
-        console.error('PayPal payment capture failed:', capturedData);
-        return NextResponse.json({ error: 'Failed to capture payment', details: capturedData }, { status: captureResponse.status });
+    if (!authorizeResponse.ok || authorizedData.status !== 'COMPLETED') {
+        console.error('PayPal payment authorization failed:', authorizedData);
+        return NextResponse.json({ error: 'Failed to authorize payment', details: authorizedData }, { status: authorizeResponse.status });
     }
     
     // --- Database Operations ---
@@ -43,7 +43,11 @@ export async function POST(request: Request) {
     
     const { carId, startDate, endDate, totalPrice, customer } = bookingDetails;
 
-    const { data: bookingResult, error } = await supabase.rpc('create_booking_with_paypal_payment', {
+    // Extract authorization ID from the authorized data
+    const authorizationId = authorizedData.purchase_units[0].payments.authorizations[0].id;
+    const authorizedAmount = authorizedData.purchase_units[0].payments.authorizations[0].amount.value;
+
+    const { data: bookingResult, error } = await supabase.rpc('create_booking_with_paypal_authorization', {
         p_car_id: carId,
         p_start_date: startDate,
         p_end_date: endDate,
@@ -52,8 +56,9 @@ export async function POST(request: Request) {
         p_customer_last_name: customer.lastName,
         p_customer_email: customer.email,
         p_customer_phone: customer.phone,
-        p_paypal_order_id: capturedData.id,
-        p_amount_paid: capturedData.purchase_units[0].payments.captures[0].amount.value,
+        p_paypal_order_id: authorizedData.id,
+        p_paypal_authorization_id: authorizationId,
+        p_amount_authorized: authorizedAmount,
     });
 
     if (error || (bookingResult && !bookingResult.success)) {
@@ -65,11 +70,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Booking creation failed after successful payment.', details: errorDetails }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, bookingId: bookingResult.bookingId, capturedData });
+    return NextResponse.json({ success: true, bookingId: bookingResult.bookingId, authorizedData, authorizationId });
   } catch (error) {
-    console.error('Failed to capture PayPal order:', error);
+    console.error('Failed to authorize PayPal order:', error);
     // Type guard for error
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: 'Failed to capture order', details: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to authorize order', details: errorMessage }, { status: 500 });
   }
 } 

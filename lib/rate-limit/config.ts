@@ -132,7 +132,9 @@ export function getRateLimitConfigByPath(path: string): RateLimitConfig | null {
     // Booking routes
     '/api/bookings': rateLimitConfig.booking.creation,
     '/api/bookings/create-paypal-order': rateLimitConfig.booking.payment,
-    '/api/bookings/capture-paypal-order': rateLimitConfig.booking.payment,
+    '/api/bookings/authorize-paypal-order': rateLimitConfig.booking.payment,
+    '/api/bookings/capture-payment': rateLimitConfig.booking.payment,
+    '/api/bookings/void-payment': rateLimitConfig.booking.payment,
     
     // Email routes
     '/api/email/contact': rateLimitConfig.special.contactForm,
