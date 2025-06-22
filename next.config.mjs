@@ -37,7 +37,9 @@ const nextConfig = {
     // Server actions configuration
     serverActions: {
       bodySizeLimit: '2mb'
-    }
+    },
+    // Enable instrumentation hook
+    instrumentationHook: true
   },
   // Webpack optimizations
   webpack: (config, { isServer }) => {

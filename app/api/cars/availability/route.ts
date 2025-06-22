@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { cacheService, cacheConfigs } from '@/lib/redis';
+import { withApiErrorHandling } from '@/lib/errors';
+import { publicRateLimit } from '@/lib/rate-limit';
 
 // Request schema for availability check
 const availabilityRequestSchema = z.object({
@@ -9,7 +12,7 @@ const availabilityRequestSchema = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "End date must be in YYYY-MM-DD format"),
 });
 
-export async function GET(request: NextRequest) {
+async function getCarAvailability(request: NextRequest) {
   const supabase = createSupabaseServerClient(request.cookies as any);
   
   try {
@@ -34,6 +37,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { carId: validCarId, startDate: validStartDate, endDate: validEndDate } = validationResult.data;
+
+    // Generate cache key
+    const cacheKey = cacheService.generateCacheKey(
+      cacheConfigs.carAvailability.keyPrefix,
+      validCarId,
+      validStartDate,
+      validEndDate
+    );
+
+    // Try to get from cache
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      const response = NextResponse.json(cached);
+      response.headers.set('X-Cache', 'HIT');
+      return response;
+    }
 
     // Validate date range
     const start = new Date(validStartDate);
@@ -122,7 +141,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
+    const responseData = {
       carId: validCarId,
       startDate: validStartDate,
       endDate: validEndDate,
@@ -132,7 +151,14 @@ export async function GET(request: NextRequest) {
         availableDays: availability.filter(d => d.available).length,
         unavailableDays: availability.filter(d => !d.available).length
       }
-    });
+    };
+
+    // Cache the response
+    await cacheService.set(cacheKey, responseData, cacheConfigs.carAvailability.ttl);
+
+    const response = NextResponse.json(responseData);
+    response.headers.set('X-Cache', 'MISS');
+    return response;
 
   } catch (error: any) {
     console.error('Error in availability endpoint:', error);
@@ -141,4 +167,9 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
+
+// Export with error handling and rate limiting
+export const GET = publicRateLimit(
+  withApiErrorHandling(getCarAvailability)
+); 

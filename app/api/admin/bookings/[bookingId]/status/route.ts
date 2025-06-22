@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { invalidateCacheByEvent } from '@/lib/redis';
 
 // Schema for status update request
 const statusUpdateSchema = z.object({
@@ -118,6 +119,9 @@ export async function PATCH(
           .from('car_availability')
           .update({ status: 'available' })
           .eq('booking_id', bookingId);
+        
+        // Invalidate car availability cache
+        await invalidateCacheByEvent('booking.cancelled');
         break;
 
       case 'completed':

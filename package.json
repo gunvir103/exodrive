@@ -12,7 +12,13 @@
     "db:migrate": "bun run scripts/run-migrations.js",
     "verify:db": "bun run scripts/run-db-verification.mjs",
     "verify:db:force": "bun run scripts/run-db-verification.mjs --force",
-    "test": "bun test"
+    "test": "bun test",
+    "test:integration": "bun test --preload ./tests/integration/setup.ts tests/integration/caching.test.ts tests/integration/cache-invalidation.test.ts",
+    "test:integration:cache": "bun test --preload ./tests/integration/setup.ts tests/integration/caching.test.ts",
+    "test:integration:invalidation": "bun test --preload ./tests/integration/setup.ts tests/integration/cache-invalidation.test.ts",
+    "test:integration:errors": "bun test tests/integration/error-handling.test.ts",
+    "test:load": "bun test tests/load/rate-limiting.test.ts --timeout 30000",
+    "test:load:run": "bun run tests/load/run-load-tests.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",

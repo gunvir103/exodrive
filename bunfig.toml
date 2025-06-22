@@ -34,6 +34,13 @@ typescript = { minify = true, dts = true }
 
 [test]
 # Configure test environment
+root = "./tests"
 coverage = true
+coverageThreshold = { line = 80, function = 80, branch = 80, statement = 80 }
 # Use Bun's native test runner
-preload = ["setup.ts"] 
+preload = ["./tests/setup.ts"]
+
+# Environment variables for tests
+[test.env]
+NODE_ENV = "test"
+NEXT_PUBLIC_BASE_URL = "http://localhost:3000" 

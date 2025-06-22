@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { Redis } from '@upstash/redis';
+import { invalidateCacheByEvent } from '@/lib/redis';
 
 // Initialize Redis client from environment variables
 const redis = Redis.fromEnv();
@@ -198,6 +199,9 @@ export async function POST(request: NextRequest) {
         });
       });
 
+      // Invalidate car availability cache for this booking
+      await invalidateCacheByEvent('booking.created');
+      
       return NextResponse.json({
         message: 'Booking process initiated successfully!',
         bookingId: bookingIdFromFunction,
