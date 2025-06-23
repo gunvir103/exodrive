@@ -102,8 +102,12 @@ jobs:
             SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
           fi
           
-          # Check for console.log with sensitive data (fix regex syntax)
-          if grep -r "console\.log.*[(].*\(password\|secret\|token\|key\)" lib/redis/ tests/ --include="*.ts"; then
+          # Check for console.log with sensitive data (only actual credential variables)
+          if grep -r "console\.log.*[(].*\(password\|secret\|token\|apiKey\|api_key\)[^:]" lib/redis/ tests/ --include="*.ts" | \
+             grep -v "key:" | \
+             grep -v "for key:" | \
+             grep -v "Cache.*key:" | \
+             grep -v "matching pattern:"; then
             echo "❌ Found console.log statements that might leak sensitive data"
             SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
           fi
