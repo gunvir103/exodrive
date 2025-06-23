@@ -239,27 +239,49 @@ async function logEmailEvent(
 
     const status = statusMap[type] || 'unknown';
 
-    await supabase.from('inbox_emails').insert({
-      resend_id: data.email_id,
-      from_email: data.from,
-      to_email: Array.isArray(data.to) ? data.to[0] : data.to,
-      subject: data.subject,
-      status: status,
-      email_type: data.tags?.email_type || 'transactional',
-      booking_id: bookingId,
-      metadata: {
-        resend_event: type,
-        delivered_at: data.delivered_at,
-        opened_at: data.opened_at,
-        clicked_at: data.clicked_at,
-        bounced_at: data.bounced_at,
-        complained_at: data.complained_at,
-        bounce_details: data.bounce,
-        click_details: data.click
-      },
-      created_at: data.created_at,
-      updated_at: new Date().toISOString()
-    });
+    // Check if email already exists
+    const { data: existingEmail } = await supabase
+      .from('inbox_emails')
+      .select('id')
+      .eq('resend_email_id', data.email_id)
+      .single();
+
+    if (existingEmail) {
+      // Update existing email record
+      await supabase
+        .from('inbox_emails')
+        .update({
+          last_event_type: status,
+          last_event_at: new Date().toISOString(),
+          bounce_type: data.bounce?.type || null,
+          bounce_description: data.bounce?.message || null,
+          opened_at: data.opened_at ? new Date(data.opened_at).toISOString() : null,
+          clicked_at: data.clicked_at ? new Date(data.clicked_at).toISOString() : null,
+          raw_payload: webhookData
+        })
+        .eq('id', existingEmail.id);
+    } else {
+      // Insert new email record
+      await supabase.from('inbox_emails').insert({
+        resend_email_id: data.email_id,
+        sender_email: data.from,
+        recipient_email: Array.isArray(data.to) ? data.to[0] : data.to,
+        subject: data.subject,
+        last_event_type: status,
+        booking_id: bookingId,
+        tags: {
+          email_type: data.tags?.email_type || 'transactional',
+          booking_id: data.tags?.booking_id
+        },
+        bounce_type: data.bounce?.type,
+        bounce_description: data.bounce?.message,
+        opened_at: data.opened_at ? new Date(data.opened_at).toISOString() : null,
+        clicked_at: data.clicked_at ? new Date(data.clicked_at).toISOString() : null,
+        raw_payload: webhookData,
+        created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString(),
+        last_event_at: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error('Error logging email event to inbox_emails:', error);
     // Don't throw - this is a non-critical operation
