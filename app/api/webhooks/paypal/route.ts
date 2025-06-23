@@ -72,22 +72,22 @@ async function verifyPayPalWebhook(
     const transmissionSig = request.headers.get('paypal-transmission-sig');
     const transmissionTime = request.headers.get('paypal-transmission-time');
     
-    // Debug: Log headers for troubleshooting
-    console.log('PayPal webhook headers:', {
-      authAlgo,
-      certUrl,
-      transmissionId: transmissionId ? 'present' : 'missing',
-      transmissionSig: transmissionSig ? 'present' : 'missing',
-      transmissionTime,
-      allHeaders: Object.fromEntries(request.headers.entries())
-    });
+    // Log critical webhook info for monitoring (without sensitive data)
+    if (!authAlgo || !certUrl || !transmissionId || !transmissionSig || !transmissionTime) {
+      console.error('[PayPal] Missing webhook headers:', {
+        authAlgo: authAlgo ? 'present' : 'missing',
+        certUrl: certUrl ? 'present' : 'missing',
+        transmissionId: transmissionId ? 'present' : 'missing',
+        transmissionSig: transmissionSig ? 'present' : 'missing',
+        transmissionTime: transmissionTime ? 'present' : 'missing'
+      });
+    }
     
     // Check if required headers are present
     if (!authAlgo || !certUrl || !transmissionId || !transmissionSig || !transmissionTime) {
       console.warn('Missing required PayPal webhook headers. This might be a test request or misconfigured webhook.');
       // In development, allow missing headers for testing
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Skipping webhook verification in development mode.');
         return true;
       }
       return false;
@@ -120,7 +120,6 @@ async function verifyPayPalWebhook(
     const verificationStatus = verificationData.verification_status;
     
     if (verificationStatus === 'SUCCESS') {
-      console.log('PayPal webhook signature verified successfully.');
       return true;
     } else {
       console.warn('PayPal webhook signature verification failed with status:', verificationStatus);
@@ -160,8 +159,10 @@ export async function POST(request: NextRequest) {
       console.warn('Webhook request without PayPal User-Agent:', userAgent);
     }
     
-    // Log request origin for monitoring
-    console.log('Webhook request from:', { userAgent, forwardedFor });
+    // Log suspicious requests for security monitoring
+    if (!userAgent.includes('PayPal')) {
+      console.warn('[PayPal] Webhook request without PayPal User-Agent');
+    }
     
     rawBody = await request.text();
     
@@ -191,13 +192,11 @@ export async function POST(request: NextRequest) {
     // Check for idempotency - has this webhook already been processed?
     const isProcessed = await retryService.isWebhookProcessed(webhookData.id, 'paypal');
     if (isProcessed) {
-      console.log('PayPal webhook already processed:', webhookData.id);
       return NextResponse.json({ message: 'Webhook already processed' }, { status: 200 });
     }
 
     // Handle events that don't have a resource (like webhook ping)
     if (!resource) {
-      console.log('PayPal webhook event without resource:', event_type);
       // Mark as processed even if no resource
       await retryService.markWebhookProcessed(webhookData.id, 'paypal', undefined, { event_type });
       return NextResponse.json({ message: 'Event processed - no resource data' }, { status: 200 });
@@ -317,7 +316,7 @@ export async function POST(request: NextRequest) {
         break;
 
       default:
-        console.log('Unhandled PayPal event type:', event_type);
+        // Unhandled event type - no action needed
     }
 
     // Update booking if needed
@@ -349,9 +348,7 @@ export async function POST(request: NextRequest) {
         console.error('Error logging PayPal event:', eventError);
     }
 
-    // This part of the logic seems to have some inconsistencies with the schema.
-    // The `payments` table doesn't have a `gateway_response`.
-    // I will update the status and paypal_order_id if available.
+    // Update payment record with the latest status and PayPal IDs
     if (booking.payment_id && updateData.payment_status) {
       const paymentUpdateData: any = {
         status: updateData.payment_status,
@@ -359,12 +356,7 @@ export async function POST(request: NextRequest) {
       };
       
       if (resource.id && (event_type === PAYPAL_EVENT_TYPES.PAYMENT_AUTHORIZATION_CREATED || event_type === PAYPAL_EVENT_TYPES.PAYMENT_CAPTURE_COMPLETED)) {
-        // resource.id could be authorization id or capture id.
-        // Assuming paypal_order_id on payments table can store this.
-        // The custom_id on the webhook resource should be the booking_id.
-        // resource.id from a capture event is the capture ID.
-        // resource.id from an authorization is the authorization ID.
-        // The `payments` table has `paypal_authorization_id` and `paypal_order_id`.
+        // Store the authorization ID when payment is authorized
         if(event_type === PAYPAL_EVENT_TYPES.PAYMENT_AUTHORIZATION_CREATED){
             paymentUpdateData.paypal_authorization_id = resource.id;
         }
@@ -426,7 +418,7 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log('Stored failed webhook for retry');
+        // Failed webhook stored for retry
       } catch (storeError) {
         console.error('Error storing failed webhook:', storeError);
       }

@@ -21,7 +21,6 @@ export async function getPayPalAccessToken(): Promise<string> {
         try {
             const cachedToken = await redis.get(cacheKey);
             if (cachedToken && typeof cachedToken === 'string') {
-                console.log('[PayPal] Using cached access token');
                 return cachedToken;
             }
         } catch (cacheError) {
@@ -55,7 +54,6 @@ export async function getPayPalAccessToken(): Promise<string> {
     if (redis && token) {
         try {
             await redis.setex(cacheKey, 28800, token); // 8 hour TTL
-            console.log('[PayPal] Cached access token with 8-hour TTL');
         } catch (cacheError) {
             console.error('[PayPal] Cache write error:', cacheError);
             // Continue without caching on error

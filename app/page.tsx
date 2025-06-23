@@ -96,17 +96,17 @@ export default async function HomePage() {
   let featuredCarData: AppCar | null = null; // Add state for full featured car data
   
   try {
-    console.log("Attempting to create service client..."); // Debug log
+    // Create service client for fetching cars
     const serviceClient = createSupabaseServiceRoleClient();
     
     if (!serviceClient) {
       throw new Error("Failed to create Supabase client");
     }
     
-    console.log("Service client created, attempting to fetch cars..."); // Debug log
+    // Fetch optimized fleet data
     // Use the correct, refactored service method for optimized fleet data
     initialCars = await carServiceSupabase.getVisibleCarsForFleet(serviceClient); 
-    console.log(`Fetched ${initialCars.length} cars successfully.`); // Debug log
+    // Cars fetched successfully
     
     // Check if there's a featured car in homepage settings
     try {

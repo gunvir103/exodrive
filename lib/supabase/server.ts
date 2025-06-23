@@ -109,16 +109,13 @@ export async function getPooledSupabaseServerClient(cookieStore: ReadonlyRequest
 // Server client specifically for using the Service Role Key
 // Legacy function - will be deprecated
 export function createSupabaseServiceRoleClient() {
-    console.log("--- DEBUG: Inside createSupabaseServiceRoleClient ---");
+    // Create service role client for admin operations
     const supabaseUrl = process.env.SUPABASE_URL; // Correct: Use non-public URL for server-side
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // ADDED DEBUG LOGS to see the actual values:
-    console.log(`--- DEBUG: process.env.SUPABASE_URL = ${supabaseUrl}`); 
-    console.log(`--- DEBUG: process.env.SUPABASE_SERVICE_ROLE_KEY exists = ${!!supabaseServiceKey}`); // Log if key exists, not the key itself for security
+    // Validate required environment variables
 
-    // Remove or comment out the temporary debug logs
-    // console.log(`--- DEBUG: Using URL for Service Client: ${supabaseUrl} ---`);
+    // Check environment variables are configured
     
     if (!supabaseUrl || !supabaseServiceKey) {
         console.warn("Supabase service client: URL or Service Role Key missing.");

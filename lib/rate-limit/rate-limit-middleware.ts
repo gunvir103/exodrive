@@ -137,19 +137,38 @@ export const bookingRateLimit = (userId: string) => {
 
 // Helper to extract user ID from session/token
 export async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
-  // This is a placeholder - implement based on your auth strategy
-  // For example, extract from JWT token, session cookie, etc.
+  // Check for Authorization header with Bearer token
   const authHeader = req.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
   
-  // TODO: Validate token and extract user ID
-  // const token = authHeader.substring(7);
-  // const decoded = await verifyToken(token);
-  // return decoded.userId;
-  
-  return null;
+  try {
+    // Extract the token
+    const token = authHeader.substring(7);
+    
+    // For Supabase, we need to verify the JWT token
+    // The token contains the user ID in the 'sub' claim
+    // We'll use the Supabase client to verify the token
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
+    // Verify the token and get user
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('[RateLimit] Token validation failed:', error?.message);
+      return null;
+    }
+    
+    return user.id;
+  } catch (error) {
+    console.error('[RateLimit] Error validating token:', error);
+    return null;
+  }
 }
 
 // Pre-configured rate limiters for specific endpoints
@@ -255,8 +274,8 @@ export const rateLimitViolationHandler = {
       window: `${violation.windowMs}ms`,
     });
     
-    // TODO: Send to external monitoring service (e.g., Sentry, DataDog)
-    // sendToMonitoring(violation);
+    // Send to external monitoring service (e.g., Sentry, DataDog) when configured
+    // Example: sendToMonitoring(violation);
   },
   
   getRecentViolations(minutes: number = 60): RateLimitViolation[] {
