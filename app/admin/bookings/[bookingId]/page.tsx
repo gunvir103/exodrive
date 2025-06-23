@@ -103,18 +103,34 @@ interface BookingDetail {
   bookingUrl?: string
 }
 
-export default function BookingDetailPage({ params }: { params: { bookingId: string } }) {
+export default function BookingDetailPage({ params }: { params: Promise<{ bookingId: string }> | { bookingId: string } }) {
   const [booking, setBooking] = useState<BookingDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [bookingId, setBookingId] = useState<string | null>(null)
+
+  // Handle async params access for Next.js 15
+  useEffect(() => {
+    const getBookingId = async () => {
+      if (params instanceof Promise) {
+        const resolvedParams = await params
+        setBookingId(resolvedParams.bookingId)
+      } else {
+        setBookingId(params.bookingId)
+      }
+    }
+    getBookingId()
+  }, [params])
 
   useEffect(() => {
+    if (!bookingId) return
+
     const fetchBookingDetail = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        const response = await fetch(`/api/admin/bookings/${params.bookingId}`)
+        const response = await fetch(`/api/admin/bookings/${bookingId}`)
         
         if (response.status === 404) {
           notFound()
@@ -135,7 +151,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
     }
 
     fetchBookingDetail()
-  }, [params.bookingId])
+  }, [bookingId])
 
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }

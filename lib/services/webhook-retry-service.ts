@@ -1,38 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
-
-// Extend the database types to include our new tables
-type WebhookRetryStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | 'dead_letter';
-
-interface WebhookRetry {
-  id: string;
-  webhook_id: string;
-  webhook_type: string;
-  payload: any;
-  headers?: any;
-  endpoint_url: string;
-  attempt_count: number;
-  max_attempts: number;
-  next_retry_at: string | null;
-  last_attempt_at: string | null;
-  status: WebhookRetryStatus;
-  error_message: string | null;
-  error_details: any;
-  booking_id: string | null;
-  created_at: string;
-  updated_at: string;
-  succeeded_at: string | null;
-  failed_permanently_at: string | null;
-}
-
-interface WebhookProcessingLog {
-  id: string;
-  webhook_id: string;
-  webhook_type: string;
-  processed_at: string;
-  booking_id: string | null;
-  processing_result: any;
-}
+import type { 
+  WebhookRetry, 
+  WebhookRetryStatus, 
+  WebhookType, 
+  WebhookProcessingLog,
+  WebhookRetryMetric
+} from '@/types/webhook';
 
 export class WebhookRetryService {
   private supabase: ReturnType<typeof createClient<Database>>;
@@ -46,7 +20,7 @@ export class WebhookRetryService {
    */
   async storeFailedWebhook(params: {
     webhookId: string;
-    webhookType: 'paypal' | 'resend' | 'docuseal';
+    webhookType: WebhookType;
     payload: any;
     headers?: any;
     endpointUrl: string;
@@ -61,7 +35,7 @@ export class WebhookRetryService {
       });
 
       const { data, error } = await this.supabase
-        .from('webhook_retries' as any)
+        .from('webhook_retries')
         .insert({
           webhook_id: params.webhookId,
           webhook_type: params.webhookType,
@@ -142,7 +116,7 @@ export class WebhookRetryService {
   async getWebhooksForRetry(limit: number = 10): Promise<WebhookRetry[]> {
     try {
       const { data, error } = await this.supabase
-        .from('webhook_retries' as any)
+        .from('webhook_retries')
         .select('*')
         .in('status', ['pending', 'processing'])
         .not('next_retry_at', 'is', null)
@@ -180,7 +154,7 @@ export class WebhookRetryService {
   ): Promise<boolean> {
     try {
       const { error } = await this.supabase
-        .from('webhook_retries' as any)
+        .from('webhook_retries')
         .update(updates)
         .eq('id', retryId);
 
@@ -307,18 +281,10 @@ export class WebhookRetryService {
   /**
    * Get webhook retry metrics
    */
-  async getMetrics(): Promise<{
-    webhook_type: string;
-    status: string;
-    count: number;
-    avg_attempts: number;
-    max_attempts: number;
-    oldest_retry: string;
-    newest_retry: string;
-  }[]> {
+  async getMetrics(): Promise<WebhookRetryMetric[]> {
     try {
       const { data, error } = await this.supabase
-        .from('webhook_retry_metrics' as any)
+        .from('webhook_retry_metrics')
         .select('*');
 
       if (error) {
@@ -339,7 +305,7 @@ export class WebhookRetryService {
   async getDeadLetterQueue(limit: number = 50): Promise<any[]> {
     try {
       const { data, error } = await this.supabase
-        .from('webhook_dead_letter_queue' as any)
+        .from('webhook_dead_letter_queue')
         .select('*')
         .limit(limit);
 

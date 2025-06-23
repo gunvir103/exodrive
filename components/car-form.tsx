@@ -136,6 +136,8 @@ export function CarForm({ car }: CarFormProps) {
   const supabase = getSupabaseBrowserClient(); // Correct function call
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false); // Loading state for form submission
+  const [isDeleting, setIsDeleting] = useState(false); // Loading state for deletion
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false); // Delete confirmation dialog
   const [formImages, setFormImages] = useState<FormImageData[]>([]);
 
   // State for simple fields that map directly to `cars` table
@@ -415,6 +417,45 @@ export function CarForm({ car }: CarFormProps) {
     setSpecifications(prev => prev.filter(s => s.name !== nameToRemove));
   };
 
+
+  // Handle car deletion
+  const handleDelete = async () => {
+    if (!car?.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const formData = new FormData();
+      formData.append('carId', car.id);
+      formData.append('confirmDelete', `delete-${car.id}`);
+      
+      const result = await deleteCarPermanentlyAction(formData);
+      
+      if (result.success) {
+        toast({
+          title: "Car Deleted",
+          description: result.message,
+        });
+        router.push("/admin/cars");
+        router.refresh();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Delete Failed",
+          description: result.message,
+        });
+      }
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: error.message || "Could not delete car. Please try again.",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -902,6 +943,66 @@ export function CarForm({ car }: CarFormProps) {
                 <Switch id="isHidden" checked={isHidden} onCheckedChange={setIsHidden} />
               </div>
             </div>
+            
+            {/* Delete Button - Only show when editing existing car */}
+            {car?.id && (
+              <>
+                <Separator className="my-6" />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="text-base font-medium text-destructive">Danger Zone</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Permanently delete this car and all its related data. This action cannot be undone.
+                    </p>
+                  </div>
+                  <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        type="button"
+                        disabled={isLoading || isDeleting}
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete Car
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete <strong>{car.name}</strong> and all its related data including:
+                          <ul className="mt-2 ml-4 list-disc text-sm">
+                            <li>All images</li>
+                            <li>Pricing information</li>
+                            <li>Features and specifications</li>
+                            <li>Booking history (if any)</li>
+                          </ul>
+                          <br />
+                          This action <strong>cannot be undone</strong>.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isDeleting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete Car"
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

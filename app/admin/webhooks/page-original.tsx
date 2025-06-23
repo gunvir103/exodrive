@@ -4,38 +4,17 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, Search, Eye, Download } from 'lucide-react';
+import { RefreshCw, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { processWebhookRetries, retryDeadLetterWebhook } from './actions';
-import { WebhookDetailDialog } from './webhook-detail-dialog';
 import type { WebhookRetryMetric, WebhookDeadLetterItem } from '@/types/webhook';
 
 export default function WebhookMonitoringPage() {
   const [metrics, setMetrics] = useState<WebhookRetryMetric[]>([]);
   const [deadLetterItems, setDeadLetterItems] = useState<WebhookDeadLetterItem[]>([]);
-  const [filteredDeadLetterItems, setFilteredDeadLetterItems] = useState<WebhookDeadLetterItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [retryingItems, setRetryingItems] = useState<Set<string>>(new Set());
-  const [selectedWebhook, setSelectedWebhook] = useState<WebhookDeadLetterItem | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [confirmRetryDialog, setConfirmRetryDialog] = useState<{ open: boolean; itemId: string | null }>({ open: false, itemId: null });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const supabase = getSupabaseBrowserClient();
 
   const fetchData = async () => {
@@ -54,11 +33,10 @@ export default function WebhookMonitoringPage() {
       const { data: deadLetterData, error: deadLetterError } = await supabase
         .from('webhook_dead_letter_queue')
         .select('*')
-        .limit(50);
+        .limit(20);
 
       if (deadLetterError) throw deadLetterError;
       setDeadLetterItems(deadLetterData || []);
-      setFilteredDeadLetterItems(deadLetterData || []);
 
     } catch (error: any) {
       console.error('Error fetching webhook data:', error);
@@ -68,36 +46,12 @@ export default function WebhookMonitoringPage() {
     }
   };
 
-  // Filter and search functionality
-  useEffect(() => {
-    let filtered = [...deadLetterItems];
-    
-    // Apply type filter
-    if (filterType !== 'all') {
-      filtered = filtered.filter(item => item.webhook_type === filterType);
-    }
-    
-    // Apply search
-    if (searchTerm) {
-      filtered = filtered.filter(item => 
-        item.webhook_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.error_message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.booking_id && item.booking_id.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-    
-    setFilteredDeadLetterItems(filtered);
-  }, [deadLetterItems, filterType, searchTerm]);
-
   useEffect(() => {
     fetchData();
-    // Auto-refresh
-    let interval: NodeJS.Timeout;
-    if (autoRefresh) {
-      interval = setInterval(fetchData, 30000);
-    }
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, []);
 
   const processRetries = async () => {
     try {
@@ -122,7 +76,6 @@ export default function WebhookMonitoringPage() {
 
   const retryDeadLetterItem = async (itemId: string) => {
     try {
-      setRetryingItems(prev => new Set(prev).add(itemId));
       const result = await retryDeadLetterWebhook(itemId);
       
       if (!result.success) {
@@ -134,40 +87,7 @@ export default function WebhookMonitoringPage() {
     } catch (error: any) {
       console.error('Error retrying dead letter item:', error);
       toast.error(error.message || 'Failed to retry webhook');
-    } finally {
-      setRetryingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-      setConfirmRetryDialog({ open: false, itemId: null });
     }
-  };
-
-  const exportData = () => {
-    const csvContent = [
-      ['Type', 'Status', 'Count', 'Avg Attempts', 'Max Attempts', 'Oldest', 'Newest'].join(','),
-      ...metrics.map(m => [
-        m.webhook_type,
-        m.status,
-        m.count,
-        m.avg_attempts.toFixed(2),
-        m.max_attempts,
-        new Date(m.oldest_retry).toISOString(),
-        new Date(m.newest_retry).toISOString()
-      ].join(','))
-    ].join('\\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `webhook-metrics-${new Date().toISOString()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    toast.success('Metrics exported successfully');
   };
 
   const getStatusIcon = (status: string) => {
@@ -202,7 +122,7 @@ export default function WebhookMonitoringPage() {
     }
   };
 
-  if (loading && metrics.length === 0) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <RefreshCw className="h-8 w-8 animate-spin" />
@@ -222,27 +142,11 @@ export default function WebhookMonitoringPage() {
         <h1 className="text-3xl font-bold">Webhook Monitoring</h1>
         <div className="flex gap-2">
           <Button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            variant="outline"
-            size="sm"
-          >
-            {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-          </Button>
-          <Button
-            onClick={exportData}
-            variant="outline"
-            size="sm"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button
             onClick={fetchData}
             variant="outline"
             size="sm"
-            disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
           <Button
@@ -355,117 +259,37 @@ export default function WebhookMonitoringPage() {
             <CardDescription>Webhooks that have failed permanently after maximum retries</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Filters */}
-            <div className="flex gap-4 mb-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by webhook ID, booking ID, or error message..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                  <SelectItem value="resend">Resend</SelectItem>
-                  <SelectItem value="docuseal">DocuSeal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Items */}
             <div className="space-y-2">
-              {filteredDeadLetterItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No items found matching your filters
-                </p>
-              ) : (
-                filteredDeadLetterItems.map(item => (
-                  <div key={item.id} className="flex items-center justify-between p-3 border rounded hover:bg-muted/50 transition-colors">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{item.webhook_type}</Badge>
-                        <span className="text-sm font-mono">{item.webhook_id}</span>
-                        {item.booking_id && (
-                          <span className="text-sm text-muted-foreground">
-                            Booking: {item.booking_id.slice(0, 8)}...
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Failed after {item.attempt_count} attempts • {new Date(item.failed_permanently_at).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-destructive">{item.error_message}</div>
+              {deadLetterItems.map(item => (
+                <div key={item.id} className="flex items-center justify-between p-3 border rounded">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{item.webhook_type}</Badge>
+                      <span className="text-sm font-mono">{item.webhook_id}</span>
+                      {item.booking_id && (
+                        <span className="text-sm text-muted-foreground">
+                          Booking: {item.booking_id.slice(0, 8)}...
+                        </span>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedWebhook(item);
-                          setDetailDialogOpen(true);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setConfirmRetryDialog({ open: true, itemId: item.id })}
-                        disabled={retryingItems.has(item.id)}
-                      >
-                        {retryingItems.has(item.id) ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          'Retry'
-                        )}
-                      </Button>
+                    <div className="text-sm text-muted-foreground">
+                      Failed after {item.attempt_count} attempts • {new Date(item.failed_permanently_at).toLocaleString()}
                     </div>
+                    <div className="text-sm text-destructive">{item.error_message}</div>
                   </div>
-                ))
-              )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => retryDeadLetterItem(item.id)}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
-
-      {/* Webhook Detail Dialog */}
-      <WebhookDetailDialog 
-        webhook={selectedWebhook}
-        open={detailDialogOpen}
-        onOpenChange={setDetailDialogOpen}
-      />
-
-      {/* Retry Confirmation Dialog */}
-      <AlertDialog 
-        open={confirmRetryDialog.open} 
-        onOpenChange={(open) => setConfirmRetryDialog({ open, itemId: null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Retry Failed Webhook?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will queue the webhook for retry. It will be processed according to the standard retry schedule.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => confirmRetryDialog.itemId && retryDeadLetterItem(confirmRetryDialog.itemId)}
-            >
-              Retry Webhook
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

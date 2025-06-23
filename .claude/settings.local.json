@@ -11,7 +11,17 @@
       "Bash(git commit:*)",
       "Bash(bun test:*)",
       "Bash(rm:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh api:*)",
+      "Bash(gh repo view:*)",
+      "Bash(bunx shadcn-ui@latest add dialog:*)",
+      "Bash(bunx shadcn@latest add:*)",
+      "Bash(mv:*)",
+      "Bash(bunx next:*)",
+      "Bash(bun run:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
