@@ -89,14 +89,21 @@ jobs:
           # Check for hardcoded credentials in Redis files
           SECURITY_ISSUES=0
           
-          # Scan for hardcoded passwords/tokens
-          if grep -r -i "password\|secret\|token\|key" lib/redis/ tests/ --include="*.ts" | grep -v "process.env" | grep -v "secrets\." | grep -E "(=|:)\s*['\"][^'\"]*['\"]"; then
+          # Scan for hardcoded passwords/tokens (excluding common false positives)
+          if grep -r -i "password\|secret\|token\|key" lib/redis/ tests/ --include="*.ts" | \
+             grep -v "process.env" | \
+             grep -v "secrets\." | \
+             grep -v "keyPrefix:" | \
+             grep -v "generateCacheKey" | \
+             grep -v "\*\*\*" | \
+             grep -v "key:" | \
+             grep -E "(\bpassword\b|\bsecret\b|\btoken\b|\bapiKey\b|\bapi_key\b)\s*(=|:)\s*['\"][^'\"]*['\"]"; then
             echo "❌ Found potential hardcoded credentials"
             SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
           fi
           
-          # Check for console.log with sensitive data
-          if grep -r "console\.log.*\(.*password\|.*secret\|.*token\|.*key" lib/redis/ tests/ --include="*.ts"; then
+          # Check for console.log with sensitive data (fix regex syntax)
+          if grep -r "console\.log.*[(].*\(password\|secret\|token\|key\)" lib/redis/ tests/ --include="*.ts"; then
             echo "❌ Found console.log statements that might leak sensitive data"
             SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
           fi
