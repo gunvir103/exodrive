@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPayPalAccessToken } from '@/lib/paypal-client';
+import { createSupabaseServiceRoleClient } from '@/lib/supabase/server';
 
 const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'sandbox' 
     ? 'https://api-m.sandbox.paypal.com' 
@@ -7,15 +8,33 @@ const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'sandbox'
 
 export async function POST(request: Request) {
   try {
-    const { amount, bookingId, description } = await request.json();
+    const { carId, startDate, endDate, bookingId, description } = await request.json();
 
-    if (!amount || isNaN(Number(amount))) {
-        return NextResponse.json({ error: 'Invalid amount provided' }, { status: 400 });
+    if (!carId || !startDate || !endDate) {
+        return NextResponse.json({ error: 'Car ID, start date, and end date are required' }, { status: 400 });
     }
 
     if (!bookingId) {
         return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
     }
+    
+    // Calculate price server-side using Supabase function
+    const supabase = createSupabaseServiceRoleClient();
+    const { data: priceCalculation, error: priceError } = await supabase.rpc('calculate_booking_price', {
+        p_car_id: carId,
+        p_start_date: startDate,
+        p_end_date: endDate
+    });
+    
+    if (priceError || !priceCalculation.success) {
+        console.error('Price calculation error:', priceError || priceCalculation.error);
+        return NextResponse.json({ 
+            error: 'Failed to calculate price', 
+            details: priceError?.message || priceCalculation.error 
+        }, { status: 400 });
+    }
+    
+    const amount = priceCalculation.final_price;
     
     const accessToken = await getPayPalAccessToken();
 

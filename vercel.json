@@ -26,6 +26,10 @@
     {
       "path": "/api/webhooks/retry",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/admin/process-payment-captures",
+      "schedule": "*/15 * * * *"
     }
   ]
 } 

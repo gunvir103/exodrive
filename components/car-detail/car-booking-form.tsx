@@ -61,7 +61,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   const days = startDate && endDate ? Math.max(1, differenceInDays(endDate, startDate) + 1) : 0
   const basePrice = pricing?.base_price ?? 0;
   const deposit = pricing?.deposit_amount ?? Math.round(days * basePrice * 0.3); // Default deposit if not set
-  const totalPrice = days * basePrice;
+  const totalPrice = days * basePrice; // For display only - actual price calculated server-side
 
   // Get today (start of day) and max date
   const today = startOfToday(); 
@@ -152,7 +152,13 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount: totalPrice }),
+        body: JSON.stringify({ 
+            carId,
+            startDate: format(startDate!, "yyyy-MM-dd"),
+            endDate: format(endDate!, "yyyy-MM-dd"),
+            bookingId: `temp-${Date.now()}`, // Temporary ID for tracking
+            description: `Car rental from ${format(startDate!, "MMM dd")} to ${format(endDate!, "MMM dd")}`
+        }),
     });
     const order = await response.json();
     if (!response.ok) {

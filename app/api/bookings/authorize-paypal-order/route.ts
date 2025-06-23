@@ -41,7 +41,26 @@ export async function POST(request: Request) {
     // At this point, the payment is successful. Now, create the booking in the database.
     // This should ideally be a single transaction. We can use a Supabase edge function (RPC) for this.
     
-    const { carId, startDate, endDate, totalPrice, customer } = bookingDetails;
+    const { carId, startDate, endDate, totalPrice: clientPrice, customer } = bookingDetails;
+    
+    // Validate price server-side
+    const { data: priceValidation, error: validationError } = await supabase.rpc('validate_booking_price', {
+        p_car_id: carId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_client_price: clientPrice
+    });
+    
+    if (validationError || !priceValidation.valid) {
+        console.error('Price validation failed:', validationError || priceValidation.error);
+        return NextResponse.json({ 
+            error: 'Price validation failed', 
+            details: validationError?.message || priceValidation.error 
+        }, { status: 400 });
+    }
+    
+    // Use server-calculated price
+    const totalPrice = priceValidation.server_calculation.final_price;
 
     // Extract authorization ID from the authorized data with safe property access
     const authorizationId = authorizedData?.purchase_units?.[0]?.payments?.authorizations?.[0]?.id;
