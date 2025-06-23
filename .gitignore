@@ -42,3 +42,7 @@ next-env.d.ts
 # Generated files
 db-verification-report.json
 /reports/
+
+# MCP configuration files (contain secrets)
+.mcp.json
+.mcp.json.rtf
