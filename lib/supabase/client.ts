@@ -42,26 +42,10 @@ export async function getPooledSupabaseClient() {
   return getPooledBrowserClient();
 }
 
-// Helper function for creating a Supabase client with service role (admin access)
-// Legacy function - will be deprecated
-export function getSupabaseServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// SECURITY NOTE: Service role clients should NEVER be created in browser context
+// Use server-side service role clients instead via lib/supabase/server.ts
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn("Supabase URL or service role key are missing.")
-    return null
-  }
-
-  return createBrowserClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
-}
-
-// New pooled service client functions
+// New pooled service client functions (server-side only)
 export async function withServiceClient<T>(
   operation: (client: SupabaseClient) => Promise<T>
 ): Promise<T> {

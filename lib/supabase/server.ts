@@ -8,7 +8,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 // Legacy function - will be deprecated
 export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) {
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
@@ -23,17 +23,70 @@ export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) 
         },
         set: async (name: string, value: string, options: CookieOptions) => {
           try {
-            await cookieStore.set({ name, value, ...options })
+            // Add default security options
+            const secureOptions: CookieOptions = {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              path: '/',
+              ...options,
+            }
+            await cookieStore.set({ name, value, ...secureOptions })
           } catch (error) {
-            // Ignore errors in Server Components (middleware handles refresh)
+            // Log error but don't throw - middleware handles session refresh
+            console.error(`Server client: Failed to set cookie '${name}':`, error)
           }
         },
         remove: async (name: string, options: CookieOptions) => {
           try {
-            await cookieStore.set({ name, value: '', ...options })
+            const removeOptions: CookieOptions = {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              path: '/',
+              maxAge: 0,
+              ...options,
+            }
+            await cookieStore.set({ name, value: '', ...removeOptions })
           } catch (error) {
-            // Ignore errors in Server Components (middleware handles refresh)
+            // Log error but don't throw - middleware handles session refresh
+            console.error(`Server client: Failed to remove cookie '${name}':`, error)
           }
+        },
+      },
+    }
+  )
+}
+
+// Enhanced server client for Route Handlers with proper response handling
+export function createSupabaseRouteHandlerClient(
+  request: Request,
+  response?: Response
+) {
+  return createServerClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          // For route handlers, get cookies from request
+          const cookieStore = request.headers.get('cookie') || ''
+          const cookies = cookieStore.split(';').reduce((acc, cookie) => {
+            const [key, value] = cookie.trim().split('=')
+            if (key) acc[key] = value
+            return acc
+          }, {} as Record<string, string>)
+          return cookies[name]
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // In route handlers, we need to handle this in the response
+          // This is a placeholder - actual implementation should be in the route handler
+          console.warn('Cookie setting should be handled in route handler response')
+        },
+        remove(name: string, options: CookieOptions) {
+          // In route handlers, we need to handle this in the response
+          // This is a placeholder - actual implementation should be in the route handler
+          console.warn('Cookie removal should be handled in route handler response')
         },
       },
     }

@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createSupabaseServerClient(request.cookies);
     
     // Check admin authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -15,12 +15,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    if (user.user_metadata?.role !== 'admin') {
-      return NextResponse.json(
-        { error: "Forbidden - Admin access only" },
-        { status: 403 }
-      );
+    // Verify user has admin role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    
+    if (profile?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     // Get query parameters
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
         *,
         booking:bookings(
           id,
-          customer:customers(name)
+          customer:customers(first_name,last_name)
         )
       `, { count: "exact" });
 

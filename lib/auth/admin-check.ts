@@ -28,23 +28,14 @@ export async function checkAdminAuth(request: NextRequest): Promise<AdminCheckRe
       };
     }
 
-    // Check if user has admin role in profiles table
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      console.error('Error fetching user profile:', profileError);
-      return {
-        isAdmin: false,
-        user,
-        error: 'Failed to fetch user profile'
-      };
-    }
-
-    const isAdmin = profile.role === 'admin';
+    // Check if user has admin role in metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
+    
+    console.log(`Admin check for ${user.email}:`, {
+      metadata: user.user_metadata,
+      role: user.user_metadata?.role,
+      isAdmin
+    });
     
     return {
       isAdmin,
@@ -81,23 +72,14 @@ export async function checkAdminAuthServerAction(cookieStore: any): Promise<Admi
       };
     }
 
-    // Check if user has admin role in profiles table
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      console.error('Error fetching user profile:', profileError);
-      return {
-        isAdmin: false,
-        user,
-        error: 'Failed to fetch user profile'
-      };
-    }
-
-    const isAdmin = profile.role === 'admin';
+    // Check if user has admin role in metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
+    
+    console.log(`Admin check for ${user.email}:`, {
+      metadata: user.user_metadata,
+      role: user.user_metadata?.role,
+      isAdmin
+    });
     
     return {
       isAdmin,

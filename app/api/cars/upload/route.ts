@@ -141,53 +141,52 @@ export const POST = withApiErrorHandling(async (request: NextRequest) => {
   const fileName = `${uuidv4()}.${fileExtension}`;
   const filePath = `${user.id}/${fileName}`; // Organize by user ID
 
-  try {
-    // 4. Upload file to Supabase Storage using the *service role* for elevated permissions
-    // We need the service client here because bucket policies might restrict direct client uploads
-    // For the service role client, we don't need cookies, but the type requires the object.
-    // Provide a minimal compliant object.
-    const supabaseAdmin = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!, // Use service role key
-        {
-            cookies: {
-                // Provide dummy methods for type compliance
-                get(name: string) { return undefined; },
-                set(name: string, value: string, options: CookieOptions) {},
-                remove(name: string, options: CookieOptions) {},
-            },
-            auth: { persistSession: false } // Don't need session persistence
-        }
-    );
-
-    // Additional content verification before upload
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    // Check magic bytes for actual file type (basic check for common image formats)
-    const magicBytes = buffer.subarray(0, 4).toString('hex');
-    const validMagicBytes = {
-      'ffd8ff': 'jpeg', // JPEG
-      '89504e47': 'png', // PNG
-      '52494646': 'webp' // WEBP (RIFF header)
-    };
-    
-    let isValidContent = false;
-    for (const [magic, type] of Object.entries(validMagicBytes)) {
-      if (magicBytes.startsWith(magic) || (type === 'webp' && buffer.subarray(8, 12).toString('hex') === '57454250')) {
-        isValidContent = true;
-        break;
+  // 4. Upload file to Supabase Storage using the *service role* for elevated permissions
+  // We need the service client here because bucket policies might restrict direct client uploads
+  // For the service role client, we don't need cookies, but the type requires the object.
+  // Provide a minimal compliant object.
+  const supabaseAdmin = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, // Use service role key
+      {
+          cookies: {
+              // Provide dummy methods for type compliance
+              get(name: string) { return undefined; },
+              set(name: string, value: string, options: CookieOptions) {},
+              remove(name: string, options: CookieOptions) {},
+          },
+          auth: { persistSession: false } // Don't need session persistence
       }
-    }
-    
-    if (!isValidContent) {
-      return NextResponse.json(
-        { error: "File content does not match allowed image types" },
-        { status: 400 }
-      );
-    }
+  );
 
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+  // Additional content verification before upload
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  
+  // Check magic bytes for actual file type (basic check for common image formats)
+  const magicBytes = buffer.subarray(0, 4).toString('hex');
+  const validMagicBytes = {
+    'ffd8ff': 'jpeg', // JPEG
+    '89504e47': 'png', // PNG
+    '52494646': 'webp' // WEBP (RIFF header)
+  };
+  
+  let isValidContent = false;
+  for (const [magic, type] of Object.entries(validMagicBytes)) {
+    if (magicBytes.startsWith(magic) || (type === 'webp' && buffer.subarray(8, 12).toString('hex') === '57454250')) {
+      isValidContent = true;
+      break;
+    }
+  }
+  
+  if (!isValidContent) {
+    return NextResponse.json(
+      { error: "File content does not match allowed image types" },
+      { status: 400 }
+    );
+  }
+
+  const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(CAR_IMAGES_BUCKET)
       .upload(filePath, file, {
         cacheControl: "3600", // Cache for 1 hour
@@ -195,62 +194,57 @@ export const POST = withApiErrorHandling(async (request: NextRequest) => {
         contentType: file.type // Explicitly set content type
       });
 
-    if (uploadError) {
-      console.error("[Car Upload] Storage error:", uploadError);
-      
-      if (uploadError.message.includes("Bucket not found")) {
-        return NextResponse.json(
-          { 
-            error: "Storage configuration error",
-            code: "STORAGE_CONFIG_ERROR"
-          }, 
-          { status: 500 }
-        );
-      }
-      
+  if (uploadError) {
+    console.error("[Car Upload] Storage error:", uploadError);
+    
+    if (uploadError.message.includes("Bucket not found")) {
       return NextResponse.json(
         { 
-          error: "Failed to upload file",
-          code: "UPLOAD_FAILED"
+          error: "Storage configuration error",
+          code: "STORAGE_CONFIG_ERROR"
         }, 
         { status: 500 }
       );
     }
+    
+    return NextResponse.json(
+      { 
+        error: "Failed to upload file",
+        code: "UPLOAD_FAILED"
+      }, 
+      { status: 500 }
+    );
+  }
 
-    // 5. Get public URL
-    const { data: urlData } = supabaseAdmin.storage
+  // 5. Get public URL
+  const { data: urlData } = supabaseAdmin.storage
       .from(CAR_IMAGES_BUCKET)
       .getPublicUrl(uploadData.path);
 
-    if (!urlData?.publicUrl) {
-        console.error("[Car Upload] Failed to get public URL for path:", uploadData.path);
-        // Clean up the uploaded file
-        await supabaseAdmin.storage.from(CAR_IMAGES_BUCKET).remove([uploadData.path]);
-        
-        return NextResponse.json(
-          { 
-            error: "Failed to generate file URL",
-            code: "URL_GENERATION_FAILED"
-          }, 
-          { status: 500 }
-        );
-    }
-
-    // 6. Return success response
-    return NextResponse.json(
-      { 
-        success: true,
-        data: {
-          publicUrl: urlData.publicUrl,
-          storagePath: uploadData.path,
-          fileName
-        }
-      },
-      { status: 201 }
-    );
-
-  } catch (error) {
-    // Error will be handled by withApiErrorHandling wrapper
-    throw error;
+  if (!urlData?.publicUrl) {
+      console.error("[Car Upload] Failed to get public URL for path:", uploadData.path);
+      // Clean up the uploaded file
+      await supabaseAdmin.storage.from(CAR_IMAGES_BUCKET).remove([uploadData.path]);
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to generate file URL",
+          code: "URL_GENERATION_FAILED"
+        }, 
+        { status: 500 }
+      );
   }
+
+  // 6. Return success response
+  return NextResponse.json(
+    { 
+      success: true,
+      data: {
+        publicUrl: urlData.publicUrl,
+        storagePath: uploadData.path,
+        fileName
+      }
+    },
+    { status: 201 }
+  );
 }); 

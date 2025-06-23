@@ -78,10 +78,18 @@ export default function AdminBookingsPage() {
       const response = await fetch(`/api/admin/bookings?${params}`)
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch bookings: ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({ error: response.statusText }))
+        throw new Error(`Failed to fetch bookings: ${errorData.error || response.statusText}`)
       }
       
-      const data: BookingsResponse = await response.json()
+      const data = await response.json()
+      
+      // Check if response has the expected structure
+      if (!data.bookings || !Array.isArray(data.bookings)) {
+        console.error('Invalid response structure:', data)
+        throw new Error('Invalid response format from API')
+      }
+      
       setBookings(data.bookings)
       setPagination(data.pagination)
     } catch (err) {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-import { withApiErrorHandling } from '@/lib/errors/error-middleware';
 
 // Query parameters schema
 const listBookingsSchema = z.object({
@@ -15,8 +14,9 @@ const listBookingsSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
-export const GET = withApiErrorHandling(async (request: NextRequest) => {
-  const supabase = createSupabaseServerClient(request.cookies);
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createSupabaseServerClient(request.cookies);
   
   // Check admin authentication
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -61,15 +61,21 @@ export const GET = withApiErrorHandling(async (request: NextRequest) => {
           id,
           name,
           slug,
-          model,
-          price_per_day,
-          main_image_url
+          car_pricing!inner (
+            base_price,
+            currency
+          ),
+          car_images!inner (
+            url,
+            is_primary
+          )
         ),
         payments (
           id,
           amount,
           status,
-          payment_method,
+          currency,
+          paypal_order_id,
           created_at
         ),
         booking_events (
@@ -77,7 +83,7 @@ export const GET = withApiErrorHandling(async (request: NextRequest) => {
           event_type,
           timestamp,
           actor_type,
-          metadata
+          details
         )
       `)
       .order(params.sortBy, { ascending: params.sortOrder === 'asc' });
@@ -142,9 +148,8 @@ export const GET = withApiErrorHandling(async (request: NextRequest) => {
         id: booking.car.id,
         name: booking.car.name,
         slug: booking.car.slug,
-        model: booking.car.model,
-        pricePerDay: booking.car.price_per_day,
-        mainImageUrl: booking.car.main_image_url
+        pricePerDay: booking.car.car_pricing?.[0]?.base_price || 0,
+        mainImageUrl: booking.car.car_images?.find((img: any) => img.is_primary)?.url || booking.car.car_images?.[0]?.url || null
       } : null,
       customer: booking.customer ? {
         id: booking.customer.id,
@@ -161,10 +166,10 @@ export const GET = withApiErrorHandling(async (request: NextRequest) => {
       contractStatus: booking.contract_status,
       createdAt: booking.created_at,
       updatedAt: booking.updated_at,
-      bookingDays: booking.booking_days,
+      bookingDays: booking.start_date && booking.end_date 
+        ? Math.ceil((new Date(booking.end_date).getTime() - new Date(booking.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
+        : 0,
       securityDepositAmount: booking.security_deposit_amount,
-      pickupLocation: booking.pickup_location,
-      dropoffLocation: booking.dropoff_location,
       notes: booking.notes,
       payments: booking.payments || [],
       recentEvents: booking.booking_events?.slice(0, 3) || []
@@ -183,143 +188,149 @@ export const GET = withApiErrorHandling(async (request: NextRequest) => {
         totalPages
       }
     });
-});
+  } catch (error) {
+    console.error('Error in bookings API:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
 
 // Create new booking (admin)
-export const POST = withApiErrorHandling(async (request: NextRequest) => {
-  const supabase = createSupabaseServerClient(request.cookies);
-  
+export async function POST(request: NextRequest) {
   try {
-    // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const supabase = createSupabaseServerClient(request.cookies);
+  
+  // Check admin authentication
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    // Verify user has admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
+  // Verify user has admin role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  
+  if (profile?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+  }
 
-    const body = await request.json();
-    
-    // Validation schema for admin booking creation
-    const createBookingSchema = z.object({
-      carId: z.string().uuid(),
-      customerId: z.string().uuid().optional(),
-      customerDetails: z.object({
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
-        email: z.string().email(),
-        phone: z.string().optional()
-      }).optional(),
-      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      totalPrice: z.number().positive(),
-      currency: z.string().length(3).default('USD'),
-      securityDepositAmount: z.number().nonnegative(),
-      notes: z.string().optional(),
-      skipAvailabilityCheck: z.boolean().default(false),
-      initialStatus: z.enum(['pending_payment', 'upcoming', 'active']).default('pending_payment')
-    });
+  const body = await request.json();
+  
+  // Validation schema for admin booking creation
+  const createBookingSchema = z.object({
+    carId: z.string().uuid(),
+    customerId: z.string().uuid().optional(),
+    customerDetails: z.object({
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+      email: z.string().email(),
+      phone: z.string().optional()
+    }).optional(),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    totalPrice: z.number().positive(),
+    currency: z.string().length(3).default('USD'),
+    securityDepositAmount: z.number().nonnegative(),
+    notes: z.string().optional(),
+    skipAvailabilityCheck: z.boolean().default(false),
+    initialStatus: z.enum(['pending_payment', 'upcoming', 'active']).default('pending_payment')
+  });
 
-    const validationResult = createBookingSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid request payload', details: validationResult.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const data = validationResult.data;
-
-    // Calculate booking days
-    const bookingDays = Math.ceil(
-      (new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 
-      (1000 * 60 * 60 * 24)
-    ) + 1;
-
-    // Generate secure token
-    const crypto = await import('crypto');
-    const secureTokenValue = crypto.randomBytes(48).toString('hex');
-    const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
-
-    // Prepare edge function payload
-    const edgeFunctionPayload = {
-      carId: data.carId,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      customerDetails: data.customerDetails || {
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: ''
-      },
-      customerId: data.customerId,
-      totalPrice: data.totalPrice,
-      currency: data.currency,
-      securityDepositAmount: data.securityDepositAmount,
-      secureTokenValue,
-      tokenExpiresAt,
-      bookingDays,
-      initialOverallStatus: data.initialStatus,
-      initialPaymentStatus: data.initialStatus === 'active' ? 'paid' : 'pending',
-      initialContractStatus: data.initialStatus === 'active' ? 'signed' : 'not_sent',
-      skipAvailabilityCheck: data.skipAvailabilityCheck,
-      notes: data.notes,
-      createdByAdmin: true,
-      adminId: user.id
-    };
-
-    // Call edge function
-    const { data: functionResponse, error: functionError } = await supabase.functions.invoke(
-      'create-booking-transaction',
-      { body: edgeFunctionPayload }
-    );
-
-    if (functionError || !functionResponse?.success) {
-      console.error('Edge function error:', functionError || functionResponse);
-      return NextResponse.json(
-        { 
-          error: 'Failed to create booking', 
-          details: functionError?.message || functionResponse?.error || 'Unknown error'
-        },
-        { status: 500 }
-      );
-    }
-
-    // Log admin action
-    if (functionResponse.bookingId) {
-      await supabase.from('booking_events').insert({
-        booking_id: functionResponse.bookingId,
-        event_type: 'admin_created_booking',
-        timestamp: new Date().toISOString(),
-        actor_type: 'admin',
-        actor_id: user.id,
-        metadata: {
-          admin_email: user.email,
-          initial_status: data.initialStatus
-        }
-      });
-    }
-
-    return NextResponse.json({
-      message: 'Booking created successfully',
-      bookingId: functionResponse.bookingId,
-      customerId: functionResponse.customerId,
-      bookingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/${secureTokenValue}`
-    }, { status: 201 });
-
-  } catch (error: any) {
-    console.error('Error creating admin booking:', error);
+  const validationResult = createBookingSchema.safeParse(body);
+  if (!validationResult.success) {
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Invalid request payload', details: validationResult.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const data = validationResult.data;
+
+  // Calculate booking days
+  const bookingDays = Math.ceil(
+    (new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 
+    (1000 * 60 * 60 * 24)
+  ) + 1;
+
+  // Generate secure token
+  const crypto = await import('crypto');
+  const secureTokenValue = crypto.randomBytes(48).toString('hex');
+  const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+
+  // Prepare edge function payload
+  const edgeFunctionPayload = {
+    carId: data.carId,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    customerDetails: data.customerDetails || {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: ''
+    },
+    customerId: data.customerId,
+    totalPrice: data.totalPrice,
+    currency: data.currency,
+    securityDepositAmount: data.securityDepositAmount,
+    secureTokenValue,
+    tokenExpiresAt,
+    bookingDays,
+    initialOverallStatus: data.initialStatus,
+    initialPaymentStatus: data.initialStatus === 'active' ? 'paid' : 'pending',
+    initialContractStatus: data.initialStatus === 'active' ? 'signed' : 'not_sent',
+    skipAvailabilityCheck: data.skipAvailabilityCheck,
+    notes: data.notes,
+    createdByAdmin: true,
+    adminId: user.id
+  };
+
+  // Call edge function
+  const { data: functionResponse, error: functionError } = await supabase.functions.invoke(
+    'create-booking-transaction',
+    { body: edgeFunctionPayload }
+  );
+
+  if (functionError || !functionResponse?.success) {
+    console.error('Edge function error:', functionError || functionResponse);
+    return NextResponse.json(
+      { 
+        error: 'Failed to create booking', 
+        details: functionError?.message || functionResponse?.error || 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+
+  // Log admin action
+  if (functionResponse.bookingId) {
+    await supabase.from('booking_events').insert({
+      booking_id: functionResponse.bookingId,
+      event_type: 'admin_created_booking',
+      timestamp: new Date().toISOString(),
+      actor_type: 'admin',
+      actor_id: user.id,
+      metadata: {
+        admin_email: user.email,
+        initial_status: data.initialStatus
+      }
+    });
+  }
+
+  return NextResponse.json({
+    message: 'Booking created successfully',
+    bookingId: functionResponse.bookingId,
+    customerId: functionResponse.customerId,
+    bookingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/${secureTokenValue}`
+  }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
