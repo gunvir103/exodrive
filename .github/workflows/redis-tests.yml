@@ -10,6 +10,12 @@ on:
       - develop
   pull_request:  # Also run on pull requests to catch issues before they're merged
 
+# Security: Limit permissions to minimum required
+permissions:
+  contents: read  # Read repository content
+  actions: read   # Read action runs and artifacts
+  checks: write   # Write check results
+
 jobs:
   redis-tests:
     name: 🔍 Redis Tests & Cache Validation
