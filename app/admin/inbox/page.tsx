@@ -87,12 +87,13 @@ export default function InboxPage() {
 
       const response = await fetch(`/api/admin/inbox?${params}`);
       if (!response.ok) {
-        throw new Error("Failed to fetch emails");
+        const errorData = await response.json().catch(() => ({ error: "Failed to fetch emails" }));
+        throw new Error(errorData.error || "Failed to fetch emails");
       }
 
       const data = await response.json();
-      setEmails(data.emails);
-      setTotalPages(data.totalPages);
+      setEmails(data.emails || []);
+      setTotalPages(data.totalPages || 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -237,7 +238,7 @@ export default function InboxPage() {
                               {getStatusBadge(email)}
                               {email.booking && (
                                 <Badge variant="outline">
-                                  Booking: {email.booking.customer.name}
+                                  Booking: {email.booking.customer?.name || 'Unknown'}
                                 </Badge>
                               )}
                             </div>

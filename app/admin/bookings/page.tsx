@@ -57,6 +57,7 @@ export default function AdminBookingsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState<BookingsResponse['pagination'] | null>(null)
+  const [activeTab, setActiveTab] = useState('all')
 
   const fetchBookings = async (status: string = 'all', search: string = '', page: number = 1) => {
     try {
@@ -84,14 +85,17 @@ export default function AdminBookingsPage() {
       
       const data = await response.json()
       
+      // Handle both success wrapper and direct response
+      const responseData = data.success ? data : { bookings: data.bookings, pagination: data.pagination }
+      
       // Check if response has the expected structure
-      if (!data.bookings || !Array.isArray(data.bookings)) {
+      if (!responseData.bookings || !Array.isArray(responseData.bookings)) {
         console.error('Invalid response structure:', data)
         throw new Error('Invalid response format from API')
       }
       
-      setBookings(data.bookings)
-      setPagination(data.pagination)
+      setBookings(responseData.bookings)
+      setPagination(responseData.pagination)
     } catch (err) {
       console.error('Error fetching bookings:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch bookings')
@@ -111,6 +115,7 @@ export default function AdminBookingsPage() {
   }
 
   const handleTabChange = (status: string) => {
+    setActiveTab(status)
     setCurrentPage(1)
     fetchBookings(status, searchTerm, 1)
   }
@@ -143,7 +148,7 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="all" onValueChange={handleTabChange}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All Bookings</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>
@@ -184,7 +189,7 @@ export default function AdminBookingsPage() {
                     onClick={() => {
                       const newPage = pagination.page - 1
                       setCurrentPage(newPage)
-                      fetchBookings('all', searchTerm, newPage)
+                      fetchBookings(activeTab, searchTerm, newPage)
                     }}
                   >
                     Previous
@@ -196,7 +201,7 @@ export default function AdminBookingsPage() {
                     onClick={() => {
                       const newPage = pagination.page + 1
                       setCurrentPage(newPage)
-                      fetchBookings('all', searchTerm, newPage)
+                      fetchBookings(activeTab, searchTerm, newPage)
                     }}
                   >
                     Next

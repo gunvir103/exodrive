@@ -1,12 +1,16 @@
-# 📘 Redis Deployment Runbook - ExoDrive
+# 📘 Deployment Runbook - ExoDrive
 
-**Version**: 1.0  
+**Version**: 2.0  
 **Last Updated**: January 23, 2025  
-**Service**: ExoDrive Redis Implementation  
+**Service**: ExoDrive Production Deployment  
 
 ## 🎯 Deployment Overview
 
-This runbook provides step-by-step instructions for deploying the Redis implementation to production, including pre-deployment checks, deployment steps, validation, and rollback procedures.
+This runbook provides step-by-step instructions for deploying ExoDrive to production, including:
+- Redis caching implementation
+- Server-side pricing security
+- Automatic payment capture system
+- Pre-deployment checks, deployment steps, validation, and rollback procedures.
 
 ## 📋 Pre-Deployment Checklist
 
@@ -47,29 +51,54 @@ curl https://api.exodrive.com/api/admin/metrics > metrics_before.json
 # Connect to production database
 psql $DATABASE_URL
 
-# Apply migrations in order
+# Apply existing migrations in order
 \i supabase/migrations/20250623_add_critical_performance_indexes.sql
 \i supabase/migrations/20250623_add_webhook_retries.sql
 \i supabase/migrations/20250624000000_fix_booking_race_condition.sql
 
+# Apply security migrations (already applied via Supabase dashboard)
+# These migrations create:
+# - Server-side pricing functions (calculate_booking_price, validate_booking_price)
+# - Payment capture rules table
+# - Automatic capture functions and triggers
+
 # Verify migrations
-SELECT * FROM schema_migrations ORDER BY version DESC LIMIT 3;
+SELECT * FROM schema_migrations ORDER BY version DESC LIMIT 5;
+
+# Verify security functions exist
+SELECT proname FROM pg_proc WHERE proname IN ('calculate_booking_price', 'validate_booking_price', 'process_scheduled_payment_captures');
 ```
 
 ### Step 2: Update Environment Variables
 ```bash
-# Vercel CLI
+# Redis Configuration
 vercel env add UPSTASH_REDIS_REST_URL production
 vercel env add UPSTASH_REDIS_REST_TOKEN production
 vercel env add KV_URL production
 vercel env add KV_REST_API_URL production
 vercel env add KV_REST_API_TOKEN production
 
-# Verify
-vercel env ls production | grep -E "(REDIS|KV)"
+# Security Configuration
+vercel env add CRON_SECRET production  # For payment capture cron job
+
+# Verify all required variables
+vercel env ls production | grep -E "(REDIS|KV|CRON_SECRET|PAYPAL)"
+
+# Ensure PayPal is in production mode
+vercel env add PAYPAL_MODE production  # Should be 'live' not 'sandbox'
 ```
 
-### Step 3: Deploy Application
+### Step 3: Update Vercel Configuration
+```bash
+# Verify vercel.json includes payment capture cron
+cat vercel.json | grep "process-payment-captures"
+
+# Expected output:
+# "path": "/api/admin/process-payment-captures",
+# "schedule": "*/15 * * * *"
+```
+
+### Step 4: Deploy Application
 ```bash
 # Build and deploy
 bun run build
@@ -78,9 +107,12 @@ vercel deploy --prod
 # Get deployment URL
 DEPLOYMENT_URL=$(vercel ls --prod | grep "Production" | awk '{print $2}')
 echo "Deployed to: $DEPLOYMENT_URL"
+
+# Verify cron jobs are active
+vercel cron ls
 ```
 
-### Step 4: Warm Cache (Optional but Recommended)
+### Step 5: Warm Cache (Optional but Recommended)
 ```bash
 # Warm popular cars and availability
 curl -X POST https://api.exodrive.com/api/admin/cache-warm \
@@ -96,7 +128,28 @@ curl -X POST https://api.exodrive.com/api/admin/cache-warm \
 
 ## ✅ Post-Deployment Validation
 
-### 1. Health Checks
+### 1. Security Validation
+```bash
+# Test server-side pricing
+curl -X POST https://api.exodrive.com/api/bookings/create-paypal-order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "carId": "test-car-id",
+    "startDate": "2025-02-01",
+    "endDate": "2025-02-05",
+    "bookingId": "test-123"
+  }'
+
+# Verify price manipulation is blocked
+# The endpoint should calculate price server-side, not accept client price
+
+# Test payment capture cron manually
+curl -X GET https://api.exodrive.com/api/admin/process-payment-captures
+
+# Expected: "Payment capture processor is running"
+```
+
+### 2. Health Checks
 ```bash
 # Redis connectivity
 curl https://api.exodrive.com/api/demo/redis
@@ -151,9 +204,12 @@ curl -X POST https://api.exodrive.com/api/bookings \
 # Revert to previous deployment
 vercel rollback
 
-# Disable Redis (feature flag)
+# If only Redis needs to be disabled
 vercel env add DISABLE_REDIS true production
 vercel redeploy
+
+# If payment capture needs to be disabled
+# Remove cron job from vercel.json and redeploy
 ```
 
 ### Full Rollback
@@ -162,23 +218,31 @@ vercel redeploy
 git revert HEAD
 git push origin main
 
-# 2. Revert database migrations
+# 2. Revert database changes (if absolutely necessary)
+# NOTE: Security functions should remain even if not used
 psql $DATABASE_URL << EOF
--- Revert booking race condition fix
-DROP INDEX IF EXISTS idx_bookings_unique_active;
-ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_no_double_booking;
+-- Disable payment capture triggers (keep functions)
+DROP TRIGGER IF EXISTS booking_confirmation_payment_capture ON bookings;
+DROP TRIGGER IF EXISTS booking_creation_payment_capture ON bookings;
 
--- Revert performance indexes
-DROP INDEX IF EXISTS idx_bookings_status;
-DROP INDEX IF EXISTS idx_bookings_car_status_dates;
--- ... (other index drops)
+-- Revert booking columns (optional)
+ALTER TABLE bookings 
+DROP COLUMN IF EXISTS payment_capture_scheduled_at,
+DROP COLUMN IF EXISTS payment_capture_attempted_at,
+DROP COLUMN IF EXISTS payment_capture_rule_id;
+
+-- Keep pricing functions for security
+-- DO NOT DROP calculate_booking_price or validate_booking_price
 EOF
 
 # 3. Clear Redis cache
 curl -X POST https://api.exodrive.com/api/admin/cache/clear \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
-# 4. Redeploy previous version
+# 4. Remove cron secret
+vercel env rm CRON_SECRET production
+
+# 5. Redeploy previous version
 vercel deploy --prod
 ```
 
@@ -200,6 +264,15 @@ vercel deploy --prod
 4. **Error Rates**
    - Baseline: < 0.1%
    - Alert: > 1% for 5 minutes
+
+5. **Security Metrics**
+   - Price validation failures: Alert on > 5 per hour
+   - Payment capture success rate: Alert on < 95%
+   - Failed capture retries: Alert on > 10 per hour
+
+6. **Cron Job Health**
+   - Monitor: Payment capture cron execution
+   - Alert: If cron hasn't run in 30 minutes
 
 ### Alert Responses
 
@@ -240,6 +313,26 @@ bunx scripts/monitor-rate-limits.ts --analyze
 # Add to Vercel Edge Config or WAF
 ```
 
+## 🔐 Security Deployment Checklist
+
+### Pre-Deployment Security Verification
+- [ ] Verify CRON_SECRET is set in production
+- [ ] Confirm PayPal is in production mode
+- [ ] Database functions have proper search_path set
+- [ ] RLS enabled on payment_capture_rules table
+
+### Post-Deployment Security Testing
+- [ ] Test price manipulation is blocked
+- [ ] Verify server-side calculations work
+- [ ] Confirm payment capture cron is active
+- [ ] Check audit logging is functioning
+
+### Security Monitoring Setup
+- [ ] Price validation failure alerts configured
+- [ ] Payment capture success rate monitoring
+- [ ] Suspicious activity detection enabled
+- [ ] Audit log retention verified
+
 ## 📊 Success Criteria
 
 ### Immediate (First Hour)
@@ -247,12 +340,16 @@ bunx scripts/monitor-rate-limits.ts --analyze
 - [ ] Response times < 100ms for cached endpoints
 - [ ] No increase in error rates
 - [ ] Rate limiting functioning correctly
+- [ ] Server-side pricing working correctly
+- [ ] Payment capture cron executing
 
 ### Short-term (First 24 Hours)
 - [ ] Cache hit rate > 85%
 - [ ] No Redis connection failures
 - [ ] No customer complaints
 - [ ] Database load reduced by > 50%
+- [ ] No price manipulation attempts detected
+- [ ] Payment captures processing successfully
 
 ### Long-term (First Week)
 - [ ] Sustained performance improvements

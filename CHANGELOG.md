@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- DocuSeal contract automation integration
+- Advanced architecture improvements (Phase 3)
+
+## [1.2.0] - 2025-01-23
+
+### Added
+- **Server-Side Pricing Security Implementation**
+  - Database functions `calculate_booking_price()` and `validate_booking_price()`
+  - Price calculation moved entirely to server-side
+  - Comprehensive audit logging for all price calculations
+  - Price manipulation detection and monitoring
+- **Automatic Payment Capture System**
+  - Configurable payment capture rules (contract signed, hours before rental, admin approval)
+  - Automated cron job processes captures every 15 minutes
+  - Database triggers for intelligent capture scheduling
+  - Payment capture status tracking with retry logic
+- **New Database Tables**
+  - `payment_capture_rules` - Configurable capture timing rules
+  - Added capture tracking columns to bookings and payments tables
+- **Security Hardening**
+  - Row Level Security (RLS) on all payment-related tables
+  - Fixed SQL injection vulnerabilities with proper search_path
+  - Enhanced webhook security with signature verification
+
+### Changed
+- **API Endpoints Modified for Security**
+  - `/api/bookings/create-paypal-order` - Now requires car ID and dates instead of price
+  - `/api/bookings/authorize-paypal-order` - Validates client price against server calculation
+  - Client-side pricing now for display only with server validation
+- **Payment Flow Improvements**
+  - Eliminated manual payment capture requirement
+  - Reduced admin workload with automatic processing
+  - Improved cash flow with timely captures
+
+### Fixed
+- Critical security vulnerability where client could manipulate rental prices
+- Manual payment capture creating operational bottlenecks
+- Missing audit trail for pricing decisions
+- Potential revenue loss from forgotten captures
+
+### Security
+- Implemented server-side price validation on all booking endpoints
+- Added comprehensive audit logging for security events
+- Enabled monitoring for price manipulation attempts
+- Fixed function search_path vulnerabilities
+
+## [1.1.1] - 2025-01-22
+
 ### Added
 - Email inbox feature for admin dashboard - Phase 2 Complete
   - Fixed webhook handler column mappings for Resend integration

@@ -4,7 +4,7 @@
 
 This document provides comprehensive documentation for the ExoDrive API, including all endpoints, request/response formats, headers, error handling, and rate limiting information.
 
-**Last Updated**: January 22, 2025
+**Last Updated**: January 23, 2025
 
 ## Base URL
 
@@ -243,6 +243,90 @@ Create a new booking.
 }
 ```
 
+#### Create PayPal Order (Server-Side Pricing)
+```http
+POST /api/bookings/create-paypal-order
+```
+
+Create a PayPal order with server-calculated pricing.
+
+**Rate Limit:** 30 requests per hour
+
+**Security Note:** Price is calculated server-side based on database pricing rules. Client cannot manipulate the rental price.
+
+**Request Body:**
+```json
+{
+  "carId": "uuid",
+  "startDate": "2025-02-01",
+  "endDate": "2025-02-05",
+  "bookingId": "temp-booking-123",
+  "description": "Ferrari 488 GTB rental Feb 1-5"
+}
+```
+
+**Response:**
+```json
+{
+  "orderID": "PAYPAL-ORDER-ID-123"
+}
+```
+
+**Error Response (Price Calculation Failed):**
+```json
+{
+  "error": "Failed to calculate price",
+  "details": "Minimum rental period is 3 days"
+}
+```
+
+#### Authorize PayPal Order (Price Validation)
+```http
+POST /api/bookings/authorize-paypal-order
+```
+
+Authorize a PayPal payment and create the booking.
+
+**Rate Limit:** 30 requests per hour
+
+**Security Note:** Server validates the client-provided price against server calculation. Any mismatch is logged as a potential security event.
+
+**Request Body:**
+```json
+{
+  "orderID": "PAYPAL-ORDER-ID-123",
+  "bookingDetails": {
+    "carId": "uuid",
+    "startDate": "2025-02-01",
+    "endDate": "2025-02-05",
+    "totalPrice": 4500,
+    "customer": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john@example.com",
+      "phone": "+1234567890"
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "bookingId": "uuid",
+  "authorizationId": "PAYPAL-AUTH-ID-456"
+}
+```
+
+**Error Response (Price Validation Failed):**
+```json
+{
+  "error": "Price validation failed",
+  "status": 400
+}
+```
+
 ### Admin Endpoints
 
 #### Cache Warming
@@ -366,6 +450,60 @@ Update the status of a booking.
     "status": "confirmed",
     "updated_at": "2025-01-22T10:00:00.000Z"
   }
+}
+```
+
+#### Process Payment Captures (Cron Job)
+```http
+POST /api/admin/process-payment-captures
+```
+
+Process scheduled payment captures. This endpoint is called automatically by Vercel Cron every 15 minutes.
+
+**Authentication:** Bearer token with CRON_SECRET
+
+**Headers:**
+```
+Authorization: Bearer {CRON_SECRET}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "processed_count": 3,
+  "results": [
+    {
+      "booking_id": "uuid-1",
+      "success": true,
+      "capture_id": "PAYPAL-CAPTURE-123"
+    },
+    {
+      "booking_id": "uuid-2",
+      "success": false,
+      "error": "Authorization expired"
+    },
+    {
+      "booking_id": "uuid-3",
+      "success": true,
+      "capture_id": "PAYPAL-CAPTURE-456"
+    }
+  ]
+}
+```
+
+**Manual Testing:**
+```http
+GET /api/admin/process-payment-captures
+```
+
+Returns information about the payment capture processor.
+
+**Response:**
+```json
+{
+  "message": "Payment capture processor is running",
+  "info": "Use POST method with proper authorization to process captures"
 }
 ```
 
@@ -494,9 +632,66 @@ curl -X POST https://exodrive.com/api/bookings \
   }'
 ```
 
+## Security Features
+
+### Server-Side Pricing
+
+All pricing calculations are performed server-side to prevent manipulation:
+
+1. **Price Calculation**: Database functions calculate prices based on:
+   - Base daily rate from `car_pricing` table
+   - Number of rental days
+   - Applicable discounts
+   - Minimum rental period validation
+
+2. **Price Validation**: Server validates any client-provided prices:
+   - Compares against server calculation
+   - Logs mismatches as security events
+   - Rejects requests with invalid prices
+
+3. **Audit Trail**: All price calculations are logged with:
+   - Timestamp
+   - Input parameters
+   - Calculation result
+   - User/session information
+
+### Automatic Payment Capture
+
+Payments are automatically captured based on configurable rules:
+
+1. **Capture Rules**:
+   - After contract signing
+   - X hours before rental start
+   - Upon admin approval
+   - Immediately (for trusted customers)
+
+2. **Processing**:
+   - Cron job runs every 15 minutes
+   - Processes bookings with scheduled captures
+   - Handles failures with retry logic
+   - Updates booking status automatically
+
+3. **Monitoring**:
+   - Track capture success rates
+   - Alert on repeated failures
+   - Log all capture attempts
+
 ## Migration Guide
 
-### From v1 to v2 (Current)
+### From v2 to v2.5 (Security Update)
+
+#### Breaking Changes
+1. **PayPal Order Creation** - Must now send car ID and dates instead of price
+2. **Price Validation** - Server validates all prices, manipulation attempts blocked
+3. **New Environment Variable** - `CRON_SECRET` required for payment capture
+
+#### New Features
+1. Server-side pricing calculations
+2. Automatic payment capture system
+3. Price manipulation detection
+4. Enhanced security logging
+
+### From v1 to v2
 
 #### Breaking Changes
 1. Error response format has changed - update error handling

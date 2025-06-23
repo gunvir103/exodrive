@@ -1,29 +1,49 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies);
+    const cookieStore = await cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
     
     // Check admin authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // Verify user has admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    // Verify user has admin role in metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
     
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    console.log('Admin check for inbox API:', {
+      email: user.email,
+      metadata: user.user_metadata,
+      role: user.user_metadata?.role,
+      isAdmin
+    });
+    
+    if (!isAdmin) {
+      // Fallback: check profiles table if metadata doesn't have role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.role !== 'admin') {
+        console.log('Access denied:', { 
+          email: user.email, 
+          metadataRole: user.user_metadata?.role,
+          profileRole: profile?.role 
+        });
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      }
     }
 
     // Get query parameters
@@ -75,16 +95,33 @@ export async function GET(request: NextRequest) {
       .order("last_event_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
+    console.log('Query results:', {
+      emailCount: emails?.length || 0,
+      totalCount: count,
+      error: error?.message
+    });
+
     if (error) {
       console.error("Error fetching inbox emails:", error);
       return NextResponse.json(
-        { error: "Failed to fetch emails" },
+        { error: "Failed to fetch emails", details: error.message },
         { status: 500 }
       );
     }
 
+    // Transform the data to match the expected structure
+    const transformedEmails = (emails || []).map(email => ({
+      ...email,
+      booking: email.booking ? {
+        id: email.booking.id,
+        customer: {
+          name: `${email.booking.customer?.first_name || ''} ${email.booking.customer?.last_name || ''}`.trim() || 'Unknown'
+        }
+      } : null
+    }));
+
     return NextResponse.json({
-      emails: emails || [],
+      emails: transformedEmails,
       totalCount: count || 0,
       currentPage: page,
       totalPages: Math.ceil((count || 0) / limit)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 // Query parameters schema
@@ -16,11 +17,13 @@ const listBookingsSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies);
+    const cookieStore = await cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
   
   // Check admin authentication
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
+    console.error('Authentication error:', authError);
     return NextResponse.json(
       { 
         error: 'Authentication required',
@@ -30,15 +33,32 @@ export async function GET(request: NextRequest) {
     );
   }
 
-    // Verify user has admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    // Verify user has admin role in metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
     
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    console.log('Admin check for bookings API:', {
+      email: user.email,
+      metadata: user.user_metadata,
+      role: user.user_metadata?.role,
+      isAdmin
+    });
+    
+    if (!isAdmin) {
+      // Fallback: check profiles table if metadata doesn't have role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.role !== 'admin') {
+        console.log('Access denied:', { 
+          email: user.email, 
+          metadataRole: user.user_metadata?.role,
+          profileRole: profile?.role 
+        });
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      }
     }
 
     // Parse and validate query parameters
@@ -200,23 +220,42 @@ export async function GET(request: NextRequest) {
 // Create new booking (admin)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies);
+    const cookieStore = await cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
   
   // Check admin authentication
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
+    console.error('Authentication error:', authError);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Verify user has admin role
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  // Verify user has admin role in metadata
+  const isAdmin = user.user_metadata?.role === 'admin';
   
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+  console.log('Admin check for bookings POST API:', {
+    email: user.email,
+    metadata: user.user_metadata,
+    role: user.user_metadata?.role,
+    isAdmin
+  });
+  
+  if (!isAdmin) {
+    // Fallback: check profiles table if metadata doesn't have role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    
+    if (profile?.role !== 'admin') {
+      console.log('Access denied:', { 
+        email: user.email, 
+        metadataRole: user.user_metadata?.role,
+        profileRole: profile?.role 
+      });
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
   }
 
   const body = await request.json();

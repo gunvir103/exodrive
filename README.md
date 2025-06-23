@@ -45,9 +45,26 @@ ExoDrive is a modern, responsive platform that enables customers to browse and r
 - ✅ Performance optimizations implemented
 - ✅ Comprehensive test suite added
 - ✅ Email inbox feature database integration fixed (Phase 2)
+- ✅ Server-side pricing security implementation completed
+- ✅ Automatic payment capture system implemented
+- ⏳ DocuSeal contract automation integration (upcoming)
 - ⏳ Advanced architecture improvements planned (Phase 3)
 
 ## Recent Improvements
+
+### Critical Security Fixes (Phase 2.5 - Completed)
+- **Server-Side Pricing**: Moved all price calculations from client to server
+  - Created database functions for secure price calculation
+  - Added validation to prevent client-side price manipulation
+  - Implemented comprehensive audit logging
+- **Automatic Payment Capture**: Eliminated manual payment processing
+  - Configurable capture rules (after contract, before rental, etc.)
+  - Automated cron job processes captures every 15 minutes
+  - Database triggers for intelligent capture scheduling
+- **Enhanced Security**: Hardened payment processing flow
+  - Row Level Security on all payment tables
+  - Fixed SQL injection vulnerabilities in functions
+  - Added monitoring for price manipulation attempts
 
 ### Email Inbox Integration (Phase 2 - Completed)
 - Fixed webhook handler column mappings for Resend integration
@@ -64,6 +81,10 @@ ExoDrive is a modern, responsive platform that enables customers to browse and r
 - Redis-based distributed locking prevents race conditions
 - Rate limiting protects against DDoS
 - Standardized error handling prevents information leakage
+- **NEW: Server-side pricing calculations prevent price manipulation**
+- **NEW: Automatic payment capture reduces manual intervention**
+- **NEW: Price validation on all booking endpoints**
+- **NEW: Comprehensive audit logging for security events**
 
 ### Performance Optimizations
 - Added database indexes for common queries
@@ -196,6 +217,9 @@ ExoDrive is a modern, responsive platform that enables customers to browse and r
    # Application
    NEXT_PUBLIC_BASE_URL=http://localhost:3005
    
+   # Security
+   CRON_SECRET=your_cron_secret_for_payment_capture
+   
    # Cache Warming (Optional)
    ENABLE_CACHE_WARMING_ON_STARTUP=false
    CACHE_WARMING_STARTUP_DELAY=5000
@@ -297,6 +321,7 @@ graph LR
 - **Booking Status**: `pending_payment` → `upcoming` → `active` → `completed`
 - **Payment Status**: `pending` → `authorized` → `captured`
 - **Contract Status**: `not_sent` → `sent` → `viewed` → `signed`
+- **Capture Status**: Tracked via `payment_capture_scheduled_at` and `payment_capture_attempted_at`
 
 ### Payment Integration
 
@@ -305,12 +330,32 @@ graph LR
 - **Invoicing**: Generate invoices with attached documents
 - **Dispute Management**: Automated evidence collection
 - **Webhook Processing**: Real-time payment status updates
+- **Server-Side Pricing**: All prices calculated securely in database
+- **Automatic Capture**: Configurable rules for payment capture timing
 
-#### Security Features
+#### Payment Security Features
+- **Price Validation**: Server validates all client-submitted prices
+- **Audit Logging**: All price calculations and validations logged
+- **Manipulation Detection**: Monitors for price tampering attempts
 - Webhook signature verification
 - Secure token storage
 - PCI compliance through PayPal
 - Row Level Security (RLS) for all payment data
+
+#### Automatic Payment Capture Flow
+```mermaid
+graph LR
+    A[Payment Authorized] --> B{Capture Rules}
+    B --> C[After Contract Signed]
+    B --> D[24hrs Before Rental]
+    B --> E[Admin Approval]
+    C --> F[Schedule Capture]
+    D --> F
+    E --> F
+    F --> G[Cron Job Every 15min]
+    G --> H[Capture Payment]
+    H --> I[Update Booking Status]
+```
 
 ### Contract Automation
 
@@ -346,6 +391,8 @@ ExoDrive uses self-hosted DocuSeal for complete control over the signing process
 - **`disputes`**: Payment dispute tracking and evidence management
 - **`paypal_invoices`**: Invoice management with attachment tracking
 - **`cache_warming_metrics`**: Cache warming performance tracking
+- **`payment_capture_rules`**: Configurable rules for automatic payment capture
+- **`inbox_emails`**: Email tracking and management system
 
 #### Row Level Security (RLS)
 Comprehensive security policies ensure data access control:
@@ -355,6 +402,50 @@ Comprehensive security policies ensure data access control:
 - **Service Role**: Webhook and system operations
 
 ## API Documentation
+
+### Public Endpoints
+
+#### PayPal Order Creation (Updated - Server-Side Pricing)
+```typescript
+POST /api/bookings/create-paypal-order
+Body: {
+  carId: string,
+  startDate: string,  // YYYY-MM-DD format
+  endDate: string,    // YYYY-MM-DD format
+  bookingId: string,  // Temporary booking identifier
+  description?: string
+}
+Response: {
+  orderID: string  // PayPal order ID
+}
+Note: Price is now calculated server-side using database pricing rules
+```
+
+#### PayPal Order Authorization (Updated - Price Validation)
+```typescript
+POST /api/bookings/authorize-paypal-order
+Body: {
+  orderID: string,
+  bookingDetails: {
+    carId: string,
+    startDate: string,
+    endDate: string,
+    totalPrice: number,  // Client-provided price for validation only
+    customer: {
+      firstName: string,
+      lastName: string,
+      email: string,
+      phone: string
+    }
+  }
+}
+Response: {
+  success: boolean,
+  bookingId: string,
+  authorizationId: string
+}
+Note: Server validates client-provided price against calculated price
+```
 
 ### Public Endpoints
 
@@ -409,6 +500,23 @@ DELETE /api/admin/bookings/{id}
 POST /api/admin/bookings/{id}/capture-payment
 POST /api/admin/bookings/{id}/create-invoice
 POST /api/admin/bookings/{id}/refund
+
+// Automatic Payment Capture (Cron Job)
+POST /api/admin/process-payment-captures
+Headers: {
+  Authorization: Bearer {CRON_SECRET}
+}
+Response: {
+  success: boolean,
+  processed_count: number,
+  results: Array<{
+    booking_id: string,
+    success: boolean,
+    capture_id?: string,
+    error?: string
+  }>
+}
+Note: Called automatically every 15 minutes by Vercel Cron
 ```
 
 #### Contract Management
