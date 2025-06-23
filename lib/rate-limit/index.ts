@@ -14,5 +14,10 @@ export {
   bookingRateLimit,
   dynamicRateLimit,
   getUserIdFromRequest,
+  paymentRateLimit,
+  uploadRateLimit,
+  webhookRateLimit,
+  adminRateLimit,
+  rateLimitViolationHandler,
 } from './rate-limit-middleware';
-export type { RateLimitMiddlewareOptions } from './rate-limit-middleware';
+export type { RateLimitMiddlewareOptions, RateLimitViolation } from './rate-limit-middleware';

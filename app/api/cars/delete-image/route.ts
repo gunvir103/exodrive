@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { BUCKET_NAMES } from "@/lib/supabase/storage-service"; // Ensure this path is correct
+import path from "path";
 
 const CAR_IMAGES_BUCKET = BUCKET_NAMES.VEHICLE_IMAGES || "vehicle-images";
 
@@ -64,6 +65,39 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Delete Image API: Error parsing request body:", error);
     return NextResponse.json({ error: `Invalid request body: ${error.message}` }, { status: 400 });
+  }
+
+  // Path traversal protection
+  // Normalize the path to resolve any '..' or '.' segments
+  const normalizedPath = path.posix.normalize(storagePath);
+  
+  // Check for path traversal attempts
+  if (storagePath.includes('..') || storagePath.includes('./') || storagePath.includes('/./')) {
+    console.error("Delete Image API: Path traversal attempt detected:", storagePath);
+    return NextResponse.json({ error: "Invalid storage path" }, { status: 400 });
+  }
+  
+  // Ensure the path doesn't start with / (absolute path) or contain suspicious patterns
+  if (normalizedPath.startsWith('/') || normalizedPath !== storagePath) {
+    console.error("Delete Image API: Invalid path format:", storagePath);
+    return NextResponse.json({ error: "Invalid storage path format" }, { status: 400 });
+  }
+  
+  // Validate path format (should be userId/filename)
+  const pathPattern = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_]+\.(jpg|jpeg|png|webp)$/;
+  if (!pathPattern.test(storagePath)) {
+    console.error("Delete Image API: Invalid path pattern:", storagePath);
+    return NextResponse.json({ error: "Invalid storage path pattern" }, { status: 400 });
+  }
+  
+  // Extract user ID from path and verify it matches the authenticated user
+  const pathUserId = storagePath.split('/')[0];
+  if (pathUserId !== user.id && profile?.role !== 'admin') {
+    console.error("Delete Image API: User attempting to delete another user's file:", {
+      pathUserId,
+      authenticatedUserId: user.id
+    });
+    return NextResponse.json({ error: "Unauthorized to delete this file" }, { status: 403 });
   }
 
   // 3. Use Service Role Client for deletion

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cacheService } from '@/lib/redis';
 import { rateLimiter, rateLimitConfigs } from '@/lib/rate-limit';
-import { errors } from '@/lib/errors';
+import { errors, withApiErrorHandling } from '@/lib/errors';
 
-export async function GET(request: NextRequest) {
+async function handleRedisDemo(request: NextRequest) {
   try {
     const results = {
       redis: {
@@ -74,6 +74,17 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
+    // Log the original error with context
+    console.error('Redis demo failed:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Throw ApiError - middleware will handle conversion to HTTP response
     throw errors.internalError('Demo failed');
   }
 }
+
+// Export with error handling middleware
+export const GET = withApiErrorHandling(handleRedisDemo);

@@ -1,4 +1,5 @@
 import { Client, Environment } from '@paypal/paypal-server-sdk';
+import { getRedisClient } from '@/lib/redis/redis-client';
 
 const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'sandbox' 
     ? 'https://api-m.sandbox.paypal.com' 
@@ -12,6 +13,24 @@ export async function getPayPalAccessToken(): Promise<string> {
         throw new Error('PayPal client ID or secret not found in environment variables.');
     }
 
+    const redis = getRedisClient();
+    const cacheKey = `paypal:access_token:${process.env.PAYPAL_MODE || 'sandbox'}`;
+    
+    // Try to get token from cache first
+    if (redis) {
+        try {
+            const cachedToken = await redis.get(cacheKey);
+            if (cachedToken && typeof cachedToken === 'string') {
+                console.log('[PayPal] Using cached access token');
+                return cachedToken;
+            }
+        } catch (cacheError) {
+            console.error('[PayPal] Cache read error:', cacheError);
+            // Continue without cache on error
+        }
+    }
+
+    // Fetch new token from PayPal
     const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     
     const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
@@ -29,7 +48,21 @@ export async function getPayPalAccessToken(): Promise<string> {
     }
 
     const data = await response.json();
-    return data.access_token;
+    const token = data.access_token;
+    
+    // Cache the token with 8-hour TTL (28800 seconds)
+    // PayPal tokens typically expire after 9 hours, so 8 hours provides a safety margin
+    if (redis && token) {
+        try {
+            await redis.setex(cacheKey, 28800, token); // 8 hour TTL
+            console.log('[PayPal] Cached access token with 8-hour TTL');
+        } catch (cacheError) {
+            console.error('[PayPal] Cache write error:', cacheError);
+            // Continue without caching on error
+        }
+    }
+    
+    return token;
 }
 
 function getPayPalEnvironment(): Environment {

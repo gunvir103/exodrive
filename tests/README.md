@@ -1,142 +1,217 @@
-# Error Handling Tests
+# ExoDrive Test Suite
 
-This directory contains comprehensive integration tests for error handling across all API endpoints using the Bun test framework.
-
-## Test Coverage
-
-The error handling tests cover the following scenarios:
-
-### 1. Invalid Request Parameters (400 Errors)
-- Invalid JSON payload
-- Missing required fields
-- Invalid data types
-- Validation errors with field-level details
-
-### 2. Not Found Resources (404 Errors)
-- Resource not found (e.g., car, booking)
-- Endpoint not found
-
-### 3. Rate Limit Exceeded (429 Errors)
-- Rate limit with retry-after header
-- Rate limit without retry-after
-
-### 4. Internal Server Errors (500 Errors)
-- Generic internal errors
-- Database errors (including Supabase PGRST errors)
-- External service errors (502)
-- Cache errors
-
-### 5. Authentication/Authorization Errors
-- Unauthorized (401)
-- Forbidden (403)
-
-### 6. Conflict Errors (409)
-- Resource conflicts
-- Booking date conflicts
-
-### 7. Error Response Format Consistency
-- Standardized error format validation
-- Required fields: code, message, timestamp, traceId
-- Optional fields: details
-- HTTP status codes alignment
-
-### 8. Trace ID Generation and Uniqueness
-- Unique trace ID generation for each request
-- Trace ID propagation from request headers
-- Trace ID in response headers
-
-### 9. Error Logging Functionality
-- Structured error logging with context
-- Request metadata logging
-- Stack trace preservation
-
-## Running Tests
-
-### Run all error handling tests:
-```bash
-bun test tests/integration/error-handling.test.ts
-```
-
-### Run with coverage:
-```bash
-bun test --coverage tests/integration/error-handling.test.ts
-```
-
-### Run specific test suites:
-```bash
-# Run only validation error tests
-bun test tests/integration/error-handling.test.ts -t "Invalid Request Parameters"
-
-# Run only authentication tests
-bun test tests/integration/error-handling.test.ts -t "Authentication and Authorization"
-```
-
-### Run in watch mode:
-```bash
-bun test --watch tests/integration/error-handling.test.ts
-```
+This directory contains comprehensive tests for the ExoDrive application, including unit tests, integration tests, and load tests.
 
 ## Test Structure
 
-The tests are organized into two main sections:
-
-1. **Unit Tests**: Test individual error handling functions and utilities
-   - Error response format validation
-   - Error handler behavior
-   - ApiError class functionality
-
-2. **Integration Tests**: Test error handling in mock API endpoints
-   - Booking API error scenarios
-   - Admin API authentication errors
-   - Server error scenarios
-
-## Environment Variables
-
-The tests use the following environment variables (configured in `bunfig.toml`):
-- `NODE_ENV=test`
-- `NEXT_PUBLIC_BASE_URL=http://localhost:3000`
-
-Additional mock variables are set in `tests/setup.ts`.
-
-## Error Response Format
-
-All API errors follow this standardized format:
-
-```typescript
-{
-  error: {
-    code: string;           // Machine-readable error code
-    message: string;        // Human-readable message
-    details?: any;          // Additional error details
-    timestamp: string;      // ISO 8601 timestamp
-    traceId: string;        // Request trace ID for debugging
-  },
-  status: number;          // HTTP status code
-}
+```
+tests/
+├── unit/                    # Unit tests (located in app/**/__tests__/)
+├── integration/            # Integration tests
+├── load/                   # Load and performance tests
+├── mocks/                  # Mock implementations
+├── factories/              # Test data factories
+└── setup.ts               # Global test setup
 ```
 
-## Adding New Tests
+## Running Tests
 
-When adding new API endpoints, ensure you test:
-1. All possible error scenarios
-2. Error response format consistency
-3. Proper HTTP status codes
-4. Trace ID generation
-5. Error logging
+### All Tests
+```bash
+bun test:all
+```
 
-Example test template:
+### Unit Tests
+```bash
+# Run all unit tests
+bun test:unit
+
+# Run specific unit tests
+bun test:unit:bookings      # Bookings API tests
+bun test:unit:webhooks      # PayPal webhook tests
+bun test:unit:availability  # Car availability tests
+```
+
+### Integration Tests
+```bash
+# Run all integration tests
+bun test:integration
+
+# Run specific integration tests
+bun test:integration:booking-flow    # Complete booking flow
+bun test:integration:cache          # Caching functionality
+bun test:integration:invalidation   # Cache invalidation
+bun test:integration:errors         # Error handling
+```
+
+### Load Tests
+```bash
+# Run rate limiting tests
+bun test:load
+
+# Run load test scenarios
+bun test:load:run
+```
+
+### Test Coverage
+```bash
+bun test:coverage
+```
+
+## Test Environment Setup
+
+### Required Environment Variables
+Create a `.env.test` file with:
+```env
+# Supabase
+TEST_SUPABASE_URL=your_supabase_url
+TEST_SUPABASE_SERVICE_KEY=your_service_key
+
+# Redis
+TEST_REDIS_URL=your_redis_url
+TEST_REDIS_TOKEN=your_redis_token
+
+# PayPal (optional for unit tests)
+PAYPAL_CLIENT_ID=test_client_id
+PAYPAL_CLIENT_SECRET=test_client_secret
+PAYPAL_MODE=sandbox
+```
+
+### Database Setup
+Integration tests require a test database. Run migrations on your test database:
+```bash
+DATABASE_URL=your_test_db_url bun run db:migrate
+```
+
+## Test Files Overview
+
+### Redis & Infrastructure Tests
+1. **`/lib/redis/redis-client.test.ts`** - 18 tests
+   - Singleton pattern implementation
+   - Connection handling and retry logic
+   - Health checks
+   - Graceful disconnection
+   - Exponential backoff for retries
+
+2. **`/lib/redis/cache-service.test.ts`** - 45 tests  
+   - Cache operations (get/set/delete)
+   - TTL management
+   - Pattern-based invalidation
+   - Helper functions (getCachedData, invalidateCacheByEvent)
+   - Error handling and graceful degradation
+
+3. **`/lib/errors/api-error.test.ts`** - 33 tests
+   - Error creation and formatting
+   - All error codes and factory functions
+   - JSON serialization
+   - Edge cases with complex data
+
+4. **`/lib/rate-limit/rate-limiter.test.ts`** - 27 tests
+   - Sliding window algorithm
+   - Rate limit checking and enforcement
+   - Retry-after calculations
+   - Configuration testing
+   - Concurrent request handling
+
+### Test Results Summary
+```
+Total Infrastructure Tests: 123
+Passed: 123
+Failed: 0
+Coverage: 96% functions, 100% lines
+```
+
+## Writing Tests
+
+### Unit Tests
+Unit tests should be placed in `__tests__` directories next to the code they test:
+```
+app/
+├── api/
+│   ├── bookings/
+│   │   ├── route.ts
+│   │   └── __tests__/
+│   │       └── route.test.ts
+```
+
+Example unit test:
 ```typescript
-describe('New API Endpoint Errors', () => {
-  it('should handle validation errors', async () => {
-    // Test invalid input
-  });
-  
-  it('should handle not found errors', async () => {
-    // Test missing resources
-  });
-  
-  it('should handle server errors', async () => {
-    // Test internal failures
+import { test, expect, describe } from "bun:test";
+import { POST } from "../route";
+
+describe("POST /api/bookings", () => {
+  test("should create booking", async () => {
+    const response = await POST(mockRequest);
+    expect(response.status).toBe(201);
   });
 });
+```
+
+### Integration Tests
+Integration tests test complete flows and interactions between components:
+```typescript
+describe("Complete Booking Flow", () => {
+  test("should handle end-to-end booking", async () => {
+    // 1. Check availability
+    // 2. Create booking
+    // 3. Process payment
+    // 4. Verify final state
+  });
+});
+```
+
+### Using Mocks
+The test suite provides comprehensive mocks for external dependencies:
+
+```typescript
+import { createMockSupabaseClient } from "@/tests/mocks/supabase";
+import { createMockPayPalClient } from "@/tests/mocks/paypal";
+import { createMockRedisClient } from "@/tests/mocks/redis";
+
+// Use in tests
+const mockSupabase = createMockSupabaseClient();
+mockSupabase.from("bookings").select().returns({ data: [...] });
+```
+
+### Using Factories
+Test data factories make it easy to create test data:
+
+```typescript
+import { carFactory, bookingFactory } from "@/tests/factories";
+
+// Create test data
+const testCar = carFactory.build({ name: "Test Tesla" });
+const testBookings = bookingFactory.buildList(5);
+```
+
+## Best Practices
+
+1. **Isolation**: Each test should be independent and not rely on other tests
+2. **Cleanup**: Always clean up test data after tests complete
+3. **Mocking**: Mock external dependencies to ensure tests are fast and reliable
+4. **Descriptive Names**: Use clear, descriptive test names that explain what is being tested
+5. **Arrange-Act-Assert**: Structure tests with clear setup, execution, and verification phases
+
+## Troubleshooting
+
+### Tests Failing Due to Database State
+- Ensure test database is properly migrated
+- Check that test data cleanup is working correctly
+- Consider using database transactions for test isolation
+
+### Mock Not Working
+- Verify mock is imported before the module it's mocking
+- Check that mock.module() is called with the correct module path
+- Ensure mock.restore() is called in afterEach
+
+### Timeout Errors
+- Increase timeout for specific tests: `test("name", async () => {...}, 10000)`
+- Check for unresolved promises or missing await statements
+- Verify external service mocks are properly configured
+
+## Continuous Integration
+
+Tests are automatically run in CI/CD pipeline. Ensure all tests pass locally before pushing:
+```bash
+bun test:all
 ```

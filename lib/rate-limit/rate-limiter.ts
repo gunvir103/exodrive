@@ -7,6 +7,8 @@ export interface RateLimitConfig {
   keyGenerator: (identifier: string) => string;
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
+  enableDualLimit?: boolean; // Enable both IP and user-based limiting
+  onViolation?: (identifier: string, limit: number, windowMs: number) => void; // Monitoring callback
 }
 
 export interface RateLimitResult {
@@ -32,6 +34,37 @@ export const rateLimitConfigs = {
     windowMs: 3600000,  // 1 hour
     max: 10,            // 10 bookings per hour
     keyGenerator: (userId: string) => `rate:booking:${userId}`,
+  },
+  // Stricter payment endpoint limits
+  paymentEndpoints: {
+    windowMs: 60000,  // 1 minute
+    max: 10,          // 10 requests per minute
+    keyGenerator: (identifier: string) => `rate:payment:${identifier}`,
+    enableDualLimit: true,
+    onViolation: (identifier, limit, windowMs) => {
+      console.warn(`[RateLimiter] Payment endpoint rate limit violation: ${identifier} exceeded ${limit} requests in ${windowMs}ms`);
+    },
+  },
+  // Car upload limits
+  carUpload: {
+    windowMs: 60000,  // 1 minute
+    max: 5,           // 5 uploads per minute per user
+    keyGenerator: (userId: string) => `rate:upload:${userId}`,
+    onViolation: (userId, limit, windowMs) => {
+      console.warn(`[RateLimiter] Upload rate limit violation: ${userId} exceeded ${limit} uploads in ${windowMs}ms`);
+    },
+  },
+  // Webhook rate limits
+  webhook: {
+    windowMs: 60000,  // 1 minute
+    max: 100,         // 100 webhook requests per minute
+    keyGenerator: (identifier: string) => `rate:webhook:${identifier}`,
+  },
+  // Admin endpoint limits
+  admin: {
+    windowMs: 60000,  // 1 minute
+    max: 300,         // 300 requests per minute
+    keyGenerator: (userId: string) => `rate:admin:${userId}`,
   },
 };
 
@@ -85,6 +118,11 @@ export class RateLimiter {
       const remaining = Math.max(0, config.max - count);
       const resetAt = new Date(now + config.windowMs);
       const allowed = count <= config.max;
+
+      // Trigger violation callback if limit exceeded
+      if (!allowed && config.onViolation) {
+        config.onViolation(identifier, config.max, config.windowMs);
+      }
 
       // If not allowed, calculate retry after
       let retryAfter: number | null = null;

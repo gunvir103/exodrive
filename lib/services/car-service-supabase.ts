@@ -148,8 +148,14 @@ export const carServiceSupabase = {
             if (carError) throw carError;
             if (!carData) return null;
 
-            // Supabase types might be slightly off for nested selects, cast carefully
-            const typedCarData = carData as any; // Use any temporarily, refine if needed
+            // Type the nested select result
+            interface CarWithRelations extends CarBase {
+                pricing: CarPricing[] | CarPricing | null;
+                images: CarImage[] | null;
+                features: CarFeature[] | null;
+                specifications: CarSpecification[] | null;
+            }
+            const typedCarData = carData as CarWithRelations;
 
             // Assemble the AppCar object
             const assembledCar: AppCar = {
@@ -204,7 +210,13 @@ export const carServiceSupabase = {
             if (!carData) return null;
 
             // Assemble the AppCar object (similar to getCarById)
-             const typedCarData = carData as any;
+             interface CarWithRelations extends CarBase {
+                pricing: CarPricing[] | CarPricing | null;
+                images: CarImage[] | null;
+                features: CarFeature[] | null;
+                specifications: CarSpecification[] | null;
+             }
+             const typedCarData = carData as CarWithRelations;
              const assembledCar: AppCar = {
                 ...typedCarData,
                 pricing: Array.isArray(typedCarData.pricing) ? typedCarData.pricing[0] || null : typedCarData.pricing || null,
@@ -256,10 +268,23 @@ export const carServiceSupabase = {
         console.log(`Hidden cars in DB results: ${hiddenCars.length}`);
         hiddenCars.forEach(car => console.log(`DB hidden car: ${car.name}, ${car.id}, hidden=${car.hidden}`));
 
-        return data.map((car: any): OptimizedCarListItem => {
+        interface CarListQueryResult {
+            id: string;
+            slug: string;
+            name: string;
+            category: string | null;
+            available: boolean | null;
+            featured: boolean | null;
+            hidden: boolean | null;
+            created_at: string | null;
+            pricing: { base_price: number }[] | { base_price: number } | null;
+            images: { url: string; is_primary: boolean; sort_order: number }[] | null;
+        }
+        
+        return data.map((car: CarListQueryResult): OptimizedCarListItem => {
             let primaryImage = null;
             try {
-                primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0];
+                primaryImage = car.images?.sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img) => img.is_primary) || car.images?.[0];
             } catch (e) { console.error(`Error processing images for car ID ${car?.id}:`, e); }
 
             let price = null;
@@ -309,9 +334,20 @@ export const carServiceSupabase = {
             if (error) { console.error("Error in getVisibleCarsForFleet Query:", error); throw error; }
             if (!data) return [];
 
-            return data.map((car: any): OptimizedCarListItem => {
+            interface CarFleetQueryResult {
+                id: string;
+                slug: string;
+                name: string;
+                category: string | null;
+                short_description: string | null;
+                featured: boolean | null;
+                pricing: { base_price: number }[] | { base_price: number } | null;
+                images: { url: string; is_primary: boolean; sort_order: number }[] | null;
+            }
+            
+            return data.map((car: CarFleetQueryResult): OptimizedCarListItem => {
                 let primaryImage = null;
-                try { primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0]; } catch(e) {console.error("ImgErr", e)}
+                try { primaryImage = car.images?.sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img) => img.is_primary) || car.images?.[0]; } catch(e) {console.error("ImgErr", e)}
                 let price = null;
                 try {
                     if(Array.isArray(car.pricing)) { price = car.pricing?.[0]?.base_price; }
@@ -525,9 +561,18 @@ export const carServiceSupabase = {
             if (relatedError) { console.error("Error fetching related cars:", relatedError); throw relatedError; }
             if (!relatedCars) return [];
 
-            return relatedCars.map((car: any): OptimizedCarListItem => {
+            interface RelatedCarQueryResult {
+                id: string;
+                slug: string;
+                name: string;
+                category: string | null;
+                pricing: { base_price: number }[] | { base_price: number } | null;
+                images: { url: string; is_primary: boolean; sort_order: number }[] | null;
+            }
+            
+            return relatedCars.map((car: RelatedCarQueryResult): OptimizedCarListItem => {
                 let primaryImage = null;
-                try { primaryImage = car.images?.sort((a:any,b:any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img: any) => img.is_primary) || car.images?.[0]; } catch(e) {console.error("ImgErrRel", e)}
+                try { primaryImage = car.images?.sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).find((img) => img.is_primary) || car.images?.[0]; } catch(e) {console.error("ImgErrRel", e)}
                 let price = null;
                 try {
                     if(Array.isArray(car.pricing)) { price = car.pricing?.[0]?.base_price; }

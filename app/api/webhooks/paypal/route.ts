@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { getPayPalAccessToken } from '@/lib/paypal-client';
+import { WebhookRetryService } from '@/lib/services/webhook-retry-service';
 
 // PayPal webhook event types we care about
 const PAYPAL_EVENT_TYPES = {
@@ -123,10 +124,13 @@ async function verifyPayPalWebhook(
       return true;
     } else {
       console.warn('PayPal webhook signature verification failed with status:', verificationStatus);
-      console.warn('This is a known PayPal issue. Continuing with processing but logging the failure.');
-      // For production, you might want to implement additional security checks here
-      // such as IP whitelisting, rate limiting, or custom authentication
-      return true; // Continue processing despite verification failure
+      // In production, always fail closed on verification errors for security
+      if (process.env.NODE_ENV === 'production') {
+        return false;
+      }
+      // Only in development allow processing with failed verification
+      console.warn('Development mode: Continuing despite verification failure.');
+      return true;
     }
   } catch (error: any) {
     console.error('Error verifying PayPal webhook signature:', error);
@@ -136,6 +140,15 @@ async function verifyPayPalWebhook(
 
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServerClient(request.cookies as any);
+  
+  // Initialize webhook retry service
+  const retryService = new WebhookRetryService(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  
+  let rawBody: string = '';
+  let validationResult: any;
   
   try {
     // Basic security: Check User-Agent and IP range
@@ -150,19 +163,20 @@ export async function POST(request: NextRequest) {
     // Log request origin for monitoring
     console.log('Webhook request from:', { userAgent, forwardedFor });
     
-    const rawBody = await request.text();
+    rawBody = await request.text();
     
     // Verify webhook signature
     const isValid = await verifyPayPalWebhook(request, rawBody);
     if (!isValid) {
       console.error('Invalid PayPal webhook signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      // Always return error on verification failure
+      return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
 
     // Validate webhook payload
-    const validationResult = paypalWebhookSchema.safeParse(body);
+    validationResult = paypalWebhookSchema.safeParse(body);
     if (!validationResult.success) {
       console.error('Invalid PayPal webhook payload:', validationResult.error);
       return NextResponse.json(
@@ -174,9 +188,18 @@ export async function POST(request: NextRequest) {
     const webhookData = validationResult.data;
     const { event_type, resource } = webhookData;
 
+    // Check for idempotency - has this webhook already been processed?
+    const isProcessed = await retryService.isWebhookProcessed(webhookData.id, 'paypal');
+    if (isProcessed) {
+      console.log('PayPal webhook already processed:', webhookData.id);
+      return NextResponse.json({ message: 'Webhook already processed' }, { status: 200 });
+    }
+
     // Handle events that don't have a resource (like webhook ping)
     if (!resource) {
       console.log('PayPal webhook event without resource:', event_type);
+      // Mark as processed even if no resource
+      await retryService.markWebhookProcessed(webhookData.id, 'paypal', undefined, { event_type });
       return NextResponse.json({ message: 'Event processed - no resource data' }, { status: 200 });
     }
 
@@ -357,6 +380,18 @@ export async function POST(request: NextRequest) {
         }
     }
 
+    // Mark webhook as successfully processed
+    await retryService.markWebhookProcessed(
+      webhookData.id,
+      'paypal',
+      bookingId,
+      {
+        event_type,
+        booking_updated: Object.keys(updateData).length > 0,
+        event_logged: !eventError
+      }
+    );
+
     return NextResponse.json({ 
       message: 'Webhook processed successfully',
       bookingId,
@@ -365,9 +400,38 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error processing PayPal webhook:', error);
-    if (error instanceof SyntaxError) {
-        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    
+    // Don't retry for client errors
+    if (error instanceof SyntaxError || validationResult?.success === false) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
+    
+    // Store failed webhook for retry (only if we have the raw body)
+    if (rawBody) {
+      try {
+        const webhookData = JSON.parse(rawBody);
+        const headers = Object.fromEntries(request.headers.entries());
+        
+        await retryService.storeFailedWebhook({
+          webhookId: webhookData.id || `paypal-${Date.now()}`,
+          webhookType: 'paypal',
+          payload: webhookData,
+          headers: headers,
+          endpointUrl: new URL('/api/webhooks/paypal', request.url).toString(),
+          bookingId: webhookData.resource?.custom_id || webhookData.resource?.invoice_number?.split('-')[1],
+          errorMessage: error.message || 'Unknown error',
+          errorDetails: {
+            stack: error.stack,
+            name: error.name
+          }
+        });
+        
+        console.log('Stored failed webhook for retry');
+      } catch (storeError) {
+        console.error('Error storing failed webhook:', storeError);
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

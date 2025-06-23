@@ -8,6 +8,15 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     console.log('[Instrumentation] Server starting...');
     
+    // Initialize database connection monitoring
+    try {
+      const { initializeDatabaseMonitoring } = await import('./lib/database/startup');
+      initializeDatabaseMonitoring();
+      console.log('[Instrumentation] Database monitoring initialized');
+    } catch (error) {
+      console.error('[Instrumentation] Failed to initialize database monitoring:', error);
+    }
+    
     // Optional cache warming on startup
     if (process.env.CACHE_WARM_ON_STARTUP === 'true') {
       console.log('[Instrumentation] Cache warming enabled on startup');

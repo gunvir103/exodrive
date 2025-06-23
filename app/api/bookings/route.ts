@@ -56,7 +56,7 @@ const bookingRequestSchema = z.object({
 // ---- Main POST Handler ----
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServerClient(request.cookies as any);
-  const lockTTL = 30; // seconds for Redis lock
+  const lockTTL = 10; // seconds for Redis lock - reduced since DB now handles primary locking
 
   try {
     const body = await request.json();
@@ -86,12 +86,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Acquire Redis Lock for carId and date range
-    // A more robust lock key might include specific dates if granularity allows
+    // This provides an additional layer of protection at the API level
+    // The primary concurrency control is now handled by the database function
     const lockKey = `booking_lock:car:${carId}:range:${startDate}_${endDate}`;
     const lockAcquired = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
 
     if (!lockAcquired) {
-      return NextResponse.json({ error: 'Failed to acquire booking lock, car availability might be changing. Please try again.' }, { status: 409 }); // 409 Conflict
+      // Redis lock failed - likely high concurrency
+      return NextResponse.json({ 
+        error: 'Multiple booking attempts detected. Please wait a moment and try again.', 
+        retryable: true,
+        errorCode: 'redis_lock_failed'
+      }, { status: 409 }); // 409 Conflict
     }
 
     let bookingIdFromFunction: string | null = null;
@@ -138,24 +144,89 @@ export async function POST(request: NextRequest) {
         console.error('Edge function invocation error:', functionError);
         // Attempt to parse error details if they are JSON string from our function's explicit error returns
         let errorDetailToShow = functionError.message;
+        let userMessage = 'Booking creation failed.';
         let status = 500;
         if (functionError.context && functionError.context.details) {
             try {
                 const parsedDetails = JSON.parse(functionError.context.details);
-                if (parsedDetails.error) errorDetailToShow = parsedDetails.error;
-                if (parsedDetails.unavailableDates) errorDetailToShow += `: ${parsedDetails.unavailableDates.join(', ')}`;
-                if (parsedDetails.error === 'dates_unavailable') status = 409;
-                if (parsedDetails.error === 'invalid_status_value') status = 400;
+                if (parsedDetails.error) {
+                    errorDetailToShow = parsedDetails.error;
+                    // Handle specific error types with user-friendly messages
+                    switch (parsedDetails.error) {
+                        case 'dates_unavailable':
+                            status = 409;
+                            userMessage = 'The selected dates are no longer available.';
+                            if (parsedDetails.unavailableDates) {
+                                errorDetailToShow += `: ${parsedDetails.unavailableDates.join(', ')}`;
+                            }
+                            break;
+                        case 'invalid_status_value':
+                            status = 400;
+                            userMessage = 'Invalid booking status provided.';
+                            break;
+                        case 'car_locked':
+                            status = 409;
+                            userMessage = 'Another booking is currently being processed for this car. Please try again in a moment.';
+                            break;
+                        case 'lock_timeout':
+                            status = 503;
+                            userMessage = 'The booking system is currently busy. Please try again in a few seconds.';
+                            break;
+                        default:
+                            userMessage = 'An error occurred while creating your booking. Please try again.';
+                    }
+                }
+                if (parsedDetails.details) {
+                    errorDetailToShow = parsedDetails.details;
+                }
             } catch (e) { /* ignore parsing error, use original message */ }
         }
-        return NextResponse.json({ error: 'Booking creation failed via Edge Function.', details: errorDetailToShow }, { status });
+        return NextResponse.json({ 
+            error: userMessage, 
+            details: errorDetailToShow,
+            retryable: ['car_locked', 'lock_timeout'].includes(errorDetailToShow)
+        }, { status });
       }
 
       if (!functionResponse || functionResponse.success === false) {
         console.error('Edge function returned unsuccessful response:', functionResponse);
-        const errorMsg = functionResponse?.error || 'Unknown error from edge function.';
-        const status = functionResponse?.error === 'dates_unavailable' ? 409 : (functionResponse?.error === 'invalid_status_value' ? 400 : 500) ;
-        return NextResponse.json({ error: 'Booking creation failed.', details: errorMsg, data:functionResponse }, { status });
+        const errorCode = functionResponse?.error || 'unknown_error';
+        let userMessage = 'Booking creation failed.';
+        let status = 500;
+        
+        // Handle specific error types
+        switch (errorCode) {
+            case 'dates_unavailable':
+                status = 409;
+                userMessage = 'The selected dates are no longer available.';
+                break;
+            case 'invalid_status_value':
+                status = 400;
+                userMessage = 'Invalid booking status provided.';
+                break;
+            case 'car_locked':
+                status = 409;
+                userMessage = 'Another booking is currently being processed for this car. Please try again in a moment.';
+                break;
+            case 'lock_timeout':
+                status = 503;
+                userMessage = 'The booking system is currently busy. Please try again in a few seconds.';
+                break;
+            case 'transaction_failed':
+                status = 500;
+                userMessage = 'A database error occurred. Please try again or contact support if the issue persists.';
+                break;
+            default:
+                userMessage = 'An unexpected error occurred. Please try again.';
+        }
+        
+        return NextResponse.json({ 
+            error: userMessage, 
+            details: functionResponse?.details || errorCode,
+            unavailableDates: functionResponse?.unavailableDates,
+            retryable: ['car_locked', 'lock_timeout'].includes(errorCode),
+            errorCode
+        }, { status });
       }
 
       // Success from Edge Function

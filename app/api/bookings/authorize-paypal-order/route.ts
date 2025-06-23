@@ -43,9 +43,21 @@ export async function POST(request: Request) {
     
     const { carId, startDate, endDate, totalPrice, customer } = bookingDetails;
 
-    // Extract authorization ID from the authorized data
-    const authorizationId = authorizedData.purchase_units[0].payments.authorizations[0].id;
-    const authorizedAmount = authorizedData.purchase_units[0].payments.authorizations[0].amount.value;
+    // Extract authorization ID from the authorized data with safe property access
+    const authorizationId = authorizedData?.purchase_units?.[0]?.payments?.authorizations?.[0]?.id;
+    const authorizedAmount = authorizedData?.purchase_units?.[0]?.payments?.authorizations?.[0]?.amount?.value;
+
+    if (!authorizationId || !authorizedAmount) {
+        console.error('Missing authorization data in PayPal response:', {
+            hasAuthorizationId: !!authorizationId,
+            hasAuthorizedAmount: !!authorizedAmount,
+            responseStructure: JSON.stringify(authorizedData, null, 2)
+        });
+        return NextResponse.json({ 
+            error: 'Invalid PayPal authorization response - missing required fields',
+            details: 'Authorization ID or amount not found in response'
+        }, { status: 500 });
+    }
 
     const { data: bookingResult, error } = await supabase.rpc('create_booking_with_paypal_authorization', {
         p_car_id: carId,

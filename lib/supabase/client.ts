@@ -1,8 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { getPooledBrowserClient, executeWithConnection } from '../database/client-manager'
+import { SupabaseClient } from '@supabase/supabase-js'
 
-// Create a singleton client instance for the browser
+// Create a singleton client instance for the browser (legacy support)
 let client: ReturnType<typeof createBrowserClient> | undefined;
 
+// Legacy function - will be deprecated
 export function getSupabaseBrowserClient() {
   if (client) {
     return client;
@@ -13,8 +16,6 @@ export function getSupabaseBrowserClient() {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("Supabase browser client: URL or Anon Key is missing.");
-    // Returning null might be better than throwing, depending on usage
-    // For now, let's throw to make it obvious during development
     throw new Error("Supabase URL or Anon Key missing in environment variables.");
   }
 
@@ -29,7 +30,20 @@ export function getSupabaseBrowserClient() {
 // Add this export for backward compatibility
 export const getSupabaseClient = getSupabaseBrowserClient;
 
+// New pooled client functions
+export async function withSupabaseClient<T>(
+  operation: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  return executeWithConnection(operation, 'browser');
+}
+
+// For cases where you need direct access (use sparingly)
+export async function getPooledSupabaseClient() {
+  return getPooledBrowserClient();
+}
+
 // Helper function for creating a Supabase client with service role (admin access)
+// Legacy function - will be deprecated
 export function getSupabaseServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -45,6 +59,13 @@ export function getSupabaseServiceClient() {
       persistSession: false,
     },
   })
+}
+
+// New pooled service client functions
+export async function withServiceClient<T>(
+  operation: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  return executeWithConnection(operation, 'service');
 }
 
 // Helper function for handling Supabase errors

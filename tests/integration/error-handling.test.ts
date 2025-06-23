@@ -565,7 +565,7 @@ describe('Integration Tests with Mock API Endpoints', () => {
       const req = createMockRequest('/api/bookings', {
         method: 'POST',
         body: JSON.stringify({
-          carId: 'non-existent-id',
+          carId: '550e8400-e29b-41d4-a716-446655440999',
           startDate: '2024-02-01',
           endDate: '2024-02-05',
           customerDetails: {

@@ -21,5 +21,11 @@
       "destination": "https://www.exodrive.co/:path*",
       "permanent": true
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/webhooks/retry",
+      "schedule": "*/5 * * * *"
+    }
   ]
 } 

@@ -98,7 +98,7 @@ describe('API Caching Integration Tests', () => {
   });
 
   describe('Car Availability Cache', () => {
-    const testCarId = 'test-car-id-1234'; // This should be a valid car ID in your test database
+    const testCarId = '550e8400-e29b-41d4-a716-446655440001'; // Valid UUID matching test fixtures
     const testStartDate = '2024-03-01';
     const testEndDate = '2024-03-07';
     
@@ -203,7 +203,7 @@ describe('API Caching Integration Tests', () => {
 
     it('should expire car availability cache after shorter TTL', async () => {
       const queryParams = new URLSearchParams({
-        carId: 'test-car-123',
+        carId: '550e8400-e29b-41d4-a716-446655440001',
         startDate: '2024-03-01',
         endDate: '2024-03-07'
       });
@@ -271,7 +271,7 @@ describe('API Caching Integration Tests', () => {
   describe('Cache Key Generation', () => {
     it('should generate consistent cache keys for same requests', async () => {
       const queryParams = new URLSearchParams({
-        carId: 'test-car-123',
+        carId: '550e8400-e29b-41d4-a716-446655440001',
         startDate: '2024-03-01',
         endDate: '2024-03-07'
       });
@@ -292,13 +292,13 @@ describe('API Caching Integration Tests', () => {
 
     it('should generate different cache keys for different query parameters', async () => {
       const queryParams1 = new URLSearchParams({
-        carId: 'test-car-123',
+        carId: '550e8400-e29b-41d4-a716-446655440001',
         startDate: '2024-03-01',
         endDate: '2024-03-07'
       });
       
       const queryParams2 = new URLSearchParams({
-        carId: 'test-car-456', // Different car
+        carId: '550e8400-e29b-41d4-a716-446655440002', // Different car
         startDate: '2024-03-01',
         endDate: '2024-03-07'
       });

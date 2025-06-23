@@ -1,8 +1,11 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 import { createClient } from '@supabase/supabase-js'
+import { getPooledServerClient, getPooledServiceClient, executeWithConnection } from '../database/client-manager'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 // Server client for Server Components, Server Actions, Route Handlers
+// Legacy function - will be deprecated
 export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,8 +40,21 @@ export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) 
   )
 }
 
+// New pooled server client functions
+export async function withServerClient<T>(
+  cookieStore: ReadonlyRequestCookies,
+  operation: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  return executeWithConnection(operation, 'browser', cookieStore);
+}
+
+// For cases where you need direct access (use sparingly)
+export async function getPooledSupabaseServerClient(cookieStore: ReadonlyRequestCookies) {
+  return getPooledServerClient(cookieStore);
+}
+
 // Server client specifically for using the Service Role Key
-// ** Using base createClient from @supabase/supabase-js **
+// Legacy function - will be deprecated
 export function createSupabaseServiceRoleClient() {
     console.log("--- DEBUG: Inside createSupabaseServiceRoleClient ---");
     const supabaseUrl = process.env.SUPABASE_URL; // Correct: Use non-public URL for server-side
@@ -67,4 +83,16 @@ export function createSupabaseServiceRoleClient() {
             }
         }
     );
+}
+
+// New pooled service role client functions
+export async function withServiceRoleClient<T>(
+  operation: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  return executeWithConnection(operation, 'service');
+}
+
+// For cases where you need direct access (use sparingly)
+export async function getPooledSupabaseServiceClient() {
+  return getPooledServiceClient();
 } 

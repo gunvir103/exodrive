@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Car, Grid, LogOut, Settings, Users, Home, ImageIcon } from "lucide-react"
+import { Car, Grid, LogOut, Settings, Users, Home, ImageIcon, Webhook, Inbox } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
 
@@ -94,6 +94,15 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
               Bookings
             </Button>
           </Link>
+          <Link href="/admin/inbox">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start ${pathname?.startsWith("/admin/inbox") ? "bg-muted" : ""}`}
+            >
+              <Inbox className="mr-2 h-4 w-4" />
+              Inbox
+            </Button>
+          </Link>
           <Link href="/admin/settings">
             <Button
               variant="ghost"
@@ -119,6 +128,15 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
             >
               <Home className="mr-2 h-4 w-4" />
               Homepage Settings
+            </Button>
+          </Link>
+          <Link href="/admin/webhooks">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start ${pathname?.startsWith("/admin/webhooks") ? "bg-muted" : ""}`}
+            >
+              <Webhook className="mr-2 h-4 w-4" />
+              Webhooks
             </Button>
           </Link>
         </nav>

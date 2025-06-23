@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { withApiErrorHandling } from '@/lib/errors/error-middleware';
 
 // Query parameters schema
 const listBookingsSchema = z.object({
@@ -14,15 +15,20 @@ const listBookingsSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
-export async function GET(request: NextRequest) {
-  const supabase = createSupabaseServerClient(request.cookies as any);
+export const GET = withApiErrorHandling(async (request: NextRequest) => {
+  const supabase = createSupabaseServerClient(request.cookies);
   
-  try {
-    // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  // Check admin authentication
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json(
+      { 
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      },
+      { status: 401 }
+    );
+  }
 
     // Verify user has admin role
     const { data: profile } = await supabase
@@ -168,6 +174,7 @@ export async function GET(request: NextRequest) {
     const totalPages = count ? Math.ceil(count / params.limit) : 0;
 
     return NextResponse.json({
+      success: true,
       bookings: formattedBookings,
       pagination: {
         page: params.page,
@@ -176,19 +183,11 @@ export async function GET(request: NextRequest) {
         totalPages
       }
     });
-
-  } catch (error: any) {
-    console.error('Error in admin bookings endpoint:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
-  }
-}
+});
 
 // Create new booking (admin)
-export async function POST(request: NextRequest) {
-  const supabase = createSupabaseServerClient(request.cookies as any);
+export const POST = withApiErrorHandling(async (request: NextRequest) => {
+  const supabase = createSupabaseServerClient(request.cookies);
   
   try {
     // Check admin authentication

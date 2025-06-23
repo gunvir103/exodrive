@@ -1,38 +1,44 @@
-// Test setup file for Bun tests
-import { beforeAll, afterAll } from 'bun:test';
-
-// Configure test environment
-process.env.NODE_ENV = 'test';
-process.env.NEXT_PUBLIC_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-
-// Mock environment variables that might be needed
-process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://test.supabase.co';
-process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'test-anon-key';
-process.env.UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || 'https://test-redis.upstash.io';
-process.env.UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'test-token';
-
 // Global test setup
-beforeAll(() => {
-  // Any global setup needed before all tests
-  console.log('Starting error handling tests...');
-});
+import { beforeAll, afterAll } from "bun:test";
 
-// Global test teardown
-afterAll(() => {
-  // Any global cleanup needed after all tests
-  console.log('Error handling tests completed.');
-});
+// Set test environment variables
+process.env.NODE_ENV = "test";
+process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3005";
 
-// Extend Bun test matchers if needed
-declare module 'bun:test' {
-  interface Matchers<T> {
-    toBeValidErrorResponse?(): void;
-  }
+// Mock console methods to reduce noise during tests
+const originalConsole = {
+  log: console.log,
+  error: console.error,
+  warn: console.warn,
+  info: console.info,
+};
+
+// Optionally suppress console output during tests
+if (process.env.QUIET_TESTS === "true") {
+  console.log = () => {};
+  console.info = () => {};
+  console.warn = () => {};
+  // Keep error logs for debugging
 }
 
-// Add custom matchers if needed
-// expect.extend({
-//   toBeValidErrorResponse(received) {
-//     // Custom matcher implementation
-//   }
-// });
+// Global setup
+beforeAll(() => {
+  // Any global setup needed for all tests
+  console.info("🧪 Running tests...");
+});
+
+// Global teardown
+afterAll(() => {
+  // Restore console methods
+  if (process.env.QUIET_TESTS === "true") {
+    console.log = originalConsole.log;
+    console.info = originalConsole.info;
+    console.warn = originalConsole.warn;
+  }
+});
+
+// Export mock utilities
+export * from "./mocks/supabase";
+export * from "./mocks/paypal";
+export * from "./mocks/redis";
+export * from "./mocks/email";

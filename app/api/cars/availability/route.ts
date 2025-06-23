@@ -51,6 +51,7 @@ async function getCarAvailability(request: NextRequest) {
     if (cached) {
       const response = NextResponse.json(cached);
       response.headers.set('X-Cache', 'HIT');
+      response.headers.set('X-Cache-Key', cacheKey);
       return response;
     }
 
@@ -158,6 +159,7 @@ async function getCarAvailability(request: NextRequest) {
 
     const response = NextResponse.json(responseData);
     response.headers.set('X-Cache', 'MISS');
+    response.headers.set('X-Cache-Key', cacheKey);
     return response;
 
   } catch (error: any) {
