@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
+import { AuthProvider } from "@/components/auth-provider"
 
 const initialOptions = {
     "clientId": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "sb", // Fallback to "sb" for sandbox testing if not set
@@ -16,11 +17,13 @@ export function Providers({ children }: { children: ReactNode }) {
     console.warn("NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set. PayPal functionality will be limited or use a sandbox test account.");
   }
   return (
-    <PayPalScriptProvider options={initialOptions}>
+    <AuthProvider>
+      <PayPalScriptProvider options={initialOptions}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        {children}
+          {children}
         </ThemeProvider>
-    </PayPalScriptProvider>
+      </PayPalScriptProvider>
+    </AuthProvider>
   )
 }
 

@@ -12,7 +12,22 @@
     "db:migrate": "bun run scripts/run-migrations.js",
     "verify:db": "bun run scripts/run-db-verification.mjs",
     "verify:db:force": "bun run scripts/run-db-verification.mjs --force",
-    "test": "bun test"
+    "test": "bun test",
+    "test:unit": "bun test app/**/__tests__/*.test.ts",
+    "test:unit:bookings": "bun test app/api/bookings/__tests__/route.test.ts",
+    "test:unit:webhooks": "bun test app/api/webhooks/paypal/__tests__/route.test.ts",
+    "test:unit:availability": "bun test app/api/cars/availability/__tests__/route.test.ts",
+    "test:integration": "bun test --preload ./tests/integration/setup.ts tests/integration/*.test.ts",
+    "test:integration:booking-flow": "bun test --preload ./tests/integration/setup.ts tests/integration/booking-flow.test.ts",
+    "test:integration:cache": "bun test --preload ./tests/integration/setup.ts tests/integration/caching.test.ts",
+    "test:integration:invalidation": "bun test --preload ./tests/integration/setup.ts tests/integration/cache-invalidation.test.ts",
+    "test:integration:errors": "bun test tests/integration/error-handling.test.ts",
+    "test:load": "bun test tests/load/rate-limiting.test.ts --timeout 30000",
+    "test:load:run": "bun run tests/load/run-load-tests.ts",
+    "test:all": "bun run test:unit && bun run test:integration",
+    "test:coverage": "bun test --coverage",
+    "webhook:retry": "bun run scripts/process-webhook-retries.ts",
+    "webhook:warm-cache": "bun run scripts/warm-cache.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",
@@ -29,16 +44,16 @@
     "@radix-ui/react-checkbox": "^1.1.3",
     "@radix-ui/react-collapsible": "^1.1.2",
     "@radix-ui/react-context-menu": "^2.2.4",
-    "@radix-ui/react-dialog": "^1.1.4",
+    "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.4",
     "@radix-ui/react-hover-card": "^1.1.4",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-menubar": "^1.1.4",
     "@radix-ui/react-navigation-menu": "^1.2.3",
     "@radix-ui/react-popover": "^1.1.4",
-    "@radix-ui/react-progress": "^1.1.1",
+    "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-radio-group": "^1.2.2",
-    "@radix-ui/react-scroll-area": "^1.2.2",
+    "@radix-ui/react-scroll-area": "^1.2.9",
     "@radix-ui/react-select": "^2.1.4",
     "@radix-ui/react-separator": "^1.1.1",
     "@radix-ui/react-slider": "^1.2.2",
@@ -88,15 +103,15 @@
     "zod": "3.25.32"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/node": "^22.14.0",
-    "@types/react": "^18",
+    "@types/react": "18.3.23",
     "@types/react-dom": "^18",
     "@types/uuid": "^10.0.0",
     "@vitest/ui": "3.1.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
-    "vitest": "3.1.3",
-    "@types/bun": "latest"
+    "vitest": "3.1.3"
   }
 }

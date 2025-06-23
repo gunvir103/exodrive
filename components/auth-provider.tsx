@@ -8,6 +8,7 @@ type AuthContextType = {
   user: User | null
   session: Session | null
   isLoading: boolean
+  isAdmin: boolean
   login: (
     email: string,
     password: string,
@@ -24,10 +25,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  // Helper function to check admin status
+  const checkAdminStatus = async (userId: string, userMetadata?: any): Promise<boolean> => {
+    try {
+      // First check user metadata (immediate)
+      if (userMetadata?.role === 'admin') {
+        console.log('Admin status confirmed via user metadata')
+        return true
+      }
+      
+      // Then check customers table (note: customers table doesn't have a role field)
+      // Since customers table doesn't have role field, we rely on user metadata
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('id', userId)
+        .single()
+      
+      if (error) {
+        console.error('Error checking customer existence:', error)
+      }
+      
+      // Admin status is determined by user metadata only
+      return userMetadata?.role === 'admin'
+    } catch (error) {
+      console.error('Unexpected error checking admin status:', error)
+      // Fall back to metadata check
+      return userMetadata?.role === 'admin'
+    }
+  }
 
   useEffect(() => {
     const getSession = async () => {
@@ -41,17 +73,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("Error getting session:", error)
           setSession(null)
           setUser(null)
+          setIsAdmin(false)
           return
         }
 
         if (session) {
           setSession(session)
           setUser(session.user)
+          
+          console.log('AuthProvider: User session found:', {
+            email: session.user.email,
+            id: session.user.id,
+            metadata: session.user.user_metadata,
+            role_in_metadata: session.user.user_metadata?.role
+          })
+          
+          // Check admin status
+          const adminStatus = await checkAdminStatus(session.user.id, session.user.user_metadata)
+          console.log('AuthProvider: Admin status determined:', adminStatus)
+          setIsAdmin(adminStatus)
+        } else {
+          setSession(null)
+          setUser(null)
+          setIsAdmin(false)
         }
       } catch (error) {
         console.error("Unexpected error during getSession:", error)
         setSession(null)
         setUser(null)
+        setIsAdmin(false)
       } finally {
         setIsLoading(false)
       }
@@ -61,9 +111,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthProvider: Auth state changed:', event, {
+        hasSession: !!session,
+        email: session?.user?.email,
+        metadata: session?.user?.user_metadata
+      })
+      
       setSession(session)
       setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        // Check admin status on auth state change
+        const adminStatus = await checkAdminStatus(session.user.id, session.user.user_metadata)
+        console.log('AuthProvider: Admin status on state change:', adminStatus)
+        setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
+      }
+      
       setIsLoading(false)
     })
 
@@ -95,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await supabase.auth.signOut()
+      // Reset admin status on logout
+      setIsAdmin(false)
     } catch (error) {
       console.error("Error during logout:", error)
     }
@@ -104,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     session,
     isLoading,
+    isAdmin,
     login,
     logout,
   }

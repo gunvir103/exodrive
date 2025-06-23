@@ -1,8 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { getPooledBrowserClient, executeWithConnection } from '../database/client-manager'
+import { SupabaseClient } from '@supabase/supabase-js'
 
-// Create a singleton client instance for the browser
+// Create a singleton client instance for the browser (legacy support)
 let client: ReturnType<typeof createBrowserClient> | undefined;
 
+// Legacy function - will be deprecated
 export function getSupabaseBrowserClient() {
   if (client) {
     return client;
@@ -13,8 +16,6 @@ export function getSupabaseBrowserClient() {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("Supabase browser client: URL or Anon Key is missing.");
-    // Returning null might be better than throwing, depending on usage
-    // For now, let's throw to make it obvious during development
     throw new Error("Supabase URL or Anon Key missing in environment variables.");
   }
 
@@ -29,22 +30,26 @@ export function getSupabaseBrowserClient() {
 // Add this export for backward compatibility
 export const getSupabaseClient = getSupabaseBrowserClient;
 
-// Helper function for creating a Supabase client with service role (admin access)
-export function getSupabaseServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// New pooled client functions
+export async function withSupabaseClient<T>(
+  operation: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  return executeWithConnection(operation, 'browser');
+}
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn("Supabase URL or service role key are missing.")
-    return null
-  }
+// For cases where you need direct access (use sparingly)
+export async function getPooledSupabaseClient() {
+  return getPooledBrowserClient();
+}
 
-  return createBrowserClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
+// SECURITY NOTE: Service role clients should NEVER be created in browser context
+// Use server-side service role clients instead via lib/supabase/server.ts
+
+// New pooled service client functions (server-side only)
+export async function withServiceClient<T>(
+  operation: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  return executeWithConnection(operation, 'service');
 }
 
 // Helper function for handling Supabase errors

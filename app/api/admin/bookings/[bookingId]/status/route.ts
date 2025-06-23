@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { invalidateCacheByEvent } from '@/lib/redis';
 
 // Schema for status update request
 const statusUpdateSchema = z.object({
@@ -46,7 +47,36 @@ export async function PATCH(
     // Check admin authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify user has admin role in metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
+    
+    console.log('Admin check for bookings status API:', {
+      email: user.email,
+      metadata: user.user_metadata,
+      role: user.user_metadata?.role,
+      isAdmin
+    });
+    
+    if (!isAdmin) {
+      // Fallback: check profiles table if metadata doesn't have role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.role !== 'admin') {
+        console.log('Access denied:', { 
+          email: user.email, 
+          metadataRole: user.user_metadata?.role,
+          profileRole: profile?.role 
+        });
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      }
     }
 
     const { bookingId } = params;
@@ -118,6 +148,9 @@ export async function PATCH(
           .from('car_availability')
           .update({ status: 'available' })
           .eq('booking_id', bookingId);
+        
+        // Invalidate car availability cache
+        await invalidateCacheByEvent('booking.cancelled');
         break;
 
       case 'completed':

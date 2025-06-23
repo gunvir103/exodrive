@@ -1,0 +1,18 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-useless-catch": "error",
+    "consistent-return": "error"
+  },
+  "overrides": [
+    {
+      "files": ["app/api/**/*.ts"],
+      "rules": {
+        "no-unused-vars": ["error", { 
+          "varsIgnorePattern": "^withApiErrorHandling$",
+          "argsIgnorePattern": "^_"
+        }]
+      }
+    }
+  ]
+}

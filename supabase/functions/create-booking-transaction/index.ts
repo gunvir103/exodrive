@@ -76,13 +76,34 @@ serve(async (req: Request) => {
         try {
           const parsedDetails = JSON.parse(error.details);
           if (parsedDetails.success === false) {
+            // Determine appropriate HTTP status based on error type
+            let httpStatus = 500;
+            switch (parsedDetails.error) {
+              case 'dates_unavailable':
+                httpStatus = 409;
+                break;
+              case 'invalid_status_value':
+              case 'invalid_status_value_conversion':
+                httpStatus = 400;
+                break;
+              case 'car_locked':
+                httpStatus = 409;
+                break;
+              case 'lock_timeout':
+                httpStatus = 503; // Service Unavailable
+                break;
+              case 'transaction_failed':
+                httpStatus = 500;
+                break;
+            }
             return new Response(JSON.stringify(parsedDetails), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: parsedDetails.error === 'dates_unavailable' ? 409 : 500,
+              status: httpStatus,
             });
           }
         } catch (e) {
           // Not a JSON error detail, or malformed
+          console.error("Failed to parse error details:", e);
         }
       }
       return new Response(JSON.stringify({ success: false, error: error.message || "rpc_error", details: error.details }), {
@@ -94,9 +115,29 @@ serve(async (req: Request) => {
     // The PL/pgSQL function returns a JSONB object. If it was successful, data will contain that object.
     // If it was an error handled within PL/pgSQL (e.g. dates_unavailable), it should have been caught above.
     if (data && data.success === false) {
-       return new Response(JSON.stringify(data), {
+      // Determine appropriate HTTP status based on error type
+      let httpStatus = 500;
+      switch (data.error) {
+        case 'dates_unavailable':
+          httpStatus = 409;
+          break;
+        case 'invalid_status_value':
+        case 'invalid_status_value_conversion':
+          httpStatus = 400;
+          break;
+        case 'car_locked':
+          httpStatus = 409;
+          break;
+        case 'lock_timeout':
+          httpStatus = 503; // Service Unavailable
+          break;
+        case 'transaction_failed':
+          httpStatus = 500;
+          break;
+      }
+      return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: data.error === 'dates_unavailable' ? 409 : (data.error === 'invalid_status_value' ? 400: 500),
+        status: httpStatus,
       });
     }
 
@@ -107,7 +148,11 @@ serve(async (req: Request) => {
 
   } catch (err) {
     console.error("Unhandled error in edge function:", err);
-    return new Response(JSON.stringify({ success: false, error: err.message || "unknown_error" }), {
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: "edge_function_error",
+      details: err.message || "unknown_error" 
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -8,8 +8,27 @@ const nextConfig = {
   },
   output: 'standalone',
   images: {
-    domains: ['localhost', 'placeholder.com', 'www.exodrive.co', 'exodrive.co', 'ncdukddsefogzbqsbfsa.supabase.co'],
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placeholder.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.exodrive.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'exodrive.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ncdukddsefogzbqsbfsa.supabase.co',
+      },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
@@ -37,7 +56,7 @@ const nextConfig = {
     // Server actions configuration
     serverActions: {
       bodySizeLimit: '2mb'
-    }
+    },
   },
   // Webpack optimizations
   webpack: (config, { isServer }) => {

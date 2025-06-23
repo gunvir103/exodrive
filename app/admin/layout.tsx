@@ -3,16 +3,29 @@
 import { type ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Car, Grid, LogOut, Settings, Users, Home, ImageIcon } from "lucide-react"
+import { Car, Grid, LogOut, Settings, Users, Home, ImageIcon, Webhook, Inbox } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
 
 function AdminLayoutContent({ children }: { children: ReactNode }) {
-  const { user, logout, isLoading } = useAuth()
+  const { user, logout, isLoading, isAdmin } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [shouldRedirect, setShouldRedirect] = useState(false)
   const [permissionDenied, setPermissionDenied] = useState(false)
+  const [authTimeout, setAuthTimeout] = useState(false)
+
+  // Add auth timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.log("AdminLayout: Auth loading timeout reached")
+        setAuthTimeout(true)
+      }
+    }, 10000) // 10 second timeout
+
+    return () => clearTimeout(timer)
+  }, [isLoading])
 
   useEffect(() => {
     if (!isLoading) {
@@ -20,8 +33,8 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
         console.log("AdminLayout: No user found, redirecting to login.")
         setShouldRedirect(true)
         setPermissionDenied(false)
-      } else if (user && user.user_metadata?.role !== 'admin') {
-        console.log(`AdminLayout: User ${user.email} is not admin, setting permission denied.`)
+      } else if (user && !isAdmin) {
+        console.log(`AdminLayout: User ${user.email} is not admin (isAdmin: ${isAdmin}), setting permission denied.`)
         setPermissionDenied(true) 
         setShouldRedirect(false)
       } else {
@@ -29,7 +42,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
         setShouldRedirect(false)
       }
     }
-  }, [user, isLoading, pathname])
+  }, [user, isLoading, isAdmin, pathname])
 
   useEffect(() => {
     if (shouldRedirect) {
@@ -44,7 +57,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     return <>{children}</>
   }
 
-  if (isLoading) {
+  if (isLoading && !authTimeout) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/40">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -52,7 +65,19 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     )
   }
 
-  if (!user || permissionDenied) {
+  if (authTimeout) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/40">
+        <div className="text-center">
+          <p className="text-lg font-semibold mb-4">Authentication timeout</p>
+          <p className="text-muted-foreground mb-4">Please refresh the page to try again</p>
+          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user || shouldRedirect || permissionDenied) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/40">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -94,6 +119,15 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
               Bookings
             </Button>
           </Link>
+          <Link href="/admin/inbox">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start ${pathname?.startsWith("/admin/inbox") ? "bg-muted" : ""}`}
+            >
+              <Inbox className="mr-2 h-4 w-4" />
+              Inbox
+            </Button>
+          </Link>
           <Link href="/admin/settings">
             <Button
               variant="ghost"
@@ -119,6 +153,15 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
             >
               <Home className="mr-2 h-4 w-4" />
               Homepage Settings
+            </Button>
+          </Link>
+          <Link href="/admin/webhooks">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start ${pathname?.startsWith("/admin/webhooks") ? "bg-muted" : ""}`}
+            >
+              <Webhook className="mr-2 h-4 w-4" />
+              Webhooks
             </Button>
           </Link>
         </nav>
