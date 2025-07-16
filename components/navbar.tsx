@@ -43,6 +43,10 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [prevScrollPos])
 
+if (pathname === "/admin") {
+  return null
+
+
   const routes = [
     {
       href: "/",
