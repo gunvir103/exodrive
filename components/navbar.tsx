@@ -17,6 +17,12 @@ import { Car, Menu, X, Instagram, ChevronRight } from "lucide-react"
 
 export function Navbar() {
   const pathname = usePathname()
+  
+  // Don't render navbar for admin routes
+  if (pathname.includes('/admin')) {
+    return null
+  }
+  
   const [isScrolled, setIsScrolled] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [prevScrollPos, setPrevScrollPos] = useState(0)
@@ -43,10 +49,6 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [prevScrollPos])
 
-if (pathname === "/admin") {
-  return null
-
-
   const routes = [
     {
       href: "/",
@@ -69,11 +71,6 @@ if (pathname === "/admin") {
       active: pathname === "/contact",
     },
   ]
-
-    if (pathname.startsWith('/admin')) {
-    return null
-  }
-  
 
   const navVariants = {
     hidden: { y: -100, opacity: 0 },
