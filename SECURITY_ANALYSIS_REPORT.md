@@ -1,244 +1,296 @@
-# Security Analysis Report - ExoDrive
+# ExoDrive Security Enhancement PRD
 
-Generated: December 28, 2024
+## Executive Summary
 
-## Security Assessment Score: 6.5/10
+Security assessment reveals critical vulnerabilities requiring immediate remediation to protect user data, prevent unauthorized access, and ensure payment security. Current security score of 6.5/10 must be elevated to 9.5/10 for production readiness.
 
-The ExoDrive application demonstrates good security practices in several areas but has critical vulnerabilities that require immediate attention.
+## Problem Statement
 
-## Critical Vulnerabilities
+### Current Vulnerabilities
+- **No CSRF Protection**: All state-changing endpoints vulnerable to cross-site request forgery
+- **Permissive CORS**: Accepts requests from any origin (*)
+- **Weak Admin Auth**: Admin role stored in client-manipulable metadata
+- **Missing Sanitization**: HTML content not sanitized despite library availability
+- **No Security Headers**: Missing CSP, X-Frame-Options, HSTS
 
-### 1. No CSRF Protection (CRITICAL - Score: 10/10 Severity)
+### Business Impact
+- Payment fraud risk through CSRF attacks
+- Data breach potential from unauthorized API access
+- Admin account compromise vulnerability
+- XSS attack vectors in user content
+- Compliance failures for security standards
 
-**Description**: The application has no Cross-Site Request Forgery (CSRF) protection implemented.
+## Goals & Objectives
 
-**Affected Endpoints**:
-- `/api/bookings/create-paypal-order`
-- `/api/bookings/[bookingId]/capture-payment`
-- `/api/admin/*` (all admin endpoints)
-- All POST/PUT/DELETE operations
+### Primary Goals
+1. Eliminate all critical security vulnerabilities
+2. Implement defense-in-depth security strategy
+3. Achieve compliance with OWASP Top 10 standards
+4. Establish security monitoring and alerting
+5. Create secure development lifecycle
 
-**Risk**: Attackers can trick authenticated users into performing unwanted actions.
+### Success Metrics
+- **Security Score**: From 6.5/10 to 9.5/10
+- **Vulnerability Count**: Zero critical, zero high severity
+- **Security Headers**: A+ rating on securityheaders.com
+- **Penetration Test**: Pass professional security audit
+- **Incident Response**: <15 minute detection time
 
-**Remediation**:
+## Security Requirements
+
+### Authentication & Authorization
+
+#### Requirements
+- Database-backed admin role verification
+- Session management with secure cookies
+- Account lockout after failed attempts
+- Two-factor authentication for admin accounts
+- API key management for service accounts
+
+#### Implementation
 ```typescript
-// middleware.ts - Add CSRF protection
-import { csrf } from '@edge-csrf/nextjs';
+// Admin verification pattern
+const isAdmin = await db.admin_users.exists(user.id);
 
-const csrfProtect = csrf({
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
-  }
-});
-
-export async function middleware(request: NextRequest) {
-  const response = await csrfProtect(request);
-  if (response) return response;
-  
-  // Continue with other middleware...
+// Session configuration
+cookie: {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict',
+  maxAge: 3600000
 }
 ```
 
-### 2. Overly Permissive CORS (HIGH - Score: 8/10 Severity)
+### Input Validation & Sanitization
 
-**Current Configuration**:
+#### Requirements
+- Zod validation on all API endpoints
+- HTML sanitization for user content
+- File upload validation with magic bytes
+- SQL injection prevention via parameterized queries
+- Path traversal protection
+
+#### Implementation
 ```typescript
-headers: {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-}
-```
-
-**Risk**: Any website can make requests to your API.
-
-**Remediation**:
-```typescript
-const allowedOrigins = [
-  process.env.NEXT_PUBLIC_APP_URL,
-  'https://exodrive.com',
-  'https://www.exodrive.com'
-];
-
-headers: {
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
-  'Access-Control-Allow-Credentials': 'true'
-}
-```
-
-### 3. Weak Admin Authentication (HIGH - Score: 8/10 Severity)
-
-**Issue**: Admin role stored in user metadata which can be manipulated client-side.
-
-**Current Implementation**:
-```typescript
-// Vulnerable pattern found
-const isAdmin = user?.user_metadata?.role === 'admin';
-```
-
-**Remediation**:
-```sql
--- Create admin_users table
-CREATE TABLE admin_users (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  created_by UUID REFERENCES auth.users(id)
-);
-
--- RLS policy
-CREATE POLICY "Only admins can read admin_users" ON admin_users
-  FOR SELECT USING (auth.uid() IN (SELECT user_id FROM admin_users));
-```
-
-### 4. Missing HTML Sanitization (MEDIUM - Score: 6/10 Severity)
-
-**Issue**: `sanitize-html` is installed but not used.
-
-**Vulnerable Areas**:
-- Car descriptions
-- Customer notes
-- Any user-generated content
-
-**Remediation**:
-```typescript
-import sanitizeHtml from 'sanitize-html';
-
+// Sanitization configuration
 const sanitizeOptions = {
   allowedTags: ['b', 'i', 'em', 'strong', 'p', 'br'],
-  allowedAttributes: {}
+  allowedAttributes: {},
+  disallowedTagsMode: 'discard'
 };
-
-// Use in API routes
-const sanitizedDescription = sanitizeHtml(input.description, sanitizeOptions);
 ```
 
-### 5. Missing Security Headers (MEDIUM - Score: 5/10 Severity)
+### Security Headers
 
-**Missing Headers**:
-- Content-Security-Policy
-- X-Frame-Options
-- X-Content-Type-Options
+#### Requirements
+- Content Security Policy
+- X-Frame-Options: SAMEORIGIN
+- X-Content-Type-Options: nosniff
 - Strict-Transport-Security
+- Referrer-Policy
 
-**Remediation** - Add to `next.config.mjs`:
+#### Configuration
 ```javascript
-const securityHeaders = [
-  {
-    key: 'X-DNS-Prefetch-Control',
-    value: 'on'
-  },
-  {
-    key: 'Strict-Transport-Security',
-    value: 'max-age=63072000; includeSubDomains; preload'
-  },
-  {
-    key: 'X-Frame-Options',
-    value: 'SAMEORIGIN'
-  },
-  {
-    key: 'X-Content-Type-Options',
-    value: 'nosniff'
-  },
-  {
-    key: 'Referrer-Policy',
-    value: 'origin-when-cross-origin'
-  },
-  {
-    key: 'Content-Security-Policy',
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com; style-src 'self' 'unsafe-inline';"
-  }
-];
+const securityHeaders = {
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.paypal.com",
+  'X-Frame-Options': 'SAMEORIGIN',
+  'X-Content-Type-Options': 'nosniff',
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
 ```
 
-## Positive Security Findings
+## Implementation Milestones
 
-### ✅ No SQL Injection Vulnerabilities
-All database queries use parameterized statements through Supabase client.
+### Milestone 1: Critical Vulnerability Remediation
+**Objective**: Fix all critical security issues
 
-### ✅ Good Rate Limiting Implementation
-Comprehensive rate limiting with Redis:
-- Sliding window algorithm
-- IP-based and user-based limits
-- Configurable per endpoint
+**Deliverables**:
+- CSRF token implementation
+- CORS restriction to allowed domains
+- Admin role database migration
+- Security headers configuration
 
-### ✅ Secure File Upload Validation
-```typescript
-// Good implementation found
-- File type validation
-- File size limits
-- Magic bytes checking
-- Virus scanning ready
-```
+**Acceptance Criteria**:
+- CSRF tokens validated on all mutations
+- CORS only accepts listed origins
+- Admin verification queries database
+- Headers score A+ on analysis tools
 
-### ✅ Secure PayPal Webhook Verification
-Proper signature verification implemented for PayPal webhooks.
+### Milestone 2: Authentication Hardening
+**Objective**: Strengthen authentication and authorization
 
-### ✅ Environment Variable Management
-Sensitive data properly stored in environment variables.
+**Deliverables**:
+- Account lockout mechanism
+- Two-factor authentication
+- Session management improvements
+- API key rotation system
 
-## Additional Security Concerns
+**Acceptance Criteria**:
+- Accounts lock after 5 failed attempts
+- 2FA available for all admin users
+- Sessions expire after inactivity
+- API keys rotatable without downtime
 
-### 1. No Input Validation Middleware
-**Recommendation**: Implement Zod validation middleware for all API routes.
+### Milestone 3: Input Security
+**Objective**: Prevent injection and XSS attacks
 
-### 2. Missing Audit Logs
-**Recommendation**: Log all admin actions and sensitive operations.
+**Deliverables**:
+- Zod validation middleware
+- HTML sanitization implementation
+- File upload security
+- Query parameterization audit
 
-### 3. No Account Lockout
-**Recommendation**: Implement account lockout after failed login attempts.
+**Acceptance Criteria**:
+- All endpoints have schema validation
+- User content sanitized before storage
+- File uploads validate type and size
+- Zero SQL injection vulnerabilities
 
-### 4. Weak Password Requirements
-**Recommendation**: Enforce strong password policy through Supabase.
+### Milestone 4: Monitoring & Response
+**Objective**: Detect and respond to security incidents
 
-### 5. No Two-Factor Authentication
-**Recommendation**: Enable 2FA for admin accounts.
+**Deliverables**:
+- Security event logging
+- Intrusion detection setup
+- Alert configuration
+- Incident response playbook
 
-## Security Checklist
+**Acceptance Criteria**:
+- All security events logged
+- Anomalies detected within 15 minutes
+- Alerts sent to security team
+- Response procedures documented
 
-### Immediate Actions (Days 1-5)
-- [ ] Implement CSRF protection
-- [ ] Restrict CORS origins
-- [ ] Fix admin authentication
-- [ ] Add security headers
-- [ ] Enable HTML sanitization
+### Milestone 5: Compliance & Audit
+**Objective**: Achieve security compliance
 
-### Short-term (Days 6-15)
-- [ ] Add input validation middleware
-- [ ] Implement audit logging
-- [ ] Set up account lockout
-- [ ] Add 2FA for admins
-- [ ] Update dependencies
+**Deliverables**:
+- OWASP Top 10 compliance
+- PCI DSS alignment
+- Security audit preparation
+- Penetration testing
 
-### Long-term (Days 30-60)
-- [ ] Security testing automation
-- [ ] Penetration testing
-- [ ] Security training for team
-- [ ] Implement WAF
-- [ ] Regular security audits
+**Acceptance Criteria**:
+- Pass OWASP checklist
+- Meet PCI requirements
+- Clean security audit
+- No critical findings in pen test
 
-## Dependency Vulnerabilities
+## Risk Assessment
 
-Run `npm audit` regularly. Current status:
-```bash
-# Some packages may have known vulnerabilities
-# Regular updates recommended
-```
+### Critical Risks
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| CSRF Attack | High | Critical | Implement tokens immediately |
+| Data Breach | Medium | Critical | Encrypt sensitive data |
+| Admin Compromise | Medium | High | Database-backed roles |
+| Payment Fraud | Low | Critical | Webhook verification |
 
-## Recommended Security Tools
+### Vulnerability Severity Matrix
+- **Critical**: CSRF, CORS misconfiguration
+- **High**: Admin authentication, missing sanitization
+- **Medium**: Missing headers, no account lockout
+- **Low**: No 2FA, weak password policy
 
-1. **Development**:
-   - ESLint security plugin
-   - Snyk for dependency scanning
-   - OWASP ZAP for testing
+## Security Architecture
 
-2. **Production**:
-   - Cloudflare WAF
-   - Sentry for error tracking
-   - DataDog for security monitoring
+### Defense Layers
+1. **Perimeter**: WAF, DDoS protection
+2. **Application**: CSRF, XSS prevention
+3. **Authentication**: MFA, secure sessions
+4. **Authorization**: RBAC, least privilege
+5. **Data**: Encryption at rest and transit
+6. **Monitoring**: SIEM, alerting
 
-## Conclusion
+### Security Controls
+- **Preventive**: Input validation, authentication
+- **Detective**: Logging, monitoring, alerting
+- **Corrective**: Incident response, patching
+- **Compensating**: Rate limiting, isolation
 
-While ExoDrive has implemented some good security practices (parameterized queries, rate limiting, secure file uploads), the critical vulnerabilities in CSRF protection, CORS configuration, and admin authentication pose significant risks. Implementing the recommended fixes would raise the security score from 6.5/10 to approximately 9/10.
+## Testing & Validation
 
-**Priority**: Address CSRF and CORS vulnerabilities immediately as they affect all users and could lead to unauthorized actions and data breaches.
+### Security Testing
+- Static Application Security Testing (SAST)
+- Dynamic Application Security Testing (DAST)
+- Interactive Application Security Testing (IAST)
+- Penetration testing
+- Vulnerability scanning
+
+### Acceptance Testing
+- OWASP ZAP automated scanning
+- Manual security review
+- Third-party penetration test
+- Compliance audit
+- Security headers validation
+
+## Dependencies
+
+### Tools & Services
+- WAF provider (Cloudflare/AWS WAF)
+- SIEM solution (Datadog/Splunk)
+- Vulnerability scanner (Snyk/Dependabot)
+- Penetration testing firm
+- Certificate management
+
+### Team Requirements
+- Security engineer for implementation
+- DevOps for infrastructure security
+- QA for security testing
+- External auditor for validation
+
+## Success Criteria
+
+### Security Metrics
+- Zero critical vulnerabilities
+- Zero high-severity findings
+- 100% endpoint protection
+- <0.01% security incident rate
+- <15 minute incident detection
+
+### Compliance Metrics
+- OWASP Top 10 compliant
+- PCI DSS aligned
+- SOC 2 ready
+- GDPR compliant
+- Security audit passed
+
+### Operational Metrics
+- 100% security event logging
+- 99.9% authentication availability
+- <100ms auth overhead
+- Zero security-related downtime
+- Monthly security updates
+
+## Positive Current State
+
+### Already Implemented
+✅ SQL injection prevention via parameterized queries  
+✅ Rate limiting with Redis sliding window  
+✅ Secure file upload with magic byte validation  
+✅ PayPal webhook signature verification  
+✅ Environment-based secret management
+
+### Security Score Breakdown
+- **Current**: 6.5/10
+- **After Milestone 1**: 8.0/10
+- **After Milestone 2**: 8.5/10
+- **After Milestone 3**: 9.0/10
+- **After Milestone 4**: 9.3/10
+- **After Milestone 5**: 9.5/10
+
+## Appendix
+
+### Security Tools Recommendations
+- **Development**: ESLint security plugin, Snyk
+- **Testing**: OWASP ZAP, Burp Suite
+- **Production**: Cloudflare WAF, Sentry
+- **Monitoring**: Datadog, PagerDuty
+
+### Related Documents
+- OWASP Top 10 Checklist
+- PCI DSS Requirements
+- Security Incident Response Plan
+- Penetration Test Reports
+- Vulnerability Assessment Results
