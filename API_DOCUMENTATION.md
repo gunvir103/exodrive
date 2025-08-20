@@ -655,6 +655,100 @@ All pricing calculations are performed server-side to prevent manipulation:
    - Calculation result
    - User/session information
 
+#### Database Functions
+
+##### `calculate_booking_price`
+
+Calculates booking price server-side with comprehensive pricing logic.
+
+**Purpose**: Provides secure, server-side price calculation for rental bookings
+
+**Parameters**:
+- `p_car_id` (UUID): The car ID to calculate pricing for
+- `p_start_date` (DATE): Rental start date
+- `p_end_date` (DATE): Rental end date
+
+**Returns**: JSONB object containing:
+```json
+{
+  "success": true,
+  "base_price": 1500.00,
+  "days": 4,
+  "subtotal": 6000.00,
+  "deposit_amount": 3000.00,
+  "final_price": 9000.00
+}
+```
+
+**Security**: 
+- Function uses `SECURITY DEFINER` 
+- Accessible by: `authenticated`, `service_role`, and `anon` roles
+- All calculations performed server-side to prevent client manipulation
+
+**Usage Example**:
+```sql
+SELECT calculate_booking_price(
+  'car-uuid-here'::uuid,
+  '2025-02-01'::date,
+  '2025-02-05'::date
+);
+```
+
+##### `validate_booking_price`
+
+Validates client-provided prices against server calculations for security.
+
+**Purpose**: Ensures price integrity by comparing client prices with server calculations
+
+**Parameters**:
+- `p_car_id` (UUID): The car ID to validate pricing for
+- `p_start_date` (DATE): Rental start date
+- `p_end_date` (DATE): Rental end date
+- `p_client_price` (NUMERIC): Client-provided price to validate
+
+**Returns**: JSONB object containing:
+```json
+{
+  "valid": true,
+  "server_calculation": {
+    "success": true,
+    "final_price": 9000.00,
+    "base_price": 1500.00,
+    "days": 4
+  }
+}
+```
+
+Or when validation fails:
+```json
+{
+  "valid": false,
+  "error": "Price mismatch detected",
+  "client_price": 8000.00,
+  "server_price": 9000.00,
+  "server_calculation": {
+    "success": true,
+    "final_price": 9000.00
+  }
+}
+```
+
+**Security**: 
+- Function uses `SECURITY DEFINER`
+- Accessible by: `authenticated` and `service_role` roles only (NOT `anon`)
+- Price mismatches are logged as potential security events
+- Prevents price manipulation attacks
+
+**Usage Example**:
+```sql
+SELECT validate_booking_price(
+  'car-uuid-here'::uuid,
+  '2025-02-01'::date,
+  '2025-02-05'::date,
+  9000.00
+);
+```
+
 ### Automatic Payment Capture
 
 Payments are automatically captured based on configurable rules:
