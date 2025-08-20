@@ -712,13 +712,30 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
             {showPayPalButtons && (
               <>
                 <Separator className="my-2" />
-                {isPending && <div className="text-center text-sm text-muted-foreground">Loading payment options...</div>}
-                <PayPalButtons
-                    style={{ layout: "vertical", color: "blue", shape: "rect", label: "pay" }}
-                    createOrder={createPayPalOrder}
-                    onApprove={onPayPalApprove}
-                    forceReRender={[totalPrice]} // Re-render buttons if the price changes
-                />
+                <div className="paypal-buttons-wrapper">
+                  {isPending && <div className="text-center text-sm text-muted-foreground">Loading payment options...</div>}
+                  <PayPalButtons
+                      style={{ 
+                        layout: "vertical", 
+                        color: "black", 
+                        shape: "pill", 
+                        label: "pay",
+                        height: 45
+                      }}
+                      createOrder={createPayPalOrder}
+                      onApprove={onPayPalApprove}
+                      onError={(err) => {
+                        console.error('PayPal error:', err);
+                        toast({
+                          title: "Payment Error",
+                          description: "There was an error processing your payment. Please try again.",
+                          variant: "destructive"
+                        });
+                        setShowPayPalButtons(false);
+                      }}
+                      forceReRender={[totalPrice]} // Re-render buttons if the price changes
+                  />
+                </div>
               </>
             )}
           </motion.div>
