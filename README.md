@@ -272,26 +272,139 @@ bunx scripts/warm-cache-advanced.ts     # Advanced warming with metrics
 
 ### System Overview
 
+![ExoDrive System Architecture](./docs/architecture-diagram.png)
+
+The complete system architecture is available in [`sysdiagram.mmd`](./sysdiagram.mmd). You can:
+- View/edit in Mermaid live editor: https://mermaid.live
+- Import into Excalidraw as a Mermaid diagram
+- Use VS Code with Mermaid plugin for inline preview
+
+#### Architecture Diagram (Mermaid)
+
 ```mermaid
 graph TB
-    A[Customer] --> B[Next.js Frontend]
-    B --> C[API Routes]
-    C --> D[Supabase Database]
-    C --> E[Redis Cache]
-    C --> F[PayPal API]
-    C --> G[DocuSeal API]
-    C --> H[Resend API]
+    %% Frontend Layer
+    subgraph Frontend["🎨 Frontend - Next.js 15"]
+        subgraph Pages["Pages"]
+            HomePage["🏠 Homepage"]
+            Fleet["🚗 Fleet Browse"]
+            CarDetail["🚙 Car Details"]
+            Booking["📅 Booking"]
+            Admin["🔐 Admin Panel"]
+            Auth["🔑 Auth"]
+        end
+        
+        subgraph Components["Components"]
+            UILib["📦 UI Library"]
+            CustomUI["🎨 Custom UI"]
+            Contexts["🎯 Contexts"]
+        end
+    end
+
+    %% API Layer
+    subgraph API["⚡ API Routes"]
+        PublicAPI["🌐 Public APIs"]
+        AdminAPI["🛠️ Admin APIs"]
+        Webhooks["🔔 Webhooks"]
+    end
+
+    %% Database Layer
+    subgraph Database["💾 Database - Supabase"]
+        Tables["📊 Tables"]
+        Functions["⚙️ Functions"]
+        Security["🔒 Security"]
+    end
+
+    %% External Services
+    subgraph External["🌍 External Services"]
+        PayPal["💳 PayPal"]
+        Email["📧 Resend"]
+        Contracts["📝 DocuSeal"]
+        Cache["⚡ Redis"]
+        Maps["🗺️ Google Maps"]
+    end
+
+    %% Supabase Services
+    subgraph Supabase["☁️ Supabase Platform"]
+        SupaAuth["🔑 Auth"]
+        Storage["📁 Storage"]
+        EdgeFn["⚡ Edge Functions"]
+        Realtime["🔄 Realtime"]
+    end
+
+    %% Infrastructure
+    subgraph Infra["🏗️ Infrastructure"]
+        Vercel["▲ Vercel"]
+        GitHub["🐙 GitHub"]
+        Monitor["📊 Monitoring"]
+    end
+
+    %% Main User Flow
+    HomePage --> Fleet
+    Fleet --> CarDetail
+    CarDetail --> Booking
+    Booking --> PublicAPI
+    PublicAPI --> PayPal
+    PublicAPI --> Tables
     
-    I[Admin] --> J[Admin Dashboard]
-    J --> C
+    %% Admin Flow
+    Auth --> Admin
+    Admin --> AdminAPI
+    AdminAPI --> Tables
     
-    F --> K[PayPal Webhooks]
-    G --> L[DocuSeal Webhooks] 
-    H --> M[Resend Webhooks]
+    %% Payment Flow
+    PayPal --> Webhooks
+    Webhooks --> Functions
+    Functions --> Tables
     
-    K --> C
-    L --> C
-    M --> C
+    %% Email Flow
+    PublicAPI --> Email
+    Email --> Webhooks
+    
+    %% Contract Flow
+    Booking --> Contracts
+    Contracts --> Webhooks
+    
+    %% Cache Flow
+    PublicAPI --> Cache
+    Cache --> Tables
+    
+    %% Storage Flow
+    Admin --> Storage
+    CarDetail --> Storage
+    
+    %% Auth Flow
+    Auth --> SupaAuth
+    SupaAuth --> Tables
+    SupaAuth --> Security
+    
+    %% Edge Functions
+    PublicAPI --> EdgeFn
+    EdgeFn --> Functions
+    
+    %% Deployment
+    GitHub --> Vercel
+    Vercel --> Frontend
+    Vercel --> Monitor
+    
+    %% Real-time Updates
+    Tables --> Realtime
+    Realtime --> Admin
+
+    %% Style Classes
+    classDef frontend fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef api fill:#fff8e1,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef database fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef external fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef supabase fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000
+    classDef infra fill:#f1f8e9,stroke:#558b2f,stroke-width:2px,color:#000
+    
+    class HomePage,Fleet,CarDetail,Booking,Admin,Auth,UILib,CustomUI,Contexts frontend
+    class PublicAPI,AdminAPI,Webhooks api
+    class Tables,Functions,Security database
+    class PayPal,Email,Contracts,Cache,Maps external
+    class SupaAuth,Storage,EdgeFn,Realtime supabase
+    class Vercel,GitHub,Monitor infra
 ```
 
 ### Booking System
