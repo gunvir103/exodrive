@@ -1,6 +1,6 @@
 import { cacheService, cacheConfigs } from './cache-service';
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/types/database';
+import type { Database } from '@/lib/types/database.types';
 
 export interface CacheWarmingMetrics {
   startTime: Date;
