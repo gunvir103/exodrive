@@ -10,6 +10,18 @@ export class RedisClient {
 
   static getInstance(): Redis | null {
     if (!this.instance) {
+      // Check if Redis environment variables are properly configured
+      const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+      const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+      
+      if (!redisUrl || !redisToken || 
+          redisUrl === 'placeholder_redis_url' || 
+          redisToken === 'placeholder_redis_token' ||
+          !redisUrl.startsWith('https://')) {
+        console.warn('[Redis] Redis not configured. Caching will be disabled.');
+        return null;
+      }
+      
       try {
         this.instance = Redis.fromEnv();
         this.isConnected = true;

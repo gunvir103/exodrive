@@ -34,18 +34,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Helper function to check admin status
   const checkAdminStatus = async (userId: string, userMetadata?: any): Promise<boolean> => {
     try {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Admin check timeout')), 5000)
+      )
+      
       // Check profiles table for admin role (secure approach)
-      const { data: profile, error } = await supabase
+      const profilePromise = supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
         .single()
       
+      const { data: profile, error } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]).catch((err) => {
+        console.error('Profile query failed or timed out:', err)
+        return { data: null, error: err }
+      }) as any
+      
       if (error) {
         console.error('Error checking profile:', error)
-        // If profile doesn't exist yet, it will be created by trigger
-        // For now, return false as non-admin
-        return false
+        // Fallback to metadata check for backward compatibility
+        console.log('Falling back to metadata check for admin status')
+        const metadataIsAdmin = userMetadata?.role === 'admin'
+        if (metadataIsAdmin) {
+          console.warn('User has admin in metadata but not in profiles table - needs migration')
+        }
+        return metadataIsAdmin || false
       }
       
       const isAdmin = profile?.role === 'admin'
@@ -61,7 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return isAdmin
     } catch (error) {
       console.error('Unexpected error checking admin status:', error)
-      return false
+      // Fallback to metadata as last resort
+      return userMetadata?.role === 'admin' || false
     }
   }
 

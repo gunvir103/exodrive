@@ -6,7 +6,24 @@ import { Redis } from '@upstash/redis';
 import { invalidateCacheByEvent } from '@/lib/redis';
 
 // Initialize Redis client from environment variables
-const redis = Redis.fromEnv();
+let redis: Redis | null = null;
+try {
+  // Check if Redis is properly configured
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  
+  if (redisUrl && redisToken && 
+      redisUrl !== 'placeholder_redis_url' && 
+      redisToken !== 'placeholder_redis_token' &&
+      redisUrl.startsWith('https://')) {
+    redis = Redis.fromEnv();
+  } else {
+    console.warn('[API/Bookings] Redis not configured - rate limiting disabled');
+  }
+} catch (error) {
+  console.error('[API/Bookings] Failed to initialize Redis:', error);
+  redis = null;
+}
 
 // ---- Helper Functions ----
 function generateSecureToken(length = 48) {
@@ -89,7 +106,11 @@ export async function POST(request: NextRequest) {
     // This provides an additional layer of protection at the API level
     // The primary concurrency control is now handled by the database function
     const lockKey = `booking_lock:car:${carId}:range:${startDate}_${endDate}`;
-    const lockAcquired = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
+    let lockAcquired = true;
+    
+    if (redis) {
+      lockAcquired = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
+    }
 
     if (!lockAcquired) {
       // Redis lock failed - likely high concurrency
@@ -285,8 +306,10 @@ export async function POST(request: NextRequest) {
       console.error('Error during booking process (after lock acquisition):', error);
       return NextResponse.json({ error: 'An unexpected error occurred during booking.', details: error.message }, { status: 500 });
     } finally {
-      // Always release the Redis lock
-      await redis.del(lockKey);
+      // Always release the Redis lock if Redis is available
+      if (redis) {
+        await redis.del(lockKey);
+      }
     }
 
   } catch (error: any) {

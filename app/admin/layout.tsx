@@ -20,12 +20,17 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => {
       if (isLoading) {
         console.log("AdminLayout: Auth loading timeout reached")
+        console.log("Current state:", {
+          user: user?.email,
+          isAdmin,
+          isLoading
+        })
         setAuthTimeout(true)
       }
-    }, 10000) // 10 second timeout
+    }, 15000) // 15 second timeout (increased from 10)
 
     return () => clearTimeout(timer)
-  }, [isLoading])
+  }, [isLoading, user, isAdmin])
 
   useEffect(() => {
     if (!isLoading) {

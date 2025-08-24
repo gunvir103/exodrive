@@ -22,6 +22,7 @@ export class CacheWarmer {
   private supabase;
   private metrics: CacheWarmingMetrics;
   private readonly isBunRuntime: boolean;
+  private isConfigured: boolean = false;
 
   constructor() {
     // Create a service role client for background operations
@@ -29,15 +30,19 @@ export class CacheWarmer {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration for cache warmer');
+      // Log warning but don't throw during build
+      console.warn('Warning: Missing Supabase configuration for cache warmer. Cache warming will be disabled.');
+      this.isConfigured = false;
+      this.supabase = null;
+    } else {
+      this.isConfigured = true;
+      this.supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
     }
-    
-    this.supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
     
     this.metrics = this.initializeMetrics();
     this.isBunRuntime = typeof Bun !== 'undefined';
@@ -58,6 +63,16 @@ export class CacheWarmer {
    * Warm the cache with frequently accessed data
    */
   async warmCache(options: CacheWarmingOptions = {}): Promise<CacheWarmingMetrics> {
+    if (!this.isConfigured) {
+      console.warn('[CacheWarmer] Cache warming skipped - Supabase not configured');
+      return {
+        ...this.initializeMetrics(),
+        endTime: new Date(),
+        status: 'failed',
+        errors: ['Supabase not configured']
+      };
+    }
+
     const {
       warmPopularCars = true,
       warmUpcomingAvailability = true,
@@ -124,6 +139,8 @@ export class CacheWarmer {
    * Warm cache for the most popular cars based on booking count
    */
   private async warmPopularCars(limit: number): Promise<void> {
+    if (!this.isConfigured) return;
+    
     try {
       console.log(`[CacheWarmer] Warming ${limit} most popular cars...`);
 
@@ -193,6 +210,8 @@ export class CacheWarmer {
    * Warm cache for individual car details
    */
   private async warmCarDetails(carId: string): Promise<void> {
+    if (!this.isConfigured) return;
+    
     try {
       const cacheKey = cacheService.generateCacheKey(
         cacheConfigs.carDetails.keyPrefix,
@@ -233,6 +252,8 @@ export class CacheWarmer {
    * Warm cache for fleet listing
    */
   private async warmFleetListing(): Promise<void> {
+    if (!this.isConfigured) return;
+    
     try {
       console.log('[CacheWarmer] Warming fleet listing...');
       
@@ -282,6 +303,8 @@ export class CacheWarmer {
    * Warm cache for upcoming availability of popular cars
    */
   private async warmUpcomingAvailability(days: number): Promise<void> {
+    if (!this.isConfigured) return;
+    
     try {
       console.log(`[CacheWarmer] Warming availability for next ${days} days...`);
 
@@ -339,6 +362,8 @@ export class CacheWarmer {
    * Warm cache for car availability
    */
   private async warmCarAvailability(carId: string, startDate: string, endDate: string): Promise<void> {
+    if (!this.isConfigured) return;
+    
     try {
       const cacheKey = cacheService.generateCacheKey(
         cacheConfigs.carAvailability.keyPrefix,
@@ -444,6 +469,11 @@ export class CacheWarmer {
    * Warm cache on startup (non-blocking)
    */
   async warmOnStartup(options: CacheWarmingOptions = {}): Promise<void> {
+    if (!this.isConfigured) {
+      console.warn('[CacheWarmer] Startup cache warming skipped - Supabase not configured');
+      return;
+    }
+    
     if (this.isBunRuntime) {
       // Use Bun's process.nextTick equivalent for non-blocking execution
       queueMicrotask(async () => {
