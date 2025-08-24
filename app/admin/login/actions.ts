@@ -39,12 +39,21 @@ export async function login(formData: FormData) {
 
   // Verify user has admin role before allowing access
   if (data.user) {
-    // Check user metadata for admin role
-    const isAdmin = data.user.user_metadata?.role === 'admin'
+    // Check profiles table for admin role (secure approach)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single()
+    
+    const isAdmin = profile?.role === 'admin'
+    
+    // Fallback to metadata for backward compatibility (will be synced by trigger)
+    const metadataRole = data.user.user_metadata?.role
     
     console.log(`Login attempt by ${data.user.email}:`, {
-      metadata: data.user.user_metadata,
-      role: data.user.user_metadata?.role,
+      profileRole: profile?.role,
+      metadataRole: metadataRole,
       isAdmin
     })
     

@@ -1,50 +1,17 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { checkAdminApiAuth } from '@/lib/auth/admin-api-check';
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
     
     // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { isValid, response, user } = await checkAdminApiAuth(cookieStore);
+    if (!isValid || !user) return response!;
     
-    if (authError || !user) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Verify user has admin role in metadata
-    const isAdmin = user.user_metadata?.role === 'admin';
-    
-    console.log('Admin check for inbox API:', {
-      email: user.email,
-      metadata: user.user_metadata,
-      role: user.user_metadata?.role,
-      isAdmin
-    });
-    
-    if (!isAdmin) {
-      // Fallback: check profiles table if metadata doesn't have role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile?.role !== 'admin') {
-        console.log('Access denied:', { 
-          email: user.email, 
-          metadataRole: user.user_metadata?.role,
-          profileRole: profile?.role 
-        });
-        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-      }
-    }
+    const supabase = createSupabaseServerClient(cookieStore);
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;

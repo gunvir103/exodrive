@@ -49,7 +49,7 @@ interface InboxEmail {
 }
 
 export default function InboxPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const [emails, setEmails] = useState<InboxEmail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,16 +63,16 @@ export default function InboxPage() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/admin/login");
-    } else if (user?.user_metadata?.role !== "admin") {
+    } else if (!authLoading && user && !isAdmin) {
       router.push("/");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, isAdmin, router]);
 
   useEffect(() => {
-    if (user?.user_metadata?.role === "admin") {
+    if (user && isAdmin) {
       fetchEmails();
     }
-  }, [user, currentPage, searchTerm, activeTab]);
+  }, [user, isAdmin, currentPage, searchTerm, activeTab]);
 
   const fetchEmails = async () => {
     setLoading(true);
@@ -149,7 +149,7 @@ export default function InboxPage() {
     );
   }
 
-  if (!user || user.user_metadata?.role !== "admin") {
+  if (!user || !isAdmin) {
     return null;
   }
 

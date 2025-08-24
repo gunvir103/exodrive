@@ -36,41 +36,39 @@ export async function checkAdminApiAuth(cookies: NextRequest['cookies'] | Reques
       };
     }
 
-    // Check if user has admin role in metadata (primary check)
-    const isAdmin = user.user_metadata?.role === 'admin';
+    // Check profiles table for admin role (secure approach - primary check)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
     
+    const isAdmin = profile?.role === 'admin';
+    
+    // Log for debugging (includes both sources for transition period)
     console.log('Admin API check:', {
       email: user.email,
-      metadata: user.user_metadata,
-      role: user.user_metadata?.role,
+      profileRole: profile?.role,
+      metadataRole: user.user_metadata?.role, // For debugging only
       isAdmin
     });
     
     if (!isAdmin) {
-      // Fallback: check profiles table if metadata doesn't have role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile?.role !== 'admin') {
-        console.log('Admin API access denied:', { 
-          email: user.email, 
-          metadataRole: user.user_metadata?.role,
-          profileRole: profile?.role 
-        });
-        return {
-          isValid: false,
-          response: NextResponse.json(
-            { 
-              error: 'Forbidden - Admin access required',
-              code: 'FORBIDDEN'
-            },
-            { status: 403 }
-          )
-        };
-      }
+      console.log('Admin API access denied:', { 
+        email: user.email, 
+        profileRole: profile?.role,
+        metadataRole: user.user_metadata?.role 
+      });
+      return {
+        isValid: false,
+        response: NextResponse.json(
+          { 
+            error: 'Forbidden - Admin access required',
+            code: 'FORBIDDEN'
+          },
+          { status: 403 }
+        )
+      };
     }
 
     return {

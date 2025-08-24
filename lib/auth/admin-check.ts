@@ -28,12 +28,19 @@ export async function checkAdminAuth(request: NextRequest): Promise<AdminCheckRe
       };
     }
 
-    // Check if user has admin role in metadata
-    const isAdmin = user.user_metadata?.role === 'admin';
+    // Check profiles table for admin role (secure approach)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
     
+    const isAdmin = profile?.role === 'admin';
+    
+    // Log for debugging (includes both sources for transition period)
     console.log(`Admin check for ${user.email}:`, {
-      metadata: user.user_metadata,
-      role: user.user_metadata?.role,
+      profileRole: profile?.role,
+      metadataRole: user.user_metadata?.role, // For debugging only
       isAdmin
     });
     
@@ -72,12 +79,19 @@ export async function checkAdminAuthServerAction(cookieStore: any): Promise<Admi
       };
     }
 
-    // Check if user has admin role in metadata
-    const isAdmin = user.user_metadata?.role === 'admin';
+    // Check profiles table for admin role (secure approach)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
     
+    const isAdmin = profile?.role === 'admin';
+    
+    // Log for debugging (includes both sources for transition period)
     console.log(`Admin check for ${user.email}:`, {
-      metadata: user.user_metadata,
-      role: user.user_metadata?.role,
+      profileRole: profile?.role,
+      metadataRole: user.user_metadata?.role, // For debugging only
       isAdmin
     });
     
