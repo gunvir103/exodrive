@@ -34,30 +34,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Helper function to check admin status
   const checkAdminStatus = async (userId: string, userMetadata?: any): Promise<boolean> => {
     try {
-      // First check user metadata (immediate)
-      if (userMetadata?.role === 'admin') {
-        console.log('Admin status confirmed via user metadata')
-        return true
-      }
-      
-      // Then check customers table (note: customers table doesn't have a role field)
-      // Since customers table doesn't have role field, we rely on user metadata
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id')
+      // Check profiles table for admin role (secure approach)
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
         .eq('id', userId)
         .single()
       
       if (error) {
-        console.error('Error checking customer existence:', error)
+        console.error('Error checking profile:', error)
+        // If profile doesn't exist yet, it will be created by trigger
+        // For now, return false as non-admin
+        return false
       }
       
-      // Admin status is determined by user metadata only
-      return userMetadata?.role === 'admin'
+      const isAdmin = profile?.role === 'admin'
+      
+      // Log for debugging (includes both sources for transition period)
+      console.log('AuthProvider: Admin status check:', {
+        userId,
+        profileRole: profile?.role,
+        metadataRole: userMetadata?.role, // For debugging only
+        isAdmin
+      })
+      
+      return isAdmin
     } catch (error) {
       console.error('Unexpected error checking admin status:', error)
-      // Fall back to metadata check
-      return userMetadata?.role === 'admin'
+      return false
     }
   }
 
