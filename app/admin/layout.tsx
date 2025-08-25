@@ -6,6 +6,8 @@ import { useRouter, usePathname } from "next/navigation"
 import { Car, Grid, LogOut, Settings, Users, Home, ImageIcon, Webhook, Inbox } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
+import { AUTH_CONFIG } from "@/lib/config/auth.config"
+import { logger } from "@/lib/utils/logger"
 
 function AdminLayoutContent({ children }: { children: ReactNode }) {
   const { user, logout, isLoading, isAdmin } = useAuth()
@@ -14,20 +16,20 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   const [shouldRedirect, setShouldRedirect] = useState(false)
   const [permissionDenied, setPermissionDenied] = useState(false)
   const [authTimeout, setAuthTimeout] = useState(false)
+  const layoutLogger = logger.child('AdminLayout')
 
   // Add auth timeout to prevent infinite loading
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) {
-        console.log("AdminLayout: Auth loading timeout reached")
-        console.log("Current state:", {
+        layoutLogger.warn('Auth loading timeout reached', {
           user: user?.email,
           isAdmin,
           isLoading
         })
         setAuthTimeout(true)
       }
-    }, 15000) // 15 second timeout (increased from 10)
+    }, AUTH_CONFIG.TIMEOUTS.AUTH_LOADING)
 
     return () => clearTimeout(timer)
   }, [isLoading, user, isAdmin])
@@ -35,11 +37,14 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoading) {
       if (!user && pathname !== "/admin/login") {
-        console.log("AdminLayout: No user found, redirecting to login.")
+        layoutLogger.debug('No user found, redirecting to login')
         setShouldRedirect(true)
         setPermissionDenied(false)
       } else if (user && !isAdmin) {
-        console.log(`AdminLayout: User ${user.email} is not admin (isAdmin: ${isAdmin}), setting permission denied.`)
+        layoutLogger.warn('Non-admin user attempted access', {
+          email: user.email,
+          isAdmin
+        })
         setPermissionDenied(true) 
         setShouldRedirect(false)
       } else {
@@ -53,7 +58,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     if (shouldRedirect) {
       router.push("/admin/login")
     } else if (permissionDenied) {
-      console.log("AdminLayout: Redirecting non-admin user to homepage.")
+      layoutLogger.info('Redirecting non-admin user to homepage')
       router.push("/")
     }
   }, [shouldRedirect, permissionDenied, router])

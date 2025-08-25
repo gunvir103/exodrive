@@ -3,21 +3,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import type { Session, User } from "@supabase/supabase-js"
-
-type AuthContextType = {
-  user: User | null
-  session: Session | null
-  isLoading: boolean
-  isAdmin: boolean
-  login: (
-    email: string,
-    password: string,
-  ) => Promise<{
-    error: Error | null
-    success: boolean
-  }>
-  logout: () => Promise<void>
-}
+import { AUTH_CONFIG } from "@/lib/config/auth.config"
+import { logger } from "@/lib/utils/logger"
+import { adminCache } from "@/lib/utils/admin-cache"
+import type { AuthContextType, ProfileQueryResult, ProfileData } from "@/lib/types/auth.types"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -30,13 +19,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+  const authLogger = logger.child('AuthProvider')
 
-  // Helper function to check admin status
+  // Helper function to check admin status with caching
   const checkAdminStatus = async (userId: string, userMetadata?: any): Promise<boolean> => {
     try {
+      // Check cache first
+      const cachedStatus = adminCache.get(userId)
+      if (cachedStatus !== null) {
+        authLogger.debug('Using cached admin status', { userId, isAdmin: cachedStatus })
+        return cachedStatus
+      }
+      
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Admin check timeout')), 5000)
+      const timeoutPromise = new Promise<ProfileQueryResult>((_, reject) => 
+        setTimeout(() => reject(new Error('Admin check timeout')), AUTH_CONFIG.TIMEOUTS.PROFILE_QUERY)
       )
       
       // Check profiles table for admin role (secure approach)
@@ -44,40 +41,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('role')
         .eq('id', userId)
-        .single()
+        .single() as Promise<ProfileQueryResult>
       
-      const { data: profile, error } = await Promise.race([
+      const result: ProfileQueryResult = await Promise.race([
         profilePromise,
         timeoutPromise
       ]).catch((err) => {
-        console.error('Profile query failed or timed out:', err)
-        return { data: null, error: err }
-      }) as any
+        authLogger.error('Profile query failed or timed out', err)
+        return { data: null, error: { message: err.message, code: err.code } }
+      })
       
-      if (error) {
-        console.error('Error checking profile:', error)
+      if (result.error) {
+        authLogger.warn('Error checking profile, falling back to metadata', { 
+          error: result.error.message 
+        })
         // Fallback to metadata check for backward compatibility
-        console.log('Falling back to metadata check for admin status')
         const metadataIsAdmin = userMetadata?.role === 'admin'
         if (metadataIsAdmin) {
-          console.warn('User has admin in metadata but not in profiles table - needs migration')
+          authLogger.warn('User has admin in metadata but not in profiles table - needs migration')
         }
         return metadataIsAdmin || false
       }
       
-      const isAdmin = profile?.role === 'admin'
+      const profileData = result.data as ProfileData | null
+      const isAdminUser = profileData?.role === 'admin'
       
-      // Log for debugging (includes both sources for transition period)
-      console.log('AuthProvider: Admin status check:', {
-        userId,
-        profileRole: profile?.role,
-        metadataRole: userMetadata?.role, // For debugging only
-        isAdmin
-      })
+      // Cache the result
+      adminCache.set(userId, isAdminUser)
       
-      return isAdmin
+      authLogger.debug('Admin status determined', { userId, isAdmin: isAdminUser })
+      
+      return isAdminUser
     } catch (error) {
-      console.error('Unexpected error checking admin status:', error)
+      authLogger.error('Unexpected error checking admin status', error)
       // Fallback to metadata as last resort
       return userMetadata?.role === 'admin' || false
     }
@@ -92,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error,
         } = await supabase.auth.getSession()
         if (error) {
-          console.error("Error getting session:", error)
+          authLogger.error('Error getting session', error)
           setSession(null)
           setUser(null)
           setIsAdmin(false)
@@ -103,16 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(session)
           setUser(session.user)
           
-          console.log('AuthProvider: User session found:', {
+          authLogger.debug('User session found', {
             email: session.user.email,
-            id: session.user.id,
-            metadata: session.user.user_metadata,
-            role_in_metadata: session.user.user_metadata?.role
+            id: session.user.id
           })
           
           // Check admin status
           const adminStatus = await checkAdminStatus(session.user.id, session.user.user_metadata)
-          console.log('AuthProvider: Admin status determined:', adminStatus)
           setIsAdmin(adminStatus)
         } else {
           setSession(null)
@@ -120,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false)
         }
       } catch (error) {
-        console.error("Unexpected error during getSession:", error)
+        authLogger.error('Unexpected error during getSession', error)
         setSession(null)
         setUser(null)
         setIsAdmin(false)
@@ -134,10 +127,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthProvider: Auth state changed:', event, {
+      authLogger.debug('Auth state changed', {
+        event,
         hasSession: !!session,
-        email: session?.user?.email,
-        metadata: session?.user?.user_metadata
+        email: session?.user?.email
       })
       
       setSession(session)
@@ -146,10 +139,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         // Check admin status on auth state change
         const adminStatus = await checkAdminStatus(session.user.id, session.user.user_metadata)
-        console.log('AuthProvider: Admin status on state change:', adminStatus)
         setIsAdmin(adminStatus)
       } else {
         setIsAdmin(false)
+        // Clear cache for logged out user
+        if (user?.id) {
+          adminCache.invalidate(user.id)
+        }
       }
       
       setIsLoading(false)
@@ -162,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -170,9 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         error,
         success: !error,
+        user: data?.user,
+        session: data?.session,
       }
     } catch (error) {
-      console.error("Unexpected error during login:", error)
+      authLogger.error('Unexpected error during login', error)
       return {
         error: error as Error,
         success: false,
@@ -182,15 +180,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        authLogger.error('Error logging out', error)
+      }
+      // Clear admin cache on logout
+      if (user?.id) {
+        adminCache.invalidate(user.id)
+      }
       // Reset admin status on logout
       setIsAdmin(false)
     } catch (error) {
-      console.error("Error during logout:", error)
+      authLogger.error('Error during logout', error)
     }
   }
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     isLoading,
@@ -209,4 +214,3 @@ export function useAuth() {
   }
   return context
 }
-
