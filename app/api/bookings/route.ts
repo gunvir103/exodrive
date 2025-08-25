@@ -323,6 +323,8 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
         return NextResponse.json({ error: 'Invalid request payload', details: error.flatten() }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to process booking request.', details: error.message }, { status: 500 });
+    // Use the error handler for consistent error sanitization
+    const { error: sanitizedError, status } = errorHandler.formatApiError(error);
+    return NextResponse.json(sanitizedError, { status });
   }
 } 
