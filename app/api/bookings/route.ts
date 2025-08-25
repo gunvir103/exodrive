@@ -4,9 +4,29 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { Redis } from '@upstash/redis';
 import { invalidateCacheByEvent } from '@/lib/redis';
+import { APP_CONFIG } from '@/lib/config/app.config';
+import { logger } from '@/lib/utils/logger';
+import { errorHandler } from '@/lib/utils/error-handler';
 
 // Initialize Redis client from environment variables
-const redis = Redis.fromEnv();
+let redis: Redis | null = null;
+try {
+  // Check if Redis is properly configured
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  
+  if (redisUrl && redisToken && 
+      redisUrl !== 'placeholder_redis_url' && 
+      redisToken !== 'placeholder_redis_token' &&
+      redisUrl.startsWith('https://')) {
+    redis = Redis.fromEnv();
+  } else {
+    logger.warn('[API/Bookings] Redis not configured - rate limiting disabled');
+  }
+} catch (error) {
+  logger.error('[API/Bookings] Failed to initialize Redis', error);
+  redis = null;
+}
 
 // ---- Helper Functions ----
 function generateSecureToken(length = 48) {
@@ -43,8 +63,8 @@ const customerSchema = z.object({
 
 const bookingRequestSchema = z.object({
   carId: z.string().uuid("Invalid car ID"),
-  startDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/, "Start date must be in YYYY-MM-DD format"),
-  endDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/, "End date must be in YYYY-MM-DD format"),
+  startDate: z.string().regex(APP_CONFIG.VALIDATION.DATE_PATTERN, "Start date must be in YYYY-MM-DD format"),
+  endDate: z.string().regex(APP_CONFIG.VALIDATION.DATE_PATTERN, "End date must be in YYYY-MM-DD format"),
   customerDetails: customerSchema,
   // Optional: Add basePrice, discount if these are sent from client to calculate total here.
   // Or, ensure totalPrice is calculated securely based on carId and dates via another mechanism.
@@ -56,7 +76,8 @@ const bookingRequestSchema = z.object({
 // ---- Main POST Handler ----
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServerClient(request.cookies as any);
-  const lockTTL = 10; // seconds for Redis lock - reduced since DB now handles primary locking
+  const lockTTL = APP_CONFIG.REDIS.LOCK_TTL; // Use config for Redis lock TTL
+  const bookingLogger = logger.child('BookingAPI');
 
   try {
     const body = await request.json();
@@ -89,7 +110,11 @@ export async function POST(request: NextRequest) {
     // This provides an additional layer of protection at the API level
     // The primary concurrency control is now handled by the database function
     const lockKey = `booking_lock:car:${carId}:range:${startDate}_${endDate}`;
-    const lockAcquired = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
+    let lockAcquired = true;
+    
+    if (redis) {
+      lockAcquired = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
+    }
 
     if (!lockAcquired) {
       // Redis lock failed - likely high concurrency
@@ -109,7 +134,7 @@ export async function POST(request: NextRequest) {
       const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Token expires in 7 days
 
       // Extract first and last name
-      const nameParts = customerDetails.fullName.trim().split(/\\s+/);
+      const nameParts = customerDetails.fullName.trim().split(/\s+/);
       const firstName = nameParts.shift() || '';
       const lastName = nameParts.join(' ') || '';
 
@@ -141,7 +166,7 @@ export async function POST(request: NextRequest) {
       );
 
       if (functionError) {
-        console.error('Edge function invocation error:', functionError);
+        bookingLogger.error('Edge function invocation error', functionError);
         // Attempt to parse error details if they are JSON string from our function's explicit error returns
         let errorDetailToShow = functionError.message;
         let userMessage = 'Booking creation failed.';
@@ -189,7 +214,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!functionResponse || functionResponse.success === false) {
-        console.error('Edge function returned unsuccessful response:', functionResponse);
+        bookingLogger.error('Edge function returned unsuccessful response', functionResponse);
         const errorCode = functionResponse?.error || 'unknown_error';
         let userMessage = 'Booking creation failed.';
         let status = 500;
@@ -259,7 +284,7 @@ export async function POST(request: NextRequest) {
         currency,
         bookingUrl
       }).catch(error => {
-        console.error('Failed to send booking confirmation email:', error);
+        bookingLogger.error('Failed to send booking confirmation email', error);
         // Log to booking events
         supabase.from('booking_events').insert({
           booking_id: bookingIdFromFunction,
@@ -282,19 +307,24 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
 
     } catch (error: any) {
-      console.error('Error during booking process (after lock acquisition):', error);
-      return NextResponse.json({ error: 'An unexpected error occurred during booking.', details: error.message }, { status: 500 });
+      bookingLogger.error('Error during booking process (after lock acquisition)', error);
+      const { error: sanitizedError, status } = errorHandler.formatApiError(error);
+      return NextResponse.json(sanitizedError, { status });
     } finally {
-      // Always release the Redis lock
-      await redis.del(lockKey);
+      // Always release the Redis lock if Redis is available
+      if (redis) {
+        await redis.del(lockKey);
+      }
     }
 
   } catch (error: any) {
     // Catches errors from request.json() or initial validation
-    console.error('Error processing booking request:', error);
+    bookingLogger.error('Error processing booking request', error);
     if (error instanceof z.ZodError) {
         return NextResponse.json({ error: 'Invalid request payload', details: error.flatten() }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to process booking request.', details: error.message }, { status: 500 });
+    // Use the error handler for consistent error sanitization
+    const { error: sanitizedError, status } = errorHandler.formatApiError(error);
+    return NextResponse.json(sanitizedError, { status });
   }
 } 

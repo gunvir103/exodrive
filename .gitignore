@@ -46,3 +46,4 @@ db-verification-report.json
 # MCP configuration files (contain secrets)
 .mcp.json
 .mcp.json.rtf
+.env.local
