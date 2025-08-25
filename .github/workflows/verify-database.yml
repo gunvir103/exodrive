@@ -1,0 +1,183 @@
+name: 🛡️ Database Safety Check
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    - cron: '0 0 * * 1'  # Run weekly on Mondays at midnight
+  push:  # Run on every push/commit
+  pull_request:  # Also run on pull requests to catch issues before they're merged
+
+# Security: Limit permissions to minimum required
+permissions:
+  contents: read  # Read repository content
+  actions: read   # Read action runs and artifacts
+  checks: write   # Write check results
+
+jobs:
+  verify-database:
+    name: 🔍 Verify Database & Security
+    runs-on: ubuntu-latest
+    
+    # Use repository secrets - these won't be accessible in PRs from forks
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Set up Node.js and Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: 📦 Install dependencies
+        run: |
+          # Use Bun for faster package installation
+          echo "Installing dependencies with Bun"
+          bun install
+          
+      - name: 🛠️ Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
+      - name: 🔑 Check Credentials Availability
+        id: check-creds
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "has_credentials=false" >> $GITHUB_OUTPUT
+            echo "::notice title=Limited Verification::Running with limited verification because Supabase credentials are not available in this context."
+          else
+            echo "has_credentials=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 🚦 Run database verification script
+        id: verify-db
+        run: |
+          # Create reports directory
+          mkdir -p reports
+          
+          # Run verification script and save output to a specific location
+          bun scripts/verify-database.mjs
+          EXIT_CODE=$?
+          
+          # Create a minimal report even if the script fails
+          if [ ! -f "db-verification-report.json" ] && [ ! -f "reports/db-verification-report.json" ]; then
+            echo "Report file not found, creating a minimal report..."
+            echo '{"timestamp":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'","status":"ERROR","summary":{"errors":["Verification script did not generate a report file"]}}' > reports/db-verification-report.json
+          elif [ -f "db-verification-report.json" ] && [ ! -f "reports/db-verification-report.json" ]; then
+            # Move the report to the reports directory
+            cp db-verification-report.json reports/
+          fi
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            if [ "${{ steps.check-creds.outputs.has_credentials }}" == "true" ]; then
+              echo "::notice title=Database Check Passed::All database integrity and security checks have passed ✅"
+            else
+              echo "::notice title=Limited Verification::Running with limited verification mode ℹ️"
+            fi
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "::error title=Database Check Failed::Database verification failed with exit code $EXIT_CODE ❌"
+          fi
+      
+      - name: 📂 Debug directory contents
+        if: always()
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          echo "Reports directory contents:"
+          ls -la reports || echo "Reports directory not found"
+        
+      - name: 📊 Parse verification report
+        id: parse-report
+        if: always()
+        run: |
+          REPORT_PATH="reports/db-verification-report.json"
+          if [ -f "$REPORT_PATH" ]; then
+            echo "VERIFICATION REPORT:"
+            cat "$REPORT_PATH"
+            
+            # Extract key metrics
+            SAFETY_STATUS=$(cat "$REPORT_PATH" | jq -r '.safety_status // "ERROR"')
+            TOTAL_CARS=$(cat "$REPORT_PATH" | jq -r '.summary.totalCars // 0')
+            HIDDEN_CARS=$(cat "$REPORT_PATH" | jq -r '.summary.hiddenCars // 0')
+            TESTS_PASSED=$(cat "$REPORT_PATH" | jq -r '.summary.passedTests // 0')
+            TESTS_FAILED=$(cat "$REPORT_PATH" | jq -r '.summary.failedTests // 0')
+            CRITICAL_ISSUES=$(cat "$REPORT_PATH" | jq -r '.summary.critical_issues | length // 0')
+            
+            # Set output variables
+            echo "safety_status=$SAFETY_STATUS" >> $GITHUB_OUTPUT
+            echo "total_cars=$TOTAL_CARS" >> $GITHUB_OUTPUT
+            echo "hidden_cars=$HIDDEN_CARS" >> $GITHUB_OUTPUT
+            echo "tests_passed=$TESTS_PASSED" >> $GITHUB_OUTPUT
+            echo "tests_failed=$TESTS_FAILED" >> $GITHUB_OUTPUT
+            echo "critical_issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
+            
+            # Create job summary with emojis for better visibility
+            echo "## 🛡️ Database Verification Results" >> $GITHUB_STEP_SUMMARY
+            
+            # Status with appropriate emoji
+            if [ "$SAFETY_STATUS" = "PASSED" ]; then
+              echo "**Status:** ✅ ${SAFETY_STATUS}" >> $GITHUB_STEP_SUMMARY
+            elif [ "$SAFETY_STATUS" = "WARNING" ]; then
+              echo "**Status:** ⚠️ ${SAFETY_STATUS}" >> $GITHUB_STEP_SUMMARY
+            elif [ "$SAFETY_STATUS" = "SKIPPED" ]; then
+              echo "**Status:** ℹ️ ${SAFETY_STATUS} (Credentials not available)" >> $GITHUB_STEP_SUMMARY
+              echo "**Note:** Full verification requires repository secrets to be configured." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Status:** ❌ ${SAFETY_STATUS}" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ "$SAFETY_STATUS" != "SKIPPED" ]; then
+              echo "**Total Cars:** ${TOTAL_CARS}" >> $GITHUB_STEP_SUMMARY
+              echo "**Hidden Cars:** ${HIDDEN_CARS}" >> $GITHUB_STEP_SUMMARY
+              echo "**Tests Passed:** ✅ ${TESTS_PASSED}" >> $GITHUB_STEP_SUMMARY
+              echo "**Tests Failed:** ${TESTS_FAILED}" >> $GITHUB_STEP_SUMMARY
+              echo "**Critical Issues:** ${CRITICAL_ISSUES}" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ "$CRITICAL_ISSUES" -gt 0 ]; then
+              echo "::error title=Critical Database Issues::$CRITICAL_ISSUES critical database issues detected! Check the report for details."
+              echo "### ❌ Critical Issues" >> $GITHUB_STEP_SUMMARY
+              cat "$REPORT_PATH" | jq -r '.summary.critical_issues[]' | while read issue; do
+                echo "- $issue" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
+            
+            # Add warnings if any
+            WARNING_COUNT=$(cat "$REPORT_PATH" | jq -r '.summary.warnings | length // 0')
+            if [ "$WARNING_COUNT" -gt 0 ]; then
+              echo "::warning title=Database Warnings::$WARNING_COUNT database warnings detected."
+              echo "### ⚠️ Warnings" >> $GITHUB_STEP_SUMMARY
+              cat "$REPORT_PATH" | jq -r '.summary.warnings[]' | while read warning; do
+                echo "- $warning" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
+          else
+            echo "::error title=Missing Report::Verification report file not found at $REPORT_PATH"
+            echo "report_found=false" >> $GITHUB_OUTPUT
+            
+            # Create a minimal summary for the GitHub UI
+            echo "## ❌ Database Verification Failed" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** ERROR - Report file not found" >> $GITHUB_STEP_SUMMARY
+          fi
+        
+      - name: 📦 Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-verification-report
+          path: reports/
+          if-no-files-found: warn
+      
+      # Only fail the workflow if we have credentials and verification failed
+      - name: 🚫 Check verification status
+        if: always() && steps.check-creds.outputs.has_credentials == 'true' && steps.parse-report.outputs.safety_status == 'FAILED'
+        run: |
+          echo "❌ Database verification FAILED with critical issues"
+          exit 1 

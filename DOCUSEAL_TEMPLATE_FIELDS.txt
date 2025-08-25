@@ -1,0 +1,112 @@
+===============================================
+DOCUSEAL TEMPLATE FIELD REFERENCE
+===============================================
+
+Copy and use these exact field names in your DocuSeal template.
+These fields will be automatically populated when a payment is captured.
+
+===============================================
+CUSTOMER INFORMATION FIELDS
+===============================================
+
+customer_full_name     - Full name (e.g., "John Doe")
+customer_first_name    - First name only (e.g., "John")
+customer_last_name     - Last name only (e.g., "Doe")
+customer_email         - Email address (e.g., "john.doe@example.com")
+customer_phone         - Phone number (e.g., "+1234567890")
+
+===============================================
+VEHICLE INFORMATION FIELDS
+===============================================
+
+vehicle_make           - Car manufacturer (e.g., "Toyota")
+vehicle_model          - Car model (e.g., "Camry")
+vehicle_year           - Model year (e.g., "2024")
+vehicle_name           - Full car name from database (e.g., "2024 Toyota Camry")
+vehicle_description    - Car description from database
+
+===============================================
+RENTAL PERIOD FIELDS
+===============================================
+
+pickup_date            - Formatted pickup date (e.g., "February 1, 2024")
+dropoff_date           - Formatted drop-off date (e.g., "February 5, 2024")
+rental_days            - Number of rental days (e.g., "4")
+
+===============================================
+FINANCIAL FIELDS
+===============================================
+
+rental_amount          - Total rental price (e.g., "500.00")
+security_deposit       - Security deposit amount (e.g., "200.00")
+currency               - Currency code (e.g., "USD")
+
+===============================================
+BOOKING REFERENCE FIELDS
+===============================================
+
+booking_id             - Full booking UUID (e.g., "123e4567-e89b-12d3-a456-426614174000")
+booking_reference      - Short reference code (first 8 chars, uppercase) (e.g., "123E4567")
+booking_date           - Date booking was created (e.g., "January 15, 2024")
+
+===============================================
+HOW TO USE IN DOCUSEAL
+===============================================
+
+1. Log into your DocuSeal account
+2. Create a new template or edit existing one
+3. Add text fields with these EXACT field names
+4. Fields can be:
+   - Text fields for display
+   - Signature fields for customer signature
+   - Date fields for dates
+   - Checkbox fields for agreements
+
+5. Example template structure:
+
+   RENTAL AGREEMENT
+   
+   This agreement is between ExoDrive and:
+   Name: {{customer_full_name}}
+   Email: {{customer_email}}
+   Phone: {{customer_phone}}
+   
+   Vehicle Details:
+   {{vehicle_year}} {{vehicle_make}} {{vehicle_model}}
+   
+   Rental Period:
+   From: {{pickup_date}}
+   To: {{dropoff_date}}
+   Total Days: {{rental_days}}
+   
+   Total Amount: {{currency}} {{rental_amount}}
+   Security Deposit: {{currency}} {{security_deposit}}
+   
+   Booking Reference: {{booking_reference}}
+   
+   Customer Signature: _________________
+   Date: _________________
+
+===============================================
+IMPORTANT NOTES
+===============================================
+
+- Field names must match EXACTLY (case-sensitive)
+- All fields are automatically populated
+- If a field is empty (like phone), it will be blank in the document
+- Dates are formatted in US format (Month Day, Year)
+- You can use these fields multiple times in your template
+- You can combine fields, e.g., "{{vehicle_make}} {{vehicle_model}}"
+
+===============================================
+TESTING YOUR TEMPLATE
+===============================================
+
+After creating your template:
+1. Note the template ID from DocuSeal
+2. Add it to your .env.local file:
+   DOCUSEAL_RENTAL_TEMPLATE_ID=your_template_id_here
+3. Create a test booking and capture payment
+4. Check that all fields are populated correctly
+
+===============================================

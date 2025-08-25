@@ -1,0 +1,145 @@
+COPY AND PASTE THESE EXACT VALUES INTO YOUR DOCUSEAL TEMPLATE:
+
+================================================================================
+FIELD NAMES TO COPY (use these exact names when creating fields in DocuSeal):
+================================================================================
+
+customer_full_name
+customer_first_name
+customer_last_name
+customer_email
+customer_phone
+vehicle_make
+vehicle_model
+vehicle_year
+vehicle_name
+vehicle_description
+pickup_date
+dropoff_date
+rental_days
+rental_amount
+security_deposit
+currency
+booking_id
+booking_reference
+booking_date
+
+================================================================================
+READY-TO-USE TEMPLATE TEXT (copy this entire section into DocuSeal):
+================================================================================
+
+                           VEHICLE RENTAL AGREEMENT
+
+This Rental Agreement ("Agreement") is entered into on {{booking_date}} between:
+
+RENTAL COMPANY:
+ExoDrive Car Rentals
+[Your Address]
+[Your City, State ZIP]
+[Your Phone]
+[Your Email]
+
+RENTER INFORMATION:
+Name: {{customer_full_name}}
+Email: {{customer_email}}
+Phone: {{customer_phone}}
+Booking Reference: {{booking_reference}}
+
+VEHICLE INFORMATION:
+Make: {{vehicle_make}}
+Model: {{vehicle_model}}
+Year: {{vehicle_year}}
+Full Description: {{vehicle_name}}
+Additional Details: {{vehicle_description}}
+
+RENTAL PERIOD:
+Pick-up Date: {{pickup_date}}
+Drop-off Date: {{dropoff_date}}
+Total Rental Days: {{rental_days}}
+
+RENTAL CHARGES:
+Base Rental Amount: {{currency}} {{rental_amount}}
+Security Deposit: {{currency}} {{security_deposit}}
+Total Amount Due: {{currency}} {{rental_amount}}
+
+TERMS AND CONDITIONS:
+
+1. RENTAL PERIOD: The vehicle is rented from {{pickup_date}} to {{dropoff_date}} for a total of {{rental_days}} days.
+
+2. PAYMENT: The renter agrees to pay {{currency}} {{rental_amount}} for the rental period.
+
+3. SECURITY DEPOSIT: A security deposit of {{currency}} {{security_deposit}} has been collected and will be refunded upon satisfactory return of the vehicle.
+
+4. VEHICLE CONDITION: The renter acknowledges receiving the {{vehicle_year}} {{vehicle_make}} {{vehicle_model}} in good working condition.
+
+5. AUTHORIZED DRIVER: Only {{customer_full_name}} is authorized to operate the vehicle.
+
+6. INSURANCE: The renter confirms they have valid insurance coverage for the rental period.
+
+7. FUEL POLICY: The vehicle must be returned with the same fuel level as at pick-up.
+
+8. MILEAGE: [Specify mileage allowance/restrictions]
+
+9. PROHIBITED USES: The vehicle shall not be used for:
+   - Racing or speed testing
+   - Towing
+   - Off-road driving
+   - Commercial purposes
+   - Illegal activities
+
+10. DAMAGES: The renter is responsible for any damage to the vehicle during the rental period.
+
+ACKNOWLEDGMENT:
+By signing below, {{customer_first_name}} {{customer_last_name}} acknowledges they have read, understood, and agree to all terms and conditions of this rental agreement.
+
+Renter Signature: _________________________________    Date: _______________
+{{customer_full_name}}
+
+ExoDrive Representative: _________________________________    Date: _______________
+
+Booking ID: {{booking_id}}
+Agreement Generated: {{booking_date}}
+
+================================================================================
+SAMPLE OUTPUT (This is what the fields will look like when populated):
+================================================================================
+
+customer_full_name     →  John Doe
+customer_first_name    →  John
+customer_last_name     →  Doe
+customer_email         →  john.doe@example.com
+customer_phone         →  +1 (555) 123-4567
+vehicle_make           →  Toyota
+vehicle_model          →  Camry
+vehicle_year           →  2024
+vehicle_name           →  2024 Toyota Camry
+vehicle_description    →  Luxury sedan with premium features
+pickup_date            →  February 1, 2024
+dropoff_date           →  February 5, 2024
+rental_days            →  4
+rental_amount          →  500.00
+security_deposit       →  200.00
+currency               →  USD
+booking_id             →  123e4567-e89b-12d3-a456-426614174000
+booking_reference      →  123E4567
+booking_date           →  January 15, 2024
+
+================================================================================
+DOCUSEAL SETUP INSTRUCTIONS:
+================================================================================
+
+1. Log into DocuSeal
+2. Click "Create Template" or "New Template"
+3. Copy the template text above into the document editor
+4. For each {{field_name}}, DocuSeal should recognize it as a field
+5. Configure field types:
+   - Text fields: All customer and vehicle information
+   - Number fields: rental_amount, security_deposit, rental_days
+   - Date fields: pickup_date, dropoff_date, booking_date
+   - Signature field: Add where needed for customer signature
+6. Save the template
+7. Copy the Template ID
+8. Add to your .env.local file:
+   DOCUSEAL_RENTAL_TEMPLATE_ID=your_template_id_here
+
+================================================================================

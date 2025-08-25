@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Supabase Migration Guidelines
+
+- **Naming**: Store all migrations in `supabase/migrations/` with timestamped names (e.g., `YYYYMMDDHHMMSS_descriptive_name.sql`).
+- **SQL Functions**:
+    - Always use `SECURITY INVOKER`.
+    - Include `SET search_path = '';` (or `SET search_path = public;` if appropriate, but be explicit) at the beginning of function definitions to ensure a clean search path.
+    - Never hard-code UUIDs or secrets. Use parameters or look them up from other tables if necessary.
+- **RLS (Row Level Security)**:
+    - Activate RLS on every new table: `ALTER TABLE your_table_name ENABLE ROW LEVEL SECURITY;`
+    - Document RLS policies next to the table DDL (as comments in the migration file or in a separate policy file referenced by the migration).
+    - Ensure default-deny: if no policies match, access should be denied.
+- **Idempotency**: Write migration scripts to be idempotent where possible. For example, use `CREATE TABLE IF NOT EXISTS` or check for existence before creating/altering objects.
+- **Transactions**: Wrap migration steps in transactions (`BEGIN; ... COMMIT;` or `ROLLBACK;` on error) to ensure atomicity, especially for multi-statement migrations.
+- **Comments**: Add comments to explain complex DDL or non-obvious choices.
+
