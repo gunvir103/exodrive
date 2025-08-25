@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## API Route Guidelines
+
+- **Runtime**: Prefer Edge Runtime for API routes when possible for better performance and scalability. Explicitly export `export const runtime = 'edge'`.
+- **Request Handling**: Clearly define request validation (e.g., using Zod or similar libraries if adopted in the project).
+- **Response Structure**: Standardize JSON response structures (e.g., `{ data: ... }` or `{ error: ... }`).
+- **Error Handling**: Implement robust error handling and return appropriate HTTP status codes.
+- **Security**: Ensure all API routes have appropriate authentication and authorization checks if they handle sensitive data or operations.
+- **Idempotency**: For `POST`, `PUT`, `DELETE` operations that modify state, consider idempotency to prevent unintended side effects from repeated requests.
+
