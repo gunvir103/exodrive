@@ -47,3 +47,4 @@ db-verification-report.json
 .mcp.json
 .mcp.json.rtf
 .env.local
+coverage/.lcov.info.*.tmp
