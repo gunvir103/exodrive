@@ -262,37 +262,40 @@ export async function POST(request: NextRequest) {
       // Generate secure URL for the customer
       const bookingUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/booking/${secureTokenValue}`;
 
-      // Send confirmation email
-      const { sendBookingConfirmationEmail } = await import('@/lib/email/booking-emails');
+      // Send confirmation email using enhanced service
+      const { BookingEmailService } = await import('@/lib/services/booking-email-service');
       
       // Get car details for email
       const { data: carDetails } = await supabase
         .from('cars')
-        .select('name')
+        .select('name, type, images')
         .eq('id', carId)
         .single();
       
+      const clientIP = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+      
       // Send email asynchronously (don't await to avoid blocking response)
-      sendBookingConfirmationEmail({
+      BookingEmailService.sendBookingConfirmation({
+        id: bookingIdFromFunction,
         customerEmail: customerDetails.email,
         customerName: customerDetails.fullName,
-        bookingId: bookingIdFromFunction,
         carName: carDetails?.name || 'Vehicle',
+        carType: carDetails?.type || 'Exotic Vehicle',
+        carImage: carDetails?.images?.[0]?.url,
         startDate,
         endDate,
         totalPrice,
+        basePrice: calculateTotalPrice(totalPrice / getDaysBetweenDates(startDate, endDate), 1),
         currency,
-        bookingUrl
-      }).catch(error => {
+        pickupLocation: undefined, // Will show default message
+        dropoffLocation: undefined, // Will show default message
+        bookingUrl,
+        deposit: securityDepositAmount,
+        referenceNumber: `EXO-${bookingIdFromFunction.slice(0, 8).toUpperCase()}`
+      }, clientIP).catch(error => {
         bookingLogger.error('Failed to send booking confirmation email', error);
-        // Log to booking events
-        supabase.from('booking_events').insert({
-          booking_id: bookingIdFromFunction,
-          event_type: 'email_send_failed',
-          timestamp: new Date().toISOString(),
-          actor_type: 'system',
-          metadata: { error: error.message, email_type: 'booking_confirmation' }
-        });
       });
 
       // Invalidate car availability cache for this booking
