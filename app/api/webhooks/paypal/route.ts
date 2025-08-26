@@ -413,6 +413,26 @@ export async function POST(request: NextRequest) {
         eventMetadata.amount = resource.amount?.value;
         eventMetadata.currency = resource.amount?.currency_code;
         
+        // Generate DocuSeal contract after payment capture
+        try {
+          const { getDocuSealService } = await import('@/lib/services/docuseal-service');
+          const docusealService = getDocuSealService();
+          const contractResult = await docusealService.generateContract(bookingId);
+          
+          if (contractResult.success) {
+            console.log(`Contract generated for booking ${bookingId}: ${contractResult.submissionId}`);
+            eventMetadata.contract_generated = true;
+            eventMetadata.contract_submission_id = contractResult.submissionId;
+          } else {
+            console.error(`Failed to generate contract for booking ${bookingId}:`, contractResult.error);
+            // Don't fail the webhook, just log the error
+            eventMetadata.contract_generation_error = contractResult.error;
+          }
+        } catch (contractError: any) {
+          console.error(`Error generating contract for booking ${bookingId}:`, contractError);
+          eventMetadata.contract_generation_error = contractError.message;
+        }
+
         // If payment is captured and contract is signed, mark as upcoming
         if (booking.contract_status === 'signed' && booking.overall_status?.startsWith('pending')) {
           updateData.overall_status = 'upcoming';

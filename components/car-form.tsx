@@ -203,6 +203,8 @@ export function CarForm({ car }: CarFormProps) {
   const setTransmission = (value: string) => setSpecValue("Transmission", value);
   const drivetrain = getSpecValue("Drivetrain");
   const setDrivetrain = (value: string) => setSpecValue("Drivetrain", value);
+  const color = getSpecValue("Color");
+  const setColor = (value: string) => setSpecValue("Color", value);
 
   // --- Initialize Image State ---
   useEffect(() => {
@@ -412,7 +414,7 @@ export function CarForm({ car }: CarFormProps) {
 
   const removeSpecification = (nameToRemove: string) => {
     // Prevent removing core specs managed by dedicated inputs
-    const coreSpecs = ["make", "model", "year", "engine", "horsepower", "0-60 mph", "top speed", "transmission", "drivetrain"];
+    const coreSpecs = ["make", "model", "year", "engine", "horsepower", "0-60 mph", "top speed", "transmission", "drivetrain", "color"];
     if (coreSpecs.includes(nameToRemove.toLowerCase())) return;
     setSpecifications(prev => prev.filter(s => s.name !== nameToRemove));
   };
@@ -498,6 +500,7 @@ export function CarForm({ car }: CarFormProps) {
     updateOrAddSpec("Top Speed", topSpeed);
     updateOrAddSpec("Transmission", transmission);
     updateOrAddSpec("Drivetrain", drivetrain);
+    updateOrAddSpec("Color", color);
 
 
     // Prepare Pricing Data
@@ -710,10 +713,14 @@ export function CarForm({ car }: CarFormProps) {
                  <Label htmlFor="transmission">Transmission</Label>
                  <Input id="transmission" value={transmission} onChange={(e) => setTransmission(e.target.value)} placeholder="e.g. 7-speed dual-clutch" />
                </div>
-               <div className="space-y-2">
-                 <Label htmlFor="drivetrain">Drivetrain</Label>
-                 <Input id="drivetrain" value={drivetrain} onChange={(e) => setDrivetrain(e.target.value)} placeholder="e.g. All-wheel drive" />
-               </div>
+              <div className="space-y-2">
+                <Label htmlFor="drivetrain">Drivetrain</Label>
+                <Input id="drivetrain" value={drivetrain} onChange={(e) => setDrivetrain(e.target.value)} placeholder="e.g. All-wheel drive" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="color">Color</Label>
+                <Input id="color" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. Rosso Mars" />
+              </div>
             </div>
 
             <Separator className="my-6" />
@@ -722,8 +729,8 @@ export function CarForm({ car }: CarFormProps) {
              {/* Dynamic Key-Value Specs (excluding core ones managed above) */}
               <div className="space-y-3 mb-4">
                <AnimatePresence>
-                 {specifications
-                   .filter(spec => !["make", "model", "year", "engine", "horsepower", "0-60 mph", "top speed", "transmission", "drivetrain"].includes(spec.name.toLowerCase()))
+                {specifications
+                  .filter(spec => !["make", "model", "year", "engine", "horsepower", "0-60 mph", "top speed", "transmission", "drivetrain", "color"].includes(spec.name.toLowerCase()))
                    .map((spec) => (
                    <motion.div
                      key={spec.name} // Use name as key for dynamic specs
@@ -755,7 +762,7 @@ export function CarForm({ car }: CarFormProps) {
                  <Label htmlFor="new-spec-key" className="text-xs">Spec Name</Label>
                  <Input
                    id="new-spec-key"
-                   placeholder="e.g. Color"
+                   placeholder="e.g. Fuel Type"
                    value={newSpecKey}
                    onChange={(e) => setNewSpecKey(e.target.value)}
                  />
@@ -764,7 +771,7 @@ export function CarForm({ car }: CarFormProps) {
                  <Label htmlFor="new-spec-value" className="text-xs">Spec Value</Label>
                  <Input
                     id="new-spec-value"
-                   placeholder="e.g. Rosso Mars"
+                   placeholder="e.g. Premium Unleaded"
                    value={newSpecValue}
                    onChange={(e) => setNewSpecValue(e.target.value)}
                    onKeyDown={(e) => {

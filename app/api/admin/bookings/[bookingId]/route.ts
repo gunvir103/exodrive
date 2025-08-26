@@ -5,7 +5,7 @@ import { checkAdminApiAuth } from '@/lib/auth/admin-api-check';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
     // Check admin authentication
@@ -14,7 +14,7 @@ export async function GET(
     
     const supabase = createSupabaseServerClient(request.cookies as any);
 
-    const { bookingId } = params;
+    const { bookingId } = await params;
 
     // Fetch booking with all related data
     const { data: booking, error: bookingError } = await supabase
@@ -160,7 +160,7 @@ export async function GET(
 // Update booking details
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
     // Check admin authentication
@@ -169,7 +169,7 @@ export async function PATCH(
     
     const supabase = createSupabaseServerClient(request.cookies as any);
 
-    const { bookingId } = params;
+    const { bookingId } = await params;
     const body = await request.json();
 
     // Schema for updating booking
@@ -388,7 +388,7 @@ export async function PATCH(
 // Delete/Cancel booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
     // Check admin authentication
@@ -397,7 +397,7 @@ export async function DELETE(
     
     const supabase = createSupabaseServerClient(request.cookies as any);
 
-    const { bookingId } = params;
+    const { bookingId } = await params;
     
     // Parse cancellation reason from body
     const body = await request.json().catch(() => ({}));

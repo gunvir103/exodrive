@@ -12,7 +12,7 @@ const paramsSchema = z.object({
 
 async function getCarDetails(
   request: NextRequest,
-  { params }: { params: { carId: string } }
+  { params }: { params: Promise<{ carId: string }> }
 ) {
   const supabase = createSupabaseServerClient(request.cookies as any);
   

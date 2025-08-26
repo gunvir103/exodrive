@@ -42,12 +42,12 @@ const ReviewResponseSchema = z.object({
 // GET /api/cars/[carId]/reviews - Get reviews for a car
 export const GET = withApiErrorHandling(async (
   request: NextRequest,
-  { params }: { params: { carId: string } }
+  { params }: { params: Promise<{ carId: string }> }
 ) => {
   const supabase = createSupabaseServerClient(request.cookies);
   const redis = getRedisClient();
   
-  const { carId } = params;
+  const { carId } = await params;
   
   // Validate car ID
   const carIdValidation = z.string().uuid().safeParse(carId);
@@ -174,12 +174,12 @@ export const GET = withApiErrorHandling(async (
 // POST /api/cars/[carId]/reviews - Create a review
 export const POST = withApiErrorHandling(async (
   request: NextRequest,
-  { params }: { params: { carId: string } }
+  { params }: { params: Promise<{ carId: string }> }
 ) => {
   const supabase = createSupabaseServerClient(request.cookies);
   const redis = getRedisClient();
   
-  const { carId } = params;
+  const { carId } = await params;
   
   // Validate car ID
   const carIdValidation = z.string().uuid().safeParse(carId);

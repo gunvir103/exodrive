@@ -40,7 +40,7 @@ const allowedTransitions: Record<string, string[]> = {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
     // Check admin authentication
@@ -49,7 +49,7 @@ export async function PATCH(
     
     const supabase = createSupabaseServerClient(request.cookies as any);
 
-    const { bookingId } = params;
+    const { bookingId } = await params;
     const body = await request.json();
 
     // Validate request

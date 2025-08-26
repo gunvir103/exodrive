@@ -8,12 +8,12 @@ const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'sandbox'
 
 export async function POST(
   request: Request,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   const supabase = createSupabaseServiceRoleClient();
   
   try {
-    const { bookingId } = params;
+    const { bookingId } = await params;
     const { reason } = await request.json();
     
     if (!bookingId) {
