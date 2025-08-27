@@ -46,8 +46,7 @@ export function CarCard({ car, index = 0, delay = 0, variant = "default", classN
     }
   }, [car?.primary_image_url])
 
-  // Use cars route for new browsing experience, fallback to fleet for compatibility
-  const carLink = car?.slug ? `/cars/${car.slug}` : `/cars`
+  const carLink = car?.slug ? `/fleet/${car.slug}` : `/fleet`
 
   const prefetchCarDetails = useCallback(async () => {
     if (!car?.slug) return

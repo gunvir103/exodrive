@@ -56,11 +56,6 @@ export function Navbar() {
       active: pathname === "/",
     },
     {
-      href: "/cars",
-      label: "Browse Cars",
-      active: pathname === "/cars" || pathname.startsWith("/cars/"),
-    },
-    {
       href: "/fleet",
       label: "Fleet",
       active: pathname === "/fleet" || pathname.startsWith("/fleet/"),
