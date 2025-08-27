@@ -132,6 +132,48 @@ export async function POST(
         },
       });
 
+    // Send payment receipt email
+    const { BookingEmailService } = await import('@/lib/services/booking-email-service');
+    
+    // Get booking and customer details for receipt
+    const { data: bookingWithDetails } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        customer:customers(*),
+        car:cars(name, type)
+      `)
+      .eq('id', bookingId)
+      .single();
+    
+    if (bookingWithDetails) {
+      // Send payment receipt asynchronously
+      BookingEmailService.sendPaymentReceipt(
+        {
+          id: bookingId,
+          customerEmail: bookingWithDetails.customer.email,
+          customerName: `${bookingWithDetails.customer.first_name} ${bookingWithDetails.customer.last_name}`.trim(),
+          carName: bookingWithDetails.car.name,
+          carType: bookingWithDetails.car.type,
+          startDate: bookingWithDetails.start_date,
+          endDate: bookingWithDetails.end_date,
+          totalPrice: bookingWithDetails.total_price,
+          currency: bookingWithDetails.currency,
+          bookingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/${bookingId}`
+        },
+        {
+          bookingId,
+          transactionId: captureData.id,
+          paymentAmount: payment.amount,
+          paymentMethod: 'PayPal',
+          paymentDate: new Date().toISOString(),
+          invoiceNumber: `INV-${bookingId.slice(0, 8).toUpperCase()}-${Date.now()}`
+        }
+      ).catch(error => {
+        console.error('Failed to send payment receipt email:', error);
+      });
+    }
+
     return NextResponse.json({ 
       success: true, 
       captureId: captureData.id,
