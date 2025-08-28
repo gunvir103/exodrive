@@ -309,7 +309,7 @@ function getCarCategoryDescription(category: string): string {
 // Fleet page metadata
 export function createFleetMetadata(): Metadata {
   const title = 'Exotic Car Fleet'
-  const description = `Explore our extensive collection of luxury and exotic cars available for rent in ${KEYWORDS.LOCATIONS.primary.join(', ')}. From Ferrari and Lamborghini to McLaren and Porsche, find your perfect driving experience.`
+  const description = `Explore our extensive collection of luxury and exotic cars available for rent in ${SEO_CONFIG.LOCATIONS.primary.join(', ')}. From Ferrari and Lamborghini to McLaren and Porsche, find your perfect driving experience.`
   
   return createPageMetadata({
     title,
@@ -326,7 +326,7 @@ export function createFleetMetadata(): Metadata {
 // Booking page metadata
 export function createBookingMetadata(): Metadata {
   const title = 'Book Your Exotic Car Rental'
-  const description = `Book your luxury or exotic car rental in ${KEYWORDS.LOCATIONS.primary.join(', ')}. Easy online booking, competitive prices, and exceptional service. Reserve your dream car today with ExoDrive.`
+  const description = `Book your luxury or exotic car rental in ${SEO_CONFIG.LOCATIONS.primary.join(', ')}. Easy online booking, competitive prices, and exceptional service. Reserve your dream car today with ExoDrive.`
   
   return createPageMetadata({
     title,
