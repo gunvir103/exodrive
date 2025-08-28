@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import crypto from 'crypto'
+import { DOCUSEAL_CONSTANTS } from '@/lib/constants/docuseal'
+import {
+  ContractUpdateData,
+  BookingEventInsert,
+  BookingEventDetails,
+  BookingMediaInsert,
+  isValidUUID,
+  extractBookingId,
+  CONTRACT_STATUS_MAP,
+  DocuSealWebhookData
+} from '@/lib/types/docuseal'
 
-// DocuSeal webhook event types
-const DOCUSEAL_EVENT_TYPES = {
-  SUBMISSION_CREATED: 'submission.created',
-  SUBMISSION_VIEWED: 'submission.viewed',
-  SUBMISSION_COMPLETED: 'submission.completed',
-  SUBMISSION_EXPIRED: 'submission.expired',
-  SUBMISSION_ARCHIVED: 'submission.archived',
-  TEMPLATE_CREATED: 'template.created',
-  TEMPLATE_UPDATED: 'template.updated'
-}
+// Use centralized constants for event types
+const DOCUSEAL_EVENT_TYPES = DOCUSEAL_CONSTANTS.EVENT_TYPES
 
 // DocuSeal webhook payload schema
 const docusealWebhookSchema = z.object({
@@ -83,7 +86,8 @@ function verifyDocusealWebhook(
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createSupabaseServerClient(request.cookies as any)
+  // Safely pass cookies object to Supabase client
+  const supabase = createSupabaseServerClient(request.cookies)
   
   try {
     // Get raw body for signature verification
@@ -112,12 +116,37 @@ export async function POST(request: NextRequest) {
     const webhookData = validationResult.data
     const { event_type, data } = webhookData
 
-    // Extract booking ID from metadata
-    const bookingId = data.metadata?.booking_id || 
-                     data.submitters?.[0]?.metadata?.booking_id
+    // Create unique event ID for idempotency
+    const eventId = `${event_type}_${data.id}_${webhookData.timestamp || Date.now()}`
+    
+    // Check if event has already been processed
+    const { data: existingEvent } = await supabase
+      .from('processed_webhook_events')
+      .select('id')
+      .eq('event_id', eventId)
+      .single()
+    
+    if (existingEvent) {
+      console.log('Event already processed:', eventId)
+      return NextResponse.json({ message: 'Event already processed' }, { status: 200 })
+    }
+    
+    // Check event age if timestamp exists - reject if older than 5 minutes
+    if (webhookData.timestamp) {
+      const eventAge = Date.now() - webhookData.timestamp
+      const maxAge = 5 * 60 * 1000 // 5 minutes in milliseconds
+      
+      if (eventAge > maxAge) {
+        console.warn('Webhook event too old:', { eventId, age: eventAge, maxAge })
+        return NextResponse.json({ message: 'Event too old' }, { status: 200 })
+      }
+    }
+
+    // Extract and validate booking ID from metadata
+    const bookingId = extractBookingId(data as DocuSealWebhookData);
     
     if (!bookingId) {
-      console.warn('No booking ID found in DocuSeal webhook:', webhookData)
+      console.warn('No valid booking ID found in DocuSeal webhook:', webhookData)
       return NextResponse.json({ message: 'No booking ID found' }, { status: 200 })
     }
 
@@ -133,12 +162,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Booking not found' }, { status: 200 })
     }
 
-    // Handle different event types
-    let updateData: any = {}
+    // Handle different event types with proper typing
+    let updateData: Partial<ContractUpdateData> = {}
     let eventType = 'contract_webhook_received'
-    let eventMetadata: any = {
+    let eventMetadata: BookingEventDetails = {
       docuseal_event_type: event_type,
-      docuseal_submission_id: data.submission_id || data.id,
+      contract_submission_id: data.submission_id || data.id,
       template_name: data.template?.name
     }
 
@@ -149,8 +178,8 @@ export async function POST(request: NextRequest) {
         eventMetadata.sent_at = data.created_at
         
         // Store DocuSeal submission ID if not already stored
-        if (!booking.docuseal_submission_id) {
-          updateData.docuseal_submission_id = data.id.toString()
+        if (!booking.contract_submission_id) {
+          updateData.contract_submission_id = data.id.toString()
         }
         break
 
@@ -159,59 +188,156 @@ export async function POST(request: NextRequest) {
           updateData.contract_status = 'viewed'
         }
         eventType = 'contract_viewed'
-        eventMetadata.viewed_at = data.submitters?.[0]?.viewed_at
+        eventMetadata.viewed_at = data.submitters?.[0]?.viewed_at || undefined
         break
 
       case DOCUSEAL_EVENT_TYPES.SUBMISSION_COMPLETED:
         updateData.contract_status = 'signed'
         eventType = 'contract_signed'
-        eventMetadata.signed_at = data.completed_at
+        eventMetadata.signed_at = data.completed_at || undefined
         eventMetadata.documents = data.documents
         
-        // Store signed document URL
-        if (data.documents && data.documents.length > 0) {
-          updateData.contract_document_url = data.documents[0].url
-        }
+        // Store signed document URL  
+        // Note: contract_document_url field would need to be added to database schema
+        // if (data.documents && data.documents.length > 0) {
+        //   updateData.contract_document_url = data.documents[0].url
+        // }
         
-        // If payment is authorized and contract is signed, mark as upcoming
-        if (booking.payment_status === 'authorized' && 
-            ['pending_contract', 'contract_pending_signature'].includes(booking.overall_status)) {
-          updateData.overall_status = 'upcoming'
-        }
-
         // Store signed contract as booking media
         if (data.documents) {
           for (const doc of data.documents) {
             await supabase.from('booking_media').insert({
               booking_id: bookingId,
-              media_type: 'signed_contract',
+              stage: 'completed', // Required field
+              type: 'contract', // Required field  
               file_url: doc.url,
+              file_path: doc.url, // Use URL as path for external documents
               file_name: doc.name,
+              storage_bucket_id: 'external-docuseal', // External storage indicator
               uploaded_at: new Date().toISOString(),
               uploaded_by_type: 'system',
               uploaded_by_id: 'docuseal-webhook',
               metadata: {
                 docuseal_document_id: doc.id,
-                docuseal_submission_id: data.id
+                contract_submission_id: data.id
               }
             })
           }
         }
+
+        // CRITICAL: Trigger payment capture when contract is signed
+        // This must be non-blocking to prevent webhook timeout
+        if (booking.payment_status === 'authorized') {
+          Promise.resolve().then(async () => {
+            try {
+              // Acquire payment lock to prevent race conditions
+              const { data: lockAcquired } = await supabase
+                .rpc('acquire_payment_lock', {
+                  p_booking_id: bookingId,
+                  p_locked_by: 'docuseal-webhook'
+                })
+              
+              if (!lockAcquired) {
+                console.log(`Payment capture already in progress for booking ${bookingId}`)
+                return
+              }
+              
+              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+              
+              console.log(`Triggering payment capture for booking ${bookingId} after contract signing`)
+              
+              const captureResponse = await fetch(`${baseUrl}/api/bookings/${bookingId}/capture-payment`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` // Internal API call
+                }
+              })
+
+              if (!captureResponse.ok) {
+                const errorData = await captureResponse.text()
+                console.error(`Failed to capture payment for booking ${bookingId}:`, errorData)
+                
+                // Log critical failure for admin attention
+                await supabase.from('booking_events').insert({
+                  booking_id: bookingId,
+                  event_type: 'payment_capture_failed',
+                  actor_type: 'system',
+                  actor_id: 'docuseal-webhook',
+                  summary_text: 'CRITICAL: Payment capture failed after contract signing',
+                  details: {
+                    error: errorData,
+                    contract_signed_at: data.completed_at,
+                    submission_id: data.id,
+                    requires_manual_intervention: true
+                  }
+                })
+              } else {
+                const captureData = await captureResponse.json()
+                console.log(`Payment successfully captured for booking ${bookingId}:`, captureData.captureId)
+                
+                // Log successful automatic capture
+                await supabase.from('booking_events').insert({
+                  booking_id: bookingId,
+                  event_type: 'payment_auto_captured',
+                  actor_type: 'system',
+                  actor_id: 'docuseal-webhook',
+                  summary_text: 'Payment automatically captured after contract signing',
+                  details: {
+                    capture_id: captureData.captureId,
+                    contract_signed_at: data.completed_at,
+                    submission_id: data.id
+                  }
+                })
+              }
+              
+              // Release the payment lock after processing
+              await supabase.rpc('release_payment_lock', {
+                p_booking_id: bookingId,
+                p_locked_by: 'docuseal-webhook'
+              })
+            } catch (error: unknown) {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              console.error(`Payment capture error for booking ${bookingId}:`, error)
+              
+              // Release the payment lock on error
+              await supabase.rpc('release_payment_lock', {
+                p_booking_id: bookingId,
+                p_locked_by: 'docuseal-webhook'
+              })
+              
+              // Log system error for admin attention
+              await supabase.from('booking_events').insert({
+                booking_id: bookingId,
+                event_type: 'payment_capture_error',
+                actor_type: 'system',
+                actor_id: 'docuseal-webhook',
+                summary_text: 'CRITICAL: System error during payment capture',
+                details: {
+                  error: errorMessage,
+                  contract_signed_at: data.completed_at,
+                  submission_id: data.id,
+                  requires_manual_intervention: true
+                }
+              })
+            }
+          }).catch(console.error) // Ensure promise rejection doesn't crash webhook
+        }
         break
 
       case DOCUSEAL_EVENT_TYPES.SUBMISSION_EXPIRED:
-        updateData.contract_status = 'expired'
+        updateData.contract_status = 'voided'
         eventType = 'contract_expired'
-        eventMetadata.expired_at = data.expire_at
+        eventMetadata.expired_at = data.expire_at || undefined
         break
 
       case DOCUSEAL_EVENT_TYPES.SUBMISSION_ARCHIVED:
         eventType = 'contract_archived'
-        eventMetadata.archived_at = data.archived_at
+        eventMetadata.archived_at = data.archived_at || undefined
         break
 
             default:
-        console.log('Unhandled DocuSeal event type:', event_type);
+        console.warn('Unhandled DocuSeal event type:', event_type);
     }
 
     // Check if submitter declined
@@ -239,13 +365,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the event
-    await supabase.from('booking_events').insert({
+    const bookingEvent: BookingEventInsert = {
       booking_id: bookingId,
       event_type: eventType,
       timestamp: new Date().toISOString(),
       actor_type: 'system',
       actor_id: 'docuseal-webhook',
-      metadata: eventMetadata
+      details: eventMetadata
+    };
+    await supabase.from('booking_events').insert(bookingEvent)
+
+    // Record that this webhook event has been processed
+    await supabase.from('processed_webhook_events').insert({
+      event_id: eventId,
+      event_type: event_type,
+      booking_id: bookingId,
+      webhook_timestamp: webhookData.timestamp ? new Date(webhookData.timestamp).toISOString() : null
     })
 
     return NextResponse.json({ 
@@ -254,10 +389,11 @@ export async function POST(request: NextRequest) {
       eventType 
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error processing DocuSeal webhook:', error)
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     )
   }

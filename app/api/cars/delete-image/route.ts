@@ -7,7 +7,7 @@ import path from "path";
 const CAR_IMAGES_BUCKET = BUCKET_NAMES.VEHICLE_IMAGES || "vehicle-images";
 
 export async function POST(request: Request) {
-  const cookieStore = cookies(); // Directly get the ReadonlyRequestCookies object
+  const cookieStore = await cookies(); // Directly get the ReadonlyRequestCookies object
 
   // 1. Check user authentication (using standard client)
   const supabaseUserClient = createServerClient(

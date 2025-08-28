@@ -155,7 +155,8 @@ describe("POST /api/webhooks/paypal", () => {
 
     test("should handle missing webhook headers in development", async () => {
       // Set NODE_ENV to development
-      process.env.NODE_ENV = "development";
+      const originalNodeEnv = process.env.NODE_ENV;
+      (process.env as any).NODE_ENV = "development";
 
       const payload = createPayPalWebhookPayload(
         PAYPAL_WEBHOOK_EVENTS.PAYMENT_CAPTURE_COMPLETED,
@@ -186,7 +187,7 @@ describe("POST /api/webhooks/paypal", () => {
       expect(response.status).toBe(200);
 
       // Reset NODE_ENV
-      process.env.NODE_ENV = "test";
+      (process.env as any).NODE_ENV = originalNodeEnv;
     });
 
     test("should log non-PayPal user agent", async () => {

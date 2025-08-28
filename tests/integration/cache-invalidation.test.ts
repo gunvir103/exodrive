@@ -307,7 +307,7 @@ describe('Cache Invalidation Integration Tests', () => {
       const results = await Promise.all(invalidationPromises);
       
       // At least one invalidation should have found keys
-      const totalInvalidated = results.reduce((sum, result) => {
+      const totalInvalidated = results.reduce((sum: number, result) => {
         return sum + (typeof result === 'number' ? result : 0);
       }, 0);
       

@@ -80,7 +80,9 @@ describe("POST /api/bookings", () => {
 
     test("should reject missing required fields", async () => {
       const invalidData = { ...validBookingData };
-      delete invalidData.carId;
+      // Store original value and delete property
+      const originalCarId = invalidData.carId;
+      delete (invalidData as any).carId;
 
       const request = createRequest(invalidData);
       const response = await POST(request);
@@ -88,6 +90,9 @@ describe("POST /api/bookings", () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe("Invalid request payload");
+      
+      // Restore for cleanup (though not strictly needed in tests)
+      (invalidData as any).carId = originalCarId;
     });
 
     test("should reject invalid email format", async () => {
@@ -154,14 +159,14 @@ describe("POST /api/bookings", () => {
   describe("Booking Lock", () => {
     test("should acquire lock successfully", async () => {
       // Mock Edge Function response
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: {
           success: true,
           bookingId: "booking-123",
           customerId: "customer-123",
         },
         error: null,
-      }));
+      })) as any;
 
       // Mock car details
       mockSupabase.from = mock((table: string) => {
@@ -203,14 +208,14 @@ describe("POST /api/bookings", () => {
   describe("Edge Function Integration", () => {
     test("should handle successful booking creation", async () => {
       // Mock successful Edge Function response
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: {
           success: true,
           bookingId: "booking-123",
           customerId: "customer-123",
         },
         error: null,
-      }));
+      })) as any;
 
       // Mock car details for email
       mockSupabase.from = mock((table: string) => {
@@ -252,7 +257,7 @@ describe("POST /api/bookings", () => {
 
     test("should handle Edge Function errors", async () => {
       // Mock Edge Function error
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: null,
         error: {
           message: "Edge function failed",
@@ -263,7 +268,7 @@ describe("POST /api/bookings", () => {
             }),
           },
         },
-      }));
+      })) as any;
 
       const request = createRequest(validBookingData);
       const response = await POST(request);
@@ -276,13 +281,13 @@ describe("POST /api/bookings", () => {
 
     test("should handle dates unavailable error", async () => {
       // Mock Edge Function response with dates unavailable
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: {
           success: false,
           error: "dates_unavailable",
         },
         error: null,
-      }));
+      })) as any;
 
       const request = createRequest(validBookingData);
       const response = await POST(request);
@@ -297,14 +302,14 @@ describe("POST /api/bookings", () => {
   describe("Email Notifications", () => {
     test("should send confirmation email on successful booking", async () => {
       // Mock successful booking
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: {
           success: true,
           bookingId: "booking-123",
           customerId: "customer-123",
         },
         error: null,
-      }));
+      })) as any;
 
       // Mock car details
       mockSupabase.from = mock((table: string) => {
@@ -338,14 +343,14 @@ describe("POST /api/bookings", () => {
 
     test("should not fail booking if email fails", async () => {
       // Mock successful booking
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: {
           success: true,
           bookingId: "booking-123",
           customerId: "customer-123",
         },
         error: null,
-      }));
+      })) as any;
 
       // Mock car details
       mockSupabase.from = mock((table: string) => {
@@ -380,14 +385,14 @@ describe("POST /api/bookings", () => {
   describe("Cache Invalidation", () => {
     test("should invalidate cache after successful booking", async () => {
       // Mock successful booking
-      mockSupabase.functions.invoke = mock(async () => ({
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => ({
         data: {
           success: true,
           bookingId: "booking-123",
           customerId: "customer-123",
         },
         error: null,
-      }));
+      })) as any;
 
       // Mock car details
       mockSupabase.from = mock((table: string) => {
@@ -424,7 +429,7 @@ describe("POST /api/bookings", () => {
           },
           error: null,
         };
-      });
+      }) as any;
 
       // Mock car details
       mockSupabase.from = mock(() =>
@@ -458,7 +463,7 @@ describe("POST /api/bookings", () => {
           },
           error: null,
         };
-      });
+      }) as any;
 
       // Mock car details
       mockSupabase.from = mock(() =>
@@ -514,9 +519,9 @@ describe("POST /api/bookings", () => {
 
     test("should always release lock on error", async () => {
       // Mock Edge Function error
-      mockSupabase.functions.invoke = mock(async () => {
+      mockSupabase.functions.invoke = mock(async (functionName: string, options?: any) => {
         throw new Error("Edge function crashed");
-      });
+      }) as any;
 
       const request = createRequest(validBookingData);
       const response = await POST(request);

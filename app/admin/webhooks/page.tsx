@@ -108,7 +108,7 @@ export default function WebhookMonitoringPage() {
         throw new Error(result.error || 'Failed to process retries');
       }
 
-      toast.success(`Processed ${result.results.processed} webhooks: ${result.results.succeeded} succeeded, ${result.results.retrying} retrying`);
+      toast.success(`Processed ${result.results?.processed || 0} webhooks: ${result.results?.succeeded || 0} succeeded, ${result.results?.retrying || 0} retrying`);
       
       // Refresh data
       await fetchData();

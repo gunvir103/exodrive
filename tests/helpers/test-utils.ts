@@ -12,7 +12,10 @@ export function createMockRequest(
   options?: RequestInit & { params?: Record<string, string> }
 ): NextRequest {
   const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`;
-  const request = new NextRequest(new URL(fullUrl), options);
+  const request = new NextRequest(new URL(fullUrl), {
+    ...options,
+    signal: options?.signal || undefined
+  } as any);
   
   // Add params if provided
   if (options?.params) {

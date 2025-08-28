@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cacheService, CacheConfig } from './cache-service';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 
 export interface CacheMiddlewareOptions extends Partial<CacheConfig> {
   generateKey?: (req: NextRequest) => string;
@@ -16,7 +16,7 @@ function generateCacheKey(req: NextRequest, prefix: string): string {
   
   // Create a hash of the request details
   const keyData = `${method}:${pathname}:${searchParams}`;
-  const hash = crypto.createHash('sha256').update(keyData).digest('hex').substring(0, 16);
+  const hash = createHash('sha256').update(keyData).digest('hex').substring(0, 16);
   
   return `${prefix}${hash}`;
 }

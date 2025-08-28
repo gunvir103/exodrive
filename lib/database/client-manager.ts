@@ -4,7 +4,7 @@ import { ConnectionPool, ConnectionWrapper } from './connection-pool';
 import { CircuitBreaker } from './circuit-breaker';
 import { DatabaseMonitor } from './monitoring';
 import { getDatabaseConfig, ConnectionPoolConfig, DEFAULT_POOL_CONFIG } from './config';
-import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
+import type { SupabaseCookieStore } from '../supabase/server';
 
 // Singleton instances
 let browserPool: ConnectionPool | null = null;
@@ -74,7 +74,7 @@ export async function getPooledBrowserClient(): Promise<DatabaseClient> {
 
 // Server client with connection pooling
 export async function getPooledServerClient(
-  cookieStore: ReadonlyRequestCookies
+  cookieStore: SupabaseCookieStore
 ): Promise<DatabaseClient> {
   if (isShuttingDown) {
     throw new Error('Database connections are shutting down');
@@ -199,7 +199,7 @@ export async function getPooledServiceClient(): Promise<DatabaseClient> {
 export async function executeWithConnection<T>(
   operation: (client: SupabaseClient) => Promise<T>,
   clientType: 'browser' | 'service' = 'browser',
-  cookieStore?: ReadonlyRequestCookies
+  cookieStore?: SupabaseCookieStore
 ): Promise<T> {
   let dbClient: DatabaseClient | null = null;
   

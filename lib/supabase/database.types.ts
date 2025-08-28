@@ -131,9 +131,11 @@ export type Database = {
           created_at: string | null
           description: string | null
           file_name: string
-          file_path: string
+          file_path: string | null
+          file_url: string | null
           file_size_bytes: number | null
           id: string
+          metadata: Json | null
           mime_type: string | null
           stage: Database["public"]["Enums"]["booking_media_stage_enum"]
           storage_bucket_id: string
@@ -147,9 +149,11 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           file_name: string
-          file_path: string
+          file_path?: string | null
+          file_url?: string | null
           file_size_bytes?: number | null
           id?: string
+          metadata?: Json | null
           mime_type?: string | null
           stage: Database["public"]["Enums"]["booking_media_stage_enum"]
           storage_bucket_id?: string
@@ -163,9 +167,11 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           file_name?: string
-          file_path?: string
+          file_path?: string | null
+          file_url?: string | null
           file_size_bytes?: number | null
           id?: string
+          metadata?: Json | null
           mime_type?: string | null
           stage?: Database["public"]["Enums"]["booking_media_stage_enum"]
           storage_bucket_id?: string
@@ -227,6 +233,8 @@ export type Database = {
         Row: {
           car_id: string
           contract_status: Database["public"]["Enums"]["contract_status_enum"] | null
+          contract_submission_id: string | null
+          contract_document_url: string | null
           created_at: string | null
           currency: string
           customer_id: string
@@ -245,6 +253,8 @@ export type Database = {
         Insert: {
           car_id: string
           contract_status?: Database["public"]["Enums"]["contract_status_enum"] | null
+          contract_submission_id?: string | null
+          contract_document_url?: string | null
           created_at?: string | null
           currency?: string
           customer_id: string
@@ -263,6 +273,8 @@ export type Database = {
         Update: {
           car_id?: string
           contract_status?: Database["public"]["Enums"]["contract_status_enum"] | null
+          contract_submission_id?: string | null
+          contract_document_url?: string | null
           created_at?: string | null
           currency?: string
           customer_id?: string
@@ -1087,11 +1099,226 @@ export type Database = {
           }
         ]
       }
+      payment_capture_locks: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          expires_at: string
+          locked_at: string | null
+          locked_by: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          expires_at?: string
+          locked_at?: string | null
+          locked_by: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          expires_at?: string
+          locked_at?: string | null
+          locked_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_capture_locks_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      processed_webhook_events: {
+        Row: {
+          booking_id: string | null
+          created_at: string | null
+          event_id: string
+          event_type: string
+          id: string
+          processed_at: string | null
+          webhook_timestamp: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          processed_at?: string | null
+          webhook_timestamp?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          processed_at?: string | null
+          webhook_timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_webhook_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      webhook_processing_log: {
+        Row: {
+          booking_id: string | null
+          id: string
+          processed_at: string
+          processing_result: Json | null
+          webhook_id: string
+          webhook_type: string
+        }
+        Insert: {
+          booking_id?: string | null
+          id?: string
+          processed_at?: string
+          processing_result?: Json | null
+          webhook_id: string
+          webhook_type: string
+        }
+        Update: {
+          booking_id?: string | null
+          id?: string
+          processed_at?: string
+          processing_result?: Json | null
+          webhook_id?: string
+          webhook_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_processing_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      webhook_retries: {
+        Row: {
+          attempt_count: number
+          booking_id: string | null
+          created_at: string | null
+          endpoint_url: string
+          error_details: Json | null
+          error_message: string | null
+          failed_permanently_at: string | null
+          headers: Json | null
+          id: string
+          last_attempt_at: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json
+          status: Database["public"]["Enums"]["webhook_retry_status_enum"]
+          succeeded_at: string | null
+          updated_at: string | null
+          webhook_id: string
+          webhook_type: string
+        }
+        Insert: {
+          attempt_count?: number
+          booking_id?: string | null
+          created_at?: string | null
+          endpoint_url: string
+          error_details?: Json | null
+          error_message?: string | null
+          failed_permanently_at?: string | null
+          headers?: Json | null
+          id?: string
+          last_attempt_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload: Json
+          status?: Database["public"]["Enums"]["webhook_retry_status_enum"]
+          succeeded_at?: string | null
+          updated_at?: string | null
+          webhook_id: string
+          webhook_type: string
+        }
+        Update: {
+          attempt_count?: number
+          booking_id?: string | null
+          created_at?: string | null
+          endpoint_url?: string
+          error_details?: Json | null
+          error_message?: string | null
+          failed_permanently_at?: string | null
+          headers?: Json | null
+          id?: string
+          last_attempt_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json
+          status?: Database["public"]["Enums"]["webhook_retry_status_enum"]
+          succeeded_at?: string | null
+          updated_at?: string | null
+          webhook_id?: string
+          webhook_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_retries_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      webhook_dead_letter_queue: {
+        Row: {
+          attempt_count: number | null
+          booking_id: string | null
+          created_at: string | null
+          error_message: string | null
+          failed_permanently_at: string | null
+          id: string | null
+          payload: Json | null
+          webhook_id: string | null
+          webhook_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_retries_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      webhook_retry_metrics: {
+        Row: {
+          avg_attempts: number | null
+          count: number | null
+          max_attempts: number | null
+          newest_retry: string | null
+          oldest_retry: string | null
+          status: Database["public"]["Enums"]["webhook_retry_status_enum"] | null
+          webhook_type: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      calculate_webhook_retry_time: {
+        Args: {
+          attempt_count: number
+        }
+        Returns: string
+      }
       check_and_reserve_car_availability: {
         Args: {
           p_car_id: string
@@ -1184,6 +1411,41 @@ export type Database = {
         }
         Returns: undefined
       }
+      acquire_payment_lock: {
+        Args: {
+          p_booking_id: string
+          p_locked_by: string
+          p_lock_duration_minutes?: number
+        }
+        Returns: boolean
+      }
+      cleanup_expired_payment_locks: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      is_webhook_processed: {
+        Args: {
+          p_webhook_id: string
+          p_webhook_type: string
+        }
+        Returns: boolean
+      }
+      mark_webhook_processed: {
+        Args: {
+          p_webhook_id: string
+          p_webhook_type: string
+          p_booking_id?: string
+          p_processing_result?: Json
+        }
+        Returns: undefined
+      }
+      release_payment_lock: {
+        Args: {
+          p_booking_id: string
+          p_locked_by: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       actor_type_enum: "customer" | "admin" | "system" | "webhook_paypal" | "webhook_resend" | "webhook_esignature"
@@ -1198,6 +1460,7 @@ export type Database = {
       contract_status_enum: "not_sent" | "sent" | "viewed" | "signed" | "declined" | "voided"
       payment_status_enum: "pending" | "authorized" | "captured" | "refunded" | "voided" | "failed"
       paypal_invoice_status_enum: "DRAFT" | "SENT" | "SCHEDULED" | "PAYMENT_PENDING" | "PAID" | "MARKED_AS_PAID" | "CANCELLED" | "REFUNDED" | "PARTIALLY_REFUNDED" | "MARKED_AS_REFUNDED" | "VOIDED"
+      webhook_retry_status_enum: "pending" | "processing" | "succeeded" | "failed" | "dead_letter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1378,6 +1641,7 @@ export const Constants = {
         "MARKED_AS_REFUNDED",
         "VOIDED",
       ],
+      webhook_retry_status_enum: ["pending", "processing", "succeeded", "failed", "dead_letter"],
     },
   },
 } as const;

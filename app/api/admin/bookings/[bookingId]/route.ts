@@ -9,10 +9,10 @@ export async function GET(
 ) {
   try {
     // Check admin authentication
-    const { isValid, response, user } = await checkAdminApiAuth(request.cookies as any);
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
     if (!isValid || !user) return response!;
     
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const { bookingId } = params;
 
@@ -146,10 +146,11 @@ export async function GET(
 
     return NextResponse.json(formattedBooking);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in get booking endpoint:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
@@ -164,10 +165,10 @@ export async function PATCH(
 ) {
   try {
     // Check admin authentication
-    const { isValid, response, user } = await checkAdminApiAuth(request.cookies as any);
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
     if (!isValid || !user) return response!;
     
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const { bookingId } = params;
     const body = await request.json();
@@ -376,10 +377,11 @@ export async function PATCH(
       booking: updatedBooking
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error updating booking:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
@@ -392,10 +394,10 @@ export async function DELETE(
 ) {
   try {
     // Check admin authentication
-    const { isValid, response, user } = await checkAdminApiAuth(request.cookies as any);
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
     if (!isValid || !user) return response!;
     
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const { bookingId } = params;
     
@@ -406,7 +408,7 @@ export async function DELETE(
     // Get current booking status
     const { data: currentBooking, error: fetchError } = await supabase
       .from('bookings')
-      .select('overall_status, car_id, start_date, end_date')
+      .select('overall_status, car_id, start_date, end_date, payment_status')
       .eq('id', bookingId)
       .single();
 
@@ -590,10 +592,11 @@ export async function DELETE(
       booking: cancelledBooking
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error cancelling booking:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }

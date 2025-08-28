@@ -212,14 +212,14 @@ export const emailServiceResend = {
    * Generate HTML content for booking confirmation (legacy)
    */
   generateBookingConfirmationHtml: (data: LegacyBookingConfirmationData): string => {
-    return renderBookingTemplate(data);
+    return renderBookingTemplate(data as any);
   },
 
   /**
    * Generate plain text content for booking confirmation (legacy)
    */
   generateBookingConfirmationPlainText: (data: LegacyBookingConfirmationData): string => {
-    return renderBookingPlainText(data);
+    return renderBookingPlainText(data as any);
   },
 
   /**

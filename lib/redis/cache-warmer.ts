@@ -1,6 +1,6 @@
 import { cacheService, cacheConfigs } from './cache-service';
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/types/database.types';
+import type { Database } from '../supabase/database.types';
 
 export interface CacheWarmingMetrics {
   startTime: Date;
@@ -153,7 +153,7 @@ export class CacheWarmer {
         .from('bookings')
         .select('car_id')
         .gte('created_at', thirtyDaysAgo.toISOString())
-        .not('overall_status', 'in', '["cancelled", "failed"]');
+        .not('overall_status', 'in', '(cancelled,disputed)');
 
       if (statsError) {
         throw new Error(`Failed to fetch booking stats: ${statsError.message}`);
@@ -175,11 +175,11 @@ export class CacheWarmer {
       if (popularCarIds.length === 0) {
         console.log('[CacheWarmer] No popular cars found, fetching random active cars...');
         
-        // Fallback: get random active cars
+        // Fallback: get random available cars
         const { data: cars, error: carsError } = await this.supabase
           .from('cars')
           .select('id')
-          .eq('status', 'active')
+          .eq('available', true)
           .eq('hidden', false)
           .limit(limit);
 
@@ -221,15 +221,7 @@ export class CacheWarmer {
       // Fetch car details
       const { data: car, error } = await this.supabase
         .from('cars')
-        .select(`
-          *,
-          category:categories(
-            id,
-            name,
-            slug,
-            description
-          )
-        `)
+        .select('*')
         .eq('id', carId)
         .single();
 
@@ -265,17 +257,8 @@ export class CacheWarmer {
       // Fetch all cars
       const { data: cars, error } = await this.supabase
         .from('cars')
-        .select(`
-          *,
-          category:categories(
-            id,
-            name,
-            slug,
-            description
-          )
-        `)
+        .select('*')
         .eq('hidden', false)
-        .order('display_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -316,7 +299,7 @@ export class CacheWarmer {
         .from('bookings')
         .select('car_id')
         .gte('created_at', thirtyDaysAgo.toISOString())
-        .not('overall_status', 'in', '["cancelled", "failed"]');
+        .not('overall_status', 'in', '(cancelled,disputed)');
 
       if (statsError) {
         throw new Error(`Failed to fetch booking stats: ${statsError.message}`);
@@ -421,7 +404,7 @@ export class CacheWarmer {
         .eq('car_id', carId)
         .gte('end_date', startDate)
         .lte('start_date', endDate)
-        .not('overall_status', 'in', '["cancelled", "failed"]');
+        .not('overall_status', 'in', '(cancelled,disputed)');
 
       // Mark booked dates
       bookings?.forEach(booking => {

@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 export async function GET() {
   try {
     // Test client-side auth client
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
     const supabaseServer = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

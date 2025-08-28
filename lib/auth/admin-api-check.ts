@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies';
+import { createSupabaseServerClient, type SupabaseCookieStore } from '@/lib/supabase/server';
 
 export interface AdminApiCheckResult {
   isValid: boolean;
@@ -12,12 +11,12 @@ export interface AdminApiCheckResult {
  * Checks if the request has valid admin authentication
  * Returns early response if authentication fails
  * 
- * @param request - NextRequest object or RequestCookies for API routes
+ * @param cookies - SupabaseCookieStore (ReadonlyRequestCookies or RequestCookies)
  * @returns Object with isValid flag, user data, and optional error response
  */
-export async function checkAdminApiAuth(cookies: NextRequest['cookies'] | RequestCookies): Promise<AdminApiCheckResult> {
+export async function checkAdminApiAuth(cookies: SupabaseCookieStore): Promise<AdminApiCheckResult> {
   try {
-    const supabase = createSupabaseServerClient(cookies as any);
+    const supabase = createSupabaseServerClient(cookies);
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();

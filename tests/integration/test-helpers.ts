@@ -1,5 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+// Mock the Database type for testing
+type Database = {
+  public: {
+    Tables: {
+      [key: string]: {
+        Row: any;
+        Insert: any;
+        Update: any;
+      };
+    };
+  };
+};
 
 // Test environment configuration
 export const TEST_CONFIG = {
@@ -203,9 +214,9 @@ export async function makeAuthenticatedRequest(
   options: RequestInit = {},
   authToken?: string
 ): Promise<{ response: Response; data: any }> {
-  const headers: Record<string, string> = {
+  const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (authToken) {

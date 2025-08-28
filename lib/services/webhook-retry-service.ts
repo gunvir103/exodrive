@@ -5,8 +5,16 @@ import type {
   WebhookRetryStatus, 
   WebhookType, 
   WebhookProcessingLog,
-  WebhookRetryMetric
+  WebhookRetryMetric,
+  WebhookDeadLetterItem
 } from '@/types/webhook';
+
+// Define proper database types
+type WebhookRetriesRow = Database['public']['Tables']['webhook_retries']['Row'];
+type WebhookRetriesInsert = Database['public']['Tables']['webhook_retries']['Insert'];
+type WebhookRetriesUpdate = Database['public']['Tables']['webhook_retries']['Update'];
+type WebhookRetryMetricsRow = Database['public']['Views']['webhook_retry_metrics']['Row'];
+type WebhookDeadLetterQueueRow = Database['public']['Views']['webhook_dead_letter_queue']['Row'];
 
 export class WebhookRetryService {
   private supabase: ReturnType<typeof createClient<Database>>;
@@ -56,7 +64,7 @@ export class WebhookRetryService {
         return null;
       }
 
-      return data as unknown as WebhookRetry;
+      return data as WebhookRetry;
     } catch (error) {
       console.error('Error in storeFailedWebhook:', error);
       return null;
@@ -98,7 +106,7 @@ export class WebhookRetryService {
       const { error } = await this.supabase.rpc('mark_webhook_processed', {
         p_webhook_id: webhookId,
         p_webhook_type: webhookType,
-        p_booking_id: bookingId || null,
+        p_booking_id: bookingId,
         p_processing_result: processingResult || null
       });
 
@@ -129,7 +137,7 @@ export class WebhookRetryService {
         return [];
       }
 
-      return (data || []) as unknown as WebhookRetry[];
+      return (data || []) as WebhookRetry[];
     } catch (error) {
       console.error('Error in getWebhooksForRetry:', error);
       return [];
@@ -292,7 +300,15 @@ export class WebhookRetryService {
         return [];
       }
 
-      return data || [];
+      return (data || []).map(row => ({
+        webhook_type: row.webhook_type || '',
+        status: row.status || '',
+        count: row.count || 0,
+        avg_attempts: row.avg_attempts || 0,
+        max_attempts: row.max_attempts || 0,
+        oldest_retry: row.oldest_retry || '',
+        newest_retry: row.newest_retry || ''
+      }));
     } catch (error) {
       console.error('Error in getMetrics:', error);
       return [];
@@ -302,7 +318,7 @@ export class WebhookRetryService {
   /**
    * Get dead letter queue items
    */
-  async getDeadLetterQueue(limit: number = 50): Promise<any[]> {
+  async getDeadLetterQueue(limit: number = 50): Promise<WebhookDeadLetterItem[]> {
     try {
       const { data, error } = await this.supabase
         .from('webhook_dead_letter_queue')
@@ -314,7 +330,17 @@ export class WebhookRetryService {
         return [];
       }
 
-      return data || [];
+      return (data || []).map(row => ({
+        id: row.id || '',
+        webhook_id: row.webhook_id || '',
+        webhook_type: row.webhook_type || '',
+        booking_id: row.booking_id,
+        payload: row.payload,
+        attempt_count: row.attempt_count || 0,
+        error_message: row.error_message || '',
+        created_at: row.created_at || '',
+        failed_permanently_at: row.failed_permanently_at || ''
+      }));
     } catch (error) {
       console.error('Error in getDeadLetterQueue:', error);
       return [];
@@ -333,7 +359,7 @@ export class WebhookRetryService {
 
       const success = await this.updateWebhookRetry(retryId, {
         status: 'pending',
-        next_retry_at: nextRetryTime,
+        next_retry_at: String(nextRetryTime),
         failed_permanently_at: null
       });
 

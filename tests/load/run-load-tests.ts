@@ -28,13 +28,19 @@ try {
 // Run the tests
 console.log('Running load tests...\n');
 
-try {
-  await $`bun test tests/load/rate-limiting.test.ts --timeout 30000`;
-  console.log('\n✅ All load tests completed successfully!');
-} catch (error) {
-  console.error('\n❌ Load tests failed:', error);
-  process.exit(1);
+// Run the tests using async function
+async function runTests() {
+  try {
+    await $`bun test tests/load/rate-limiting.test.ts --timeout 30000`;
+    console.log('\n✅ All load tests completed successfully!');
+  } catch (error) {
+    console.error('\n❌ Load tests failed:', error);
+    process.exit(1);
+  }
 }
+
+// Execute the tests
+runTests();
 
 // Performance summary
 console.log('\n📊 Performance Summary:');

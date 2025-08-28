@@ -13,7 +13,7 @@ interface BookingDetailsPageProps {
 }
 
 async function getBookingDetails(token: string) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createSupabaseServerClient(cookieStore);
 
   // 1. Fetch the token details
@@ -69,15 +69,15 @@ async function getBookingDetails(token: string) {
   }
   
   // Filter for primary car image
-  const primaryImage = bookingData.cars?.car_images.find(img => img.is_primary) || bookingData.cars?.car_images[0];
+  const primaryImage = bookingData.cars?.[0]?.car_images?.find(img => img.is_primary) || bookingData.cars?.[0]?.car_images?.[0];
 
   return {
     ...bookingData,
-    cars: {
-        ...bookingData.cars,
+    cars: bookingData.cars?.[0] ? {
+        ...bookingData.cars[0],
         primary_image_url: primaryImage?.url,
-        primary_image_alt: primaryImage?.alt || bookingData.cars?.name
-    }
+        primary_image_alt: primaryImage?.alt || bookingData.cars[0]?.name
+    } : undefined
   };
 }
 
@@ -88,7 +88,7 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
     notFound(); // Triggers 404 page
   }
 
-  if (booking.error === 'expired_token') {
+  if ('error' in booking && booking.error === 'expired_token') {
     return (
       <div className="container mx-auto py-8 px-4">
         <Card className="max-w-2xl mx-auto">
@@ -109,6 +109,11 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
     }
   };
 
+  // Type guard - if we get here, booking should be valid
+  if ('error' in booking) {
+    notFound();
+  }
+
   return (
     <div className="container mx-auto py-12 px-4 md:px-6">
       <Card className="max-w-4xl mx-auto shadow-lg">
@@ -120,7 +125,7 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
                 Thank you for your booking! Here are your details.
               </CardDescription>
             </div>
-            <Badge variant={booking.overall_status === 'completed' ? 'success' : (booking.overall_status?.startsWith('pending') ? 'warning' : 'default')} 
+            <Badge variant={booking.overall_status === 'completed' ? 'secondary' : (booking.overall_status?.startsWith('pending') ? 'outline' : 'default')} 
                    className="text-sm px-3 py-1">
               Status: {booking.overall_status?.replace('_', ' ').toUpperCase()}
             </Badge>
@@ -172,11 +177,11 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Name</p>
-                <p className="font-medium">{booking.customers?.first_name} {booking.customers?.last_name}</p>
+                <p className="font-medium">{booking.customers?.[0]?.first_name} {booking.customers?.[0]?.last_name}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{booking.customers?.email}</p>
+                <p className="font-medium">{booking.customers?.[0]?.email}</p>
               </div>
             </div>
           </section>
@@ -190,7 +195,7 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
                 </div>
                 <div>
                     <p className="text-sm text-muted-foreground">Payment Status</p>
-                    <Badge variant={booking.payment_status === 'captured' ? 'success' : (booking.payment_status === 'pending' ? 'warning' : 'default') } className="capitalize">
+                    <Badge variant={booking.payment_status === 'captured' ? 'secondary' : (booking.payment_status === 'pending' ? 'outline' : 'default') } className="capitalize">
                         {booking.payment_status?.replace('_', ' ')}
                     </Badge>
                 </div>

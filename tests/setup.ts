@@ -2,8 +2,16 @@
 import { beforeAll, afterAll } from "bun:test";
 
 // Set test environment variables
-process.env.NODE_ENV = "test";
-process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3005";
+Object.defineProperty(process.env, 'NODE_ENV', {
+  value: 'test',
+  writable: true,
+  configurable: true
+});
+Object.defineProperty(process.env, 'NEXT_PUBLIC_BASE_URL', {
+  value: 'http://localhost:3005',
+  writable: true,
+  configurable: true
+});
 
 // Mock console methods to reduce noise during tests
 const originalConsole = {

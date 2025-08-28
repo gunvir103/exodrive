@@ -112,7 +112,8 @@ class RedisPerformanceMonitor {
       this.calculateOverallStatus(metrics);
       
     } catch (error) {
-      metrics.errors.push(`Critical monitoring error: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      metrics.errors.push(`Critical monitoring error: ${errorMessage}`);
       metrics.overall_status = 'CRITICAL';
     }
 
@@ -149,7 +150,8 @@ class RedisPerformanceMonitor {
       }
       
     } catch (error) {
-      metrics.errors.push(`Connectivity test failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      metrics.errors.push(`Connectivity test failed: ${errorMessage}`);
       metrics.connectivity.latency_ms = performance.now() - connectStart;
     }
   }
@@ -194,7 +196,8 @@ class RedisPerformanceMonitor {
       metrics.operations.invalidate_latency_ms = performance.now() - invalidateStart;
 
     } catch (error) {
-      metrics.errors.push(`Basic operations test failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      metrics.errors.push(`Basic operations test failed: ${errorMessage}`);
     }
   }
 
@@ -234,7 +237,8 @@ class RedisPerformanceMonitor {
       }
       
     } catch (error) {
-      metrics.errors.push(`Throughput test failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      metrics.errors.push(`Throughput test failed: ${errorMessage}`);
     }
   }
 
@@ -276,7 +280,8 @@ class RedisPerformanceMonitor {
       );
       
     } catch (error) {
-      metrics.errors.push(`Rate limiting test failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      metrics.errors.push(`Rate limiting test failed: ${errorMessage}`);
     }
   }
 
@@ -292,12 +297,17 @@ class RedisPerformanceMonitor {
 
       // Try to get database size (this might not work with all Redis configurations)
       try {
-        const info = await redis.info('memory');
-        if (typeof info === 'string') {
-          const memoryMatch = info.match(/used_memory:(\d+)/);
-          if (memoryMatch) {
-            metrics.memory.estimated_usage_mb = Math.round(parseInt(memoryMatch[1]) / 1024 / 1024);
+        // Check if the Redis client has an info method
+        if (typeof (redis as any).info === 'function') {
+          const info = await (redis as any).info('memory');
+          if (typeof info === 'string') {
+            const memoryMatch = info.match(/used_memory:(\d+)/);
+            if (memoryMatch) {
+              metrics.memory.estimated_usage_mb = Math.round(parseInt(memoryMatch[1]) / 1024 / 1024);
+            }
           }
+        } else {
+          metrics.warnings.push("INFO command not available in this Redis client");
         }
       } catch (error) {
         // Not all Redis services support INFO command
@@ -320,7 +330,8 @@ class RedisPerformanceMonitor {
       }
       
     } catch (error) {
-      metrics.warnings.push(`Memory analysis failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      metrics.warnings.push(`Memory analysis failed: ${errorMessage}`);
     }
   }
 
@@ -577,7 +588,8 @@ class RedisPerformanceMonitor {
         console.error("❌ Failed to send alert:", response.statusText);
       }
     } catch (error) {
-      console.error("❌ Error sending alert:", error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error("❌ Error sending alert:", errorMessage);
     }
   }
 }

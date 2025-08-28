@@ -44,10 +44,10 @@ export async function PATCH(
 ) {
   try {
     // Check admin authentication
-    const { isValid, response, user } = await checkAdminApiAuth(request.cookies as any);
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
     if (!isValid || !user) return response!;
     
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const { bookingId } = params;
     const body = await request.json();
@@ -246,10 +246,11 @@ export async function PATCH(
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error updating booking status:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
