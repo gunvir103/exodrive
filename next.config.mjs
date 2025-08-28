@@ -95,10 +95,7 @@ const nextConfig = {
       bodySizeLimit: '2mb'
     },
     // Additional optimizations
-    optimizeCss: true,
-    turbotrace: {
-      logLevel: 'error'
-    }
+    optimizeCss: true
   },
   // Webpack optimizations for Core Web Vitals
   webpack: (config, { isServer }) => {

@@ -11,7 +11,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { MobileAnalyticsClient } from '@/components/analytics/mobile-analytics-client';
 import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
-import { generateOrganizationSchema } from '@/lib/seo/structured-data';
+import { generateOrganizationSchema, safeJsonStringify, validateSchema } from '@/lib/seo/structured-data';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,8 +43,32 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // Generate Organization structured data for all pages
-  const organizationSchema = generateOrganizationSchema();
+  // Generate Organization structured data for all pages with enhanced error handling
+  let organizationSchema = null;
+  let organizationSchemaJson = '';
+  
+  try {
+    organizationSchema = generateOrganizationSchema();
+    
+    // Double-check schema validity before rendering
+    if (organizationSchema && validateSchema(organizationSchema)) {
+      organizationSchemaJson = safeJsonStringify(organizationSchema);
+      
+      // Final validation - ensure we have valid, non-empty JSON
+      if (!organizationSchemaJson || organizationSchemaJson === '{}') {
+        console.warn('Organization schema generated but resulted in empty JSON');
+        organizationSchema = null;
+        organizationSchemaJson = '';
+      }
+    } else {
+      console.warn('Organization schema failed validation');
+      organizationSchema = null;
+    }
+  } catch (error) {
+    console.error('Failed to generate organization schema:', error);
+    organizationSchema = null;
+    organizationSchemaJson = '';
+  }
   
   return (
     <html lang="en" suppressHydrationWarning>
@@ -73,13 +97,15 @@ export default function RootLayout({
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
         <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
         
-        {/* Structured data */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationSchema, null, 2),
-          }}
-        />
+        {/* Structured data - only render if schema generation succeeded and is valid */}
+        {organizationSchema && organizationSchemaJson && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: organizationSchemaJson,
+            }}
+          />
+        )}
       </head>
       <body className={inter.className}>
         <Providers>

@@ -3,7 +3,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { carServiceSupabase } from "@/lib/services/car-service-supabase"
 import { CarDetailClient } from "./components/car-detail-client"
 import { Metadata, ResolvingMetadata } from 'next'
-import { generateAppCarVehicleSchema, generateBreadcrumbSchema } from '@/lib/seo/structured-data'
+import { generateAppCarVehicleSchema, generateBreadcrumbSchema, safeJsonStringify, validateSchema, withCircuitBreaker } from '@/lib/seo/structured-data'
 
 export const revalidate = 60; // Revalidate data every 60 seconds
 
@@ -106,25 +106,79 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
       ? await carServiceSupabase.getRelatedCars(supabase, car.id, 3)
       : [];
 
-    // Generate structured data for the car
-    const vehicleSchema = generateAppCarVehicleSchema(car, carSlug);
+    // Generate structured data for the car with enhanced error handling and circuit breaker
+    const safeVehicleSchemaGenerator = withCircuitBreaker(
+      generateAppCarVehicleSchema,
+      `vehicle-schema-${carSlug}`,
+      null
+    );
     
-    // Generate breadcrumb schema
-    const breadcrumbSchema = generateBreadcrumbSchema([
-      { name: 'Home', url: 'https://www.exodrive.co' },
-      { name: 'Cars', url: 'https://www.exodrive.co/cars' },
-      { name: car.name, url: `https://www.exodrive.co/cars/${carSlug}` },
-    ]);
+    const safeBreadcrumbSchemaGenerator = withCircuitBreaker(
+      generateBreadcrumbSchema,
+      `breadcrumb-schema-${carSlug}`,
+      null
+    );
+    
+    let vehicleSchema = null;
+    let breadcrumbSchema = null;
+    let schemaJson = '';
+    
+    try {
+      vehicleSchema = safeVehicleSchemaGenerator(car, carSlug);
+      if (vehicleSchema && !validateSchema(vehicleSchema)) {
+        console.warn(`Vehicle schema for ${carSlug} failed validation`);
+        vehicleSchema = null;
+      }
+    } catch (error) {
+      console.error(`Failed to generate vehicle schema for ${carSlug}:`, error);
+      vehicleSchema = null;
+    }
+    
+    try {
+      breadcrumbSchema = safeBreadcrumbSchemaGenerator([
+        { name: 'Home', url: 'https://www.exodrive.co' },
+        { name: 'Cars', url: 'https://www.exodrive.co/cars' },
+        { name: car.name, url: `https://www.exodrive.co/cars/${carSlug}` },
+      ]);
+      if (breadcrumbSchema && !validateSchema(breadcrumbSchema)) {
+        console.warn(`Breadcrumb schema for ${carSlug} failed validation`);
+        breadcrumbSchema = null;
+      }
+    } catch (error) {
+      console.error(`Failed to generate breadcrumb schema for ${carSlug}:`, error);
+      breadcrumbSchema = null;
+    }
+
+    // Combine valid schemas only and safely generate JSON
+    const validSchemas = [vehicleSchema, breadcrumbSchema].filter(Boolean);
+    
+    if (validSchemas.length > 0) {
+      try {
+        const schemaData = validSchemas.length === 1 ? validSchemas[0] : validSchemas;
+        schemaJson = safeJsonStringify(schemaData);
+        
+        // Final validation
+        if (!schemaJson || schemaJson === '{}') {
+          console.warn(`Generated schema JSON for ${carSlug} is empty or invalid`);
+          schemaJson = '';
+        }
+      } catch (error) {
+        console.error(`Failed to generate schema JSON for ${carSlug}:`, error);
+        schemaJson = '';
+      }
+    }
 
     // Render the Client Component with structured data
     return (
       <>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify([vehicleSchema, breadcrumbSchema], null, 2),
-          }}
-        />
+        {schemaJson && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: schemaJson,
+            }}
+          />
+        )}
         <CarDetailClient car={car} relatedCars={relatedCars} />
       </>
     );

@@ -1,11 +1,76 @@
 /**
- * Structured Data Schema Generators for ExoDrive
- * JSON-LD schema markup for enhanced SEO and rich snippets
+ * Safe Structured Data Schema Generators for ExoDrive
+ * JSON-LD schema markup for enhanced SEO and rich snippets with comprehensive error handling
  */
 
+import React from 'react'
 import type { Car } from '@/lib/types/car'
 import type { AppCar } from '@/lib/services/car-service-supabase'
 import { SEO_CONFIG } from './metadata'
+
+// Error handling utilities
+interface SchemaError {
+  message: string
+  context: string
+  timestamp: Date
+}
+
+function logSchemaError(error: SchemaError) {
+  if (typeof window === 'undefined') {
+    // Server-side logging
+    console.error('[Structured Data Error]', {
+      message: error.message,
+      context: error.context,
+      timestamp: error.timestamp.toISOString(),
+    })
+  } else {
+    // Client-side logging (silent)
+    console.debug('[Structured Data Error]', error)
+  }
+}
+
+// Safe value extraction with fallbacks
+function safeString(value: any, fallback: string = ''): string {
+  try {
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function safeNumber(value: any, fallback: number = 0): number {
+  try {
+    const num = typeof value === 'string' ? parseFloat(value) : Number(value)
+    return isFinite(num) ? num : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function safeArray<T>(value: any, fallback: T[] = []): T[] {
+  try {
+    return Array.isArray(value) ? value : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function safeUrl(url: any, baseUrl: string = 'https://www.exodrive.co'): string {
+  try {
+    if (!url) return `${baseUrl}/placeholder.jpg`
+    if (typeof url === 'string') {
+      // If it's already a full URL, return it
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url
+      }
+      // If it's a relative path, make it absolute
+      return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`
+    }
+    return `${baseUrl}/placeholder.jpg`
+  } catch {
+    return `${baseUrl}/placeholder.jpg`
+  }
+}
 
 // Base schema types
 export interface BaseSchema {
@@ -198,25 +263,41 @@ interface Answer {
   text: string
 }
 
-// Organization Schema Generator
-export function generateOrganizationSchema(): OrganizationSchema {
+// Safe Organization Schema Generator
+export function generateOrganizationSchema(): OrganizationSchema | null {
+  try {
+    return generateOrganizationSchemaUnsafe()
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in organization schema',
+      context: 'generateOrganizationSchema',
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateOrganizationSchemaUnsafe(): OrganizationSchema {
+  const baseUrl = safeString(SEO_CONFIG?.BRAND?.url, 'https://www.exodrive.co')
+  
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: SEO_CONFIG.BUSINESS.name,
-    alternateName: SEO_CONFIG.BRAND.fullName,
-    url: SEO_CONFIG.BRAND.url,
-    logo: `${SEO_CONFIG.BRAND.url}/logo-512.png`,
-    description: SEO_CONFIG.BRAND.description,
-    email: SEO_CONFIG.BUSINESS.email,
-    telephone: SEO_CONFIG.BUSINESS.phone,
+    name: safeString(SEO_CONFIG?.BUSINESS?.name, 'ExoDrive LLC'),
+    alternateName: safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive Exotic Car Rentals'),
+    url: baseUrl,
+    logo: safeUrl('/logo-512.png', baseUrl),
+    description: safeString(SEO_CONFIG?.BRAND?.description, 'Premium luxury and exotic car rental service'),
+    email: safeString(SEO_CONFIG?.BUSINESS?.email, 'contact@exodrive.co'),
+    telephone: safeString(SEO_CONFIG?.BUSINESS?.phone, '(301) 300-4609'),
     foundingDate: '2020-01-01',
     numberOfEmployees: '10-50',
     contactPoint: [
       {
         '@type': 'ContactPoint',
-        telephone: SEO_CONFIG.BUSINESS.phone,
-        email: SEO_CONFIG.BUSINESS.email,
+        telephone: safeString(SEO_CONFIG?.BUSINESS?.phone, '(301) 300-4609'),
+        email: safeString(SEO_CONFIG?.BUSINESS?.email, 'contact@exodrive.co'),
         contactType: 'customer service',
         availableLanguage: ['English'],
         areaServed: ['US-DC', 'US-MD', 'US-VA'],
@@ -238,46 +319,65 @@ export function generateOrganizationSchema(): OrganizationSchema {
     ],
     address: {
       '@type': 'PostalAddress',
-      streetAddress: SEO_CONFIG.BUSINESS.address.street,
-      addressLocality: SEO_CONFIG.BUSINESS.address.city,
-      addressRegion: SEO_CONFIG.BUSINESS.address.state,
-      postalCode: SEO_CONFIG.BUSINESS.address.zipCode,
-      addressCountry: SEO_CONFIG.BUSINESS.address.country,
+      streetAddress: safeString(SEO_CONFIG?.BUSINESS?.address?.street, '1201 Seven Locks Rd, Suite 360'),
+      addressLocality: safeString(SEO_CONFIG?.BUSINESS?.address?.city, 'Rockville'),
+      addressRegion: safeString(SEO_CONFIG?.BUSINESS?.address?.state, 'MD'),
+      postalCode: safeString(SEO_CONFIG?.BUSINESS?.address?.zipCode, '20854'),
+      addressCountry: safeString(SEO_CONFIG?.BUSINESS?.address?.country, 'US'),
     },
     sameAs: [
-      SEO_CONFIG.SOCIAL.instagram,
-      SEO_CONFIG.SOCIAL.facebook,
-      SEO_CONFIG.SOCIAL.twitter,
-      SEO_CONFIG.SOCIAL.youtube,
-    ],
+      safeString(SEO_CONFIG?.SOCIAL?.instagram, 'https://instagram.com/exodrivexotics'),
+      safeString(SEO_CONFIG?.SOCIAL?.facebook, 'https://facebook.com/exodrive'),
+      safeString(SEO_CONFIG?.SOCIAL?.twitter, 'https://twitter.com/exodrive'),
+      safeString(SEO_CONFIG?.SOCIAL?.youtube, 'https://youtube.com/@exodrive'),
+    ].filter(Boolean),
   }
 }
 
-// Local Business Schema Generator
+// Safe Local Business Schema Generator
 export function generateLocalBusinessSchema(aggregateRating?: {
   ratingValue: number
   ratingCount: number
+}): LocalBusinessSchema | null {
+  try {
+    return generateLocalBusinessSchemaUnsafe(aggregateRating)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in local business schema',
+      context: 'generateLocalBusinessSchema',
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateLocalBusinessSchemaUnsafe(aggregateRating?: {
+  ratingValue: number
+  ratingCount: number
 }): LocalBusinessSchema {
+  const baseUrl = safeString(SEO_CONFIG?.BRAND?.url, 'https://www.exodrive.co')
+  
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    name: SEO_CONFIG.BRAND.fullName,
+    name: safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive Exotic Car Rentals'),
     image: [
-      `${SEO_CONFIG.BRAND.url}/images/showroom-1.jpg`,
-      `${SEO_CONFIG.BRAND.url}/images/showroom-2.jpg`,
-      `${SEO_CONFIG.BRAND.url}/images/fleet-collection.jpg`,
+      safeUrl('/images/showroom-1.jpg', baseUrl),
+      safeUrl('/images/showroom-2.jpg', baseUrl),
+      safeUrl('/images/fleet-collection.jpg', baseUrl),
     ],
-    '@id': SEO_CONFIG.BRAND.url,
-    url: SEO_CONFIG.BRAND.url,
-    telephone: SEO_CONFIG.BUSINESS.phone,
-    email: SEO_CONFIG.BUSINESS.email,
+    '@id': baseUrl,
+    url: baseUrl,
+    telephone: safeString(SEO_CONFIG?.BUSINESS?.phone, '(301) 300-4609'),
+    email: safeString(SEO_CONFIG?.BUSINESS?.email, 'contact@exodrive.co'),
     address: {
       '@type': 'PostalAddress',
-      streetAddress: SEO_CONFIG.BUSINESS.address.street,
-      addressLocality: SEO_CONFIG.BUSINESS.address.city,
-      addressRegion: SEO_CONFIG.BUSINESS.address.state,
-      postalCode: SEO_CONFIG.BUSINESS.address.zipCode,
-      addressCountry: SEO_CONFIG.BUSINESS.address.country,
+      streetAddress: safeString(SEO_CONFIG?.BUSINESS?.address?.street, '1201 Seven Locks Rd, Suite 360'),
+      addressLocality: safeString(SEO_CONFIG?.BUSINESS?.address?.city, 'Rockville'),
+      addressRegion: safeString(SEO_CONFIG?.BUSINESS?.address?.state, 'MD'),
+      postalCode: safeString(SEO_CONFIG?.BUSINESS?.address?.zipCode, '20854'),
+      addressCountry: safeString(SEO_CONFIG?.BUSINESS?.address?.country, 'US'),
     },
     geo: {
       '@type': 'GeoCoordinates',
@@ -318,73 +418,139 @@ export function generateLocalBusinessSchema(aggregateRating?: {
       'Event Car Rental',
       'Wedding Car Rental',
     ],
-    ...(aggregateRating && {
+    ...(aggregateRating && safeNumber(aggregateRating.ratingValue) > 0 && safeNumber(aggregateRating.ratingCount) > 0 && {
       aggregateRating: {
         '@type': 'AggregateRating',
-        ratingValue: aggregateRating.ratingValue,
+        ratingValue: Math.max(1, Math.min(5, safeNumber(aggregateRating.ratingValue))),
         bestRating: 5,
         worstRating: 1,
-        ratingCount: aggregateRating.ratingCount,
-        reviewCount: aggregateRating.ratingCount,
+        ratingCount: Math.max(1, safeNumber(aggregateRating.ratingCount)),
+        reviewCount: Math.max(1, safeNumber(aggregateRating.ratingCount)),
       },
     }),
   }
 }
 
-// Product/Vehicle Schema Generator for AppCar (new version)
-export function generateAppCarVehicleSchema(car: AppCar, slug: string): ProductSchema {
-  const carUrl = `${SEO_CONFIG.BRAND.url}/cars/${slug}`
-  const images = car.images?.map(img => img.url).filter(Boolean) || [`${SEO_CONFIG.BRAND.url}/placeholder.jpg`]
-  
-  // Create additional properties from car specifications
-  const additionalProperties: PropertyValue[] = []
-  
-  // Add specifications from the specifications array
-  car.specifications?.forEach(spec => {
-    if (spec.name && spec.value) {
-      additionalProperties.push({
-        '@type': 'PropertyValue',
-        name: spec.name,
-        value: spec.value,
-      })
-    }
-  })
-
+// Fallback schema generator for when main generation fails
+function generateFallbackCarSchema(carName: string, slug: string): ProductSchema {
+  const baseUrl = 'https://www.exodrive.co'
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: car.name,
-    image: images,
-    description: car.description || `Experience the thrill of driving the ${car.name}, available for rent through ${SEO_CONFIG.BRAND.fullName}.`,
-    sku: car.id,
+    name: safeString(carName, 'Exotic Car'),
+    image: [safeUrl('/placeholder.jpg', baseUrl)],
+    description: `Experience the thrill of driving the ${safeString(carName, 'Exotic Car')}, available for rent through ExoDrive.`,
+    sku: safeString(slug, 'car-rental'),
     brand: {
       '@type': 'Brand',
-      name: car.specifications?.find(spec => spec.name === 'Make')?.value || 'Exotic',
+      name: 'Exotic',
     },
-    category: car.category || 'Exotic Car',
-    ...(car.specifications?.find(spec => spec.name === 'Model') && {
-      model: car.specifications.find(spec => spec.name === 'Model')?.value,
-    }),
-    ...(car.specifications?.find(spec => spec.name === 'Make') && {
+    category: 'Exotic Car',
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `${baseUrl}/cars/${safeString(slug)}`,
+      seller: {
+        '@type': 'Organization',
+        name: 'ExoDrive Exotic Car Rentals',
+      },
+    },
+    additionalProperty: [],
+  }
+}
+
+// Safe Product/Vehicle Schema Generator for AppCar (new version)
+export function generateAppCarVehicleSchema(car: AppCar, slug: string): ProductSchema | null {
+  try {
+    if (!car || !slug) {
+      throw new Error('Car data or slug is missing')
+    }
+    return generateAppCarVehicleSchemaUnsafe(car, slug)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in AppCar vehicle schema',
+      context: `generateAppCarVehicleSchema(car.id: ${car?.id}, slug: ${slug})`,
+      timestamp: new Date(),
+    })
+    // Return fallback schema
+    return generateFallbackCarSchema(car?.name || 'Exotic Car', slug)
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateAppCarVehicleSchemaUnsafe(car: AppCar, slug: string): ProductSchema {
+  const baseUrl = safeString(SEO_CONFIG?.BRAND?.url, 'https://www.exodrive.co')
+  const carUrl = `${baseUrl}/cars/${safeString(slug)}`
+  const rawImages = safeArray(car.images?.map(img => img?.url).filter(Boolean))
+  const images = rawImages.length > 0 ? rawImages.map(url => safeUrl(url, baseUrl)) : [safeUrl('/placeholder.jpg', baseUrl)]
+
+  // Create additional properties from car specifications
+  const additionalProperties: PropertyValue[] = []
+  
+  try {
+    const specs = safeArray(car.specifications)
+    specs.forEach(spec => {
+      const name = safeString(spec?.name)
+      const value = safeString(spec?.value)
+      if (name && value) {
+        additionalProperties.push({
+          '@type': 'PropertyValue',
+          name,
+          value,
+        })
+      }
+    })
+  } catch {
+    // Skip specifications if they cause errors
+  }
+
+  // Extract make and model safely
+  const specs = safeArray(car.specifications)
+  const makeSpec = specs.find(spec => spec?.name === 'Make')
+  const modelSpec = specs.find(spec => spec?.name === 'Model')
+  const makeName = safeString(makeSpec?.value, 'Exotic')
+  const modelName = safeString(modelSpec?.value)
+  
+  const carName = safeString(car.name, 'Exotic Car')
+  const description = safeString(
+    car.description,
+    `Experience the thrill of driving the ${carName}, available for rent through ${safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive')}.`
+  )
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: carName,
+    image: images,
+    description,
+    sku: safeString(car.id, `car-${slug}`),
+    brand: {
+      '@type': 'Brand',
+      name: makeName,
+    },
+    category: safeString(car.category, 'Exotic Car'),
+    ...(modelName && { model: modelName }),
+    ...(makeName !== 'Exotic' && {
       manufacturer: {
         '@type': 'Organization',
-        name: car.specifications.find(spec => spec.name === 'Make')?.value,
+        name: makeName,
       },
     }),
     offers: {
       '@type': 'Offer',
-      ...(car.pricing?.base_price && { price: car.pricing.base_price.toString() }),
+      ...(car.pricing?.base_price && { price: safeNumber(car.pricing.base_price).toString() }),
       priceCurrency: 'USD',
       availability: car.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       url: carUrl,
       seller: {
         '@type': 'Organization',
-        name: SEO_CONFIG.BRAND.fullName,
+        name: safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive Exotic Car Rentals'),
       },
-      ...(car.pricing?.base_price && {
+      ...(car.pricing?.base_price && safeNumber(car.pricing.base_price) > 0 && {
         priceSpecification: {
           '@type': 'PriceSpecification',
-          price: car.pricing.base_price.toString(),
+          price: safeNumber(car.pricing.base_price).toString(),
           priceCurrency: 'USD',
           unitCode: 'DAY',
           unitText: 'per day',
@@ -395,95 +561,133 @@ export function generateAppCarVehicleSchema(car: AppCar, slug: string): ProductS
   }
 }
 
-// Product/Vehicle Schema Generator (legacy version for Car interface)
-export function generateVehicleSchema(car: Car, slug: string): ProductSchema {
-  const carUrl = `${SEO_CONFIG.BRAND.url}/cars/${slug}`
-  const images = car.imageUrls || [`${SEO_CONFIG.BRAND.url}/placeholder.jpg`]
-  
+// Safe Product/Vehicle Schema Generator (legacy version for Car interface)
+export function generateVehicleSchema(car: Car, slug: string): ProductSchema | null {
+  try {
+    if (!car || !slug) {
+      throw new Error('Car data or slug is missing')
+    }
+    return generateVehicleSchemaUnsafe(car, slug)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in legacy vehicle schema',
+      context: `generateVehicleSchema(car.id: ${car?.id}, slug: ${slug})`,
+      timestamp: new Date(),
+    })
+    // Return fallback schema
+    return generateFallbackCarSchema(car?.name || 'Exotic Car', slug)
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateVehicleSchemaUnsafe(car: Car, slug: string): ProductSchema {
+  const baseUrl = safeString(SEO_CONFIG?.BRAND?.url, 'https://www.exodrive.co')
+  const carUrl = `${baseUrl}/cars/${safeString(slug)}`
+  const rawImages = safeArray(car.imageUrls)
+  const images = rawImages.length > 0 ? rawImages.map(url => safeUrl(url, baseUrl)) : [safeUrl('/placeholder.jpg', baseUrl)]
+
   // Create additional properties from car specifications
   const additionalProperties: PropertyValue[] = []
   
-  if (car.engine) {
-    additionalProperties.push({
-      '@type': 'PropertyValue',
-      name: 'Engine',
-      value: car.engine,
-    })
-  }
-  
-  if (car.horsepower) {
-    additionalProperties.push({
-      '@type': 'PropertyValue',
-      name: 'Horsepower',
-      value: car.horsepower.toString(),
-    })
-  }
-  
-  if (car.acceleration060) {
-    additionalProperties.push({
-      '@type': 'PropertyValue',
-      name: '0-60 mph',
-      value: `${car.acceleration060} seconds`,
-    })
-  }
-  
-  if (car.topSpeed) {
-    additionalProperties.push({
-      '@type': 'PropertyValue',
-      name: 'Top Speed',
-      value: `${car.topSpeed} mph`,
-    })
-  }
-  
-  if (car.transmission) {
-    additionalProperties.push({
-      '@type': 'PropertyValue',
-      name: 'Transmission',
-      value: car.transmission,
-    })
-  }
-  
-  if (car.drivetrain) {
-    additionalProperties.push({
-      '@type': 'PropertyValue',
-      name: 'Drivetrain',
-      value: car.drivetrain,
-    })
+  try {
+    const engine = safeString(car.engine)
+    if (engine) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: 'Engine',
+        value: engine,
+      })
+    }
+    
+    const horsepower = safeNumber(car.horsepower)
+    if (horsepower > 0) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: 'Horsepower',
+        value: horsepower.toString(),
+      })
+    }
+    
+    const acceleration = safeNumber(car.acceleration060)
+    if (acceleration > 0) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: '0-60 mph',
+        value: `${acceleration} seconds`,
+      })
+    }
+    
+    const topSpeed = safeNumber(car.topSpeed)
+    if (topSpeed > 0) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: 'Top Speed',
+        value: `${topSpeed} mph`,
+      })
+    }
+    
+    const transmission = safeString(car.transmission)
+    if (transmission) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: 'Transmission',
+        value: transmission,
+      })
+    }
+    
+    const drivetrain = safeString(car.drivetrain)
+    if (drivetrain) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: 'Drivetrain',
+        value: drivetrain,
+      })
+    }
+  } catch {
+    // Skip properties if they cause errors
   }
 
+  const carName = safeString(car.name, 'Exotic Car')
+  const makeName = safeString(car.make, 'Exotic')
+  const modelName = safeString(car.model)
+  const description = safeString(
+    car.description,
+    `Experience the thrill of driving the ${carName}, available for rent through ${safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive')}.`
+  )
+  
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: car.name,
+    name: carName,
     image: images,
-    description: car.description || `Experience the thrill of driving the ${car.name}, available for rent through ${SEO_CONFIG.BRAND.fullName}.`,
-    sku: car.id,
+    description,
+    sku: safeString(car.id, `car-${slug}`),
     brand: {
       '@type': 'Brand',
-      name: car.make || 'Exotic',
+      name: makeName,
     },
-    category: car.category,
-    ...(car.model && { model: car.model }),
-    ...(car.make && {
+    category: safeString(car.category, 'Exotic Car'),
+    ...(modelName && { model: modelName }),
+    ...(makeName !== 'Exotic' && {
       manufacturer: {
         '@type': 'Organization',
-        name: car.make,
+        name: makeName,
       },
     }),
     offers: {
       '@type': 'Offer',
-      ...(car.pricePerDay && { price: car.pricePerDay.toString() }),
+      ...(car.pricePerDay && { price: safeNumber(car.pricePerDay).toString() }),
       priceCurrency: 'USD',
       availability: car.isAvailable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       url: carUrl,
       seller: {
         '@type': 'Organization',
-        name: SEO_CONFIG.BRAND.fullName,
+        name: safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive Exotic Car Rentals'),
       },
-      ...(car.pricePerDay && {
+      ...(car.pricePerDay && safeNumber(car.pricePerDay) > 0 && {
         priceSpecification: {
           '@type': 'PriceSpecification',
-          price: car.pricePerDay.toString(),
+          price: safeNumber(car.pricePerDay).toString(),
           priceCurrency: 'USD',
           unitCode: 'DAY',
           unitText: 'per day',
@@ -494,16 +698,53 @@ export function generateVehicleSchema(car: Car, slug: string): ProductSchema {
   }
 }
 
-// Breadcrumb Schema Generator
-export function generateBreadcrumbSchema(breadcrumbs: Array<{ name: string; url: string }>): BreadcrumbListSchema {
+// Safe Breadcrumb Schema Generator
+export function generateBreadcrumbSchema(breadcrumbs: Array<{ name: string; url: string }>): BreadcrumbListSchema | null {
+  try {
+    if (!breadcrumbs || breadcrumbs.length === 0) {
+      throw new Error('Breadcrumbs array is empty or missing')
+    }
+    return generateBreadcrumbSchemaUnsafe(breadcrumbs)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in breadcrumb schema',
+      context: `generateBreadcrumbSchema(${breadcrumbs?.length || 0} items)`,
+      timestamp: new Date(),
+    })
+    // Return minimal fallback breadcrumb
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Home',
+          item: safeString(SEO_CONFIG?.BRAND?.url, 'https://www.exodrive.co'),
+        },
+      ],
+    }
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateBreadcrumbSchemaUnsafe(breadcrumbs: Array<{ name: string; url: string }>): BreadcrumbListSchema {
+  const validBreadcrumbs = breadcrumbs.filter(crumb => 
+    safeString(crumb?.name) && safeString(crumb?.url)
+  )
+  
+  if (validBreadcrumbs.length === 0) {
+    throw new Error('No valid breadcrumbs found')
+  }
+  
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: breadcrumbs.map((crumb, index) => ({
+    itemListElement: validBreadcrumbs.map((crumb, index) => ({
       '@type': 'ListItem',
       position: index + 1,
-      name: crumb.name,
-      item: crumb.url,
+      name: safeString(crumb.name),
+      item: safeString(crumb.url),
     })),
   }
 }
@@ -514,19 +755,406 @@ export interface FAQItem {
   answer: string
 }
 
-export function generateFAQSchema(faqs: FAQItem[]): FAQPageSchema {
+// Safe FAQ Schema Generator
+export function generateFAQSchema(faqs: FAQItem[]): FAQPageSchema | null {
+  try {
+    if (!faqs || faqs.length === 0) {
+      return null // FAQ schema is optional
+    }
+    return generateFAQSchemaUnsafe(faqs)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in FAQ schema',
+      context: `generateFAQSchema(${faqs?.length || 0} items)`,
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateFAQSchemaUnsafe(faqs: FAQItem[]): FAQPageSchema {
+  const validFAQs = faqs.filter(faq => 
+    safeString(faq?.question) && safeString(faq?.answer)
+  )
+  
+  if (validFAQs.length === 0) {
+    throw new Error('No valid FAQ items found')
+  }
+  
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: faqs.map(faq => ({
+    mainEntity: validFAQs.map(faq => ({
       '@type': 'Question',
-      name: faq.question,
+      name: safeString(faq.question),
       acceptedAnswer: {
         '@type': 'Answer',
-        text: faq.answer,
+        text: safeString(faq.answer),
       },
     })),
   }
+}
+
+// Safe helper function to combine multiple schemas
+export function combineSchemas(...schemas: (BaseSchema | null)[]): string {
+  try {
+    // Filter out null schemas and ensure we have valid schemas
+    const validSchemas = schemas.filter((schema): schema is BaseSchema => 
+      schema !== null && 
+      typeof schema === 'object' && 
+      schema['@context'] && 
+      schema['@type']
+    )
+    
+    if (validSchemas.length === 0) {
+      return '{}' // Return empty object if no valid schemas
+    }
+    
+    return combineSchemasSafe(validSchemas)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error combining schemas',
+      context: `combineSchemas(${schemas.length} schemas)`,
+      timestamp: new Date(),
+    })
+    return '{}'
+  }
+}
+
+// Internal safe combine function
+function combineSchemasSafe(schemas: BaseSchema[]): string {
+  try {
+    if (schemas.length === 1) {
+      return JSON.stringify(schemas[0], null, 2)
+    }
+    
+    return JSON.stringify(schemas, null, 2)
+  } catch {
+    return '{}'
+  }
+}
+
+// Safe helper function to inject schema into page
+export function createSchemaScript(schema: BaseSchema | BaseSchema[] | null): string {
+  try {
+    if (!schema) {
+      return '' // Return empty string if no schema
+    }
+    
+    const jsonContent = Array.isArray(schema) 
+      ? combineSchemas(...schema)
+      : JSON.stringify(schema, null, 2)
+    
+    // Validate that we have valid JSON content
+    if (!jsonContent || jsonContent === '{}') {
+      return ''
+    }
+    
+    // Additional validation: ensure the JSON is parseable
+    try {
+      JSON.parse(jsonContent)
+    } catch {
+      logSchemaError({
+        message: 'Generated schema content is not valid JSON',
+        context: 'createSchemaScript - JSON validation',
+        timestamp: new Date(),
+      })
+      return ''
+    }
+    
+    return `<script type="application/ld+json">${jsonContent}</script>`
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error creating schema script',
+      context: 'createSchemaScript',
+      timestamp: new Date(),
+    })
+    return ''
+  }
+}
+
+// Safe schema validation helper
+export function validateSchema(schema: any): schema is BaseSchema {
+  return (
+    typeof schema === 'object' &&
+    schema !== null &&
+    typeof schema['@context'] === 'string' &&
+    typeof schema['@type'] === 'string'
+  )
+}
+
+// Helper to safely render schema in React components (requires React import)
+export function renderSchemaScript(schema: BaseSchema | BaseSchema[] | null): any {
+  try {
+    if (!schema) return null
+    
+    const jsonContent = Array.isArray(schema) 
+      ? combineSchemas(...schema)
+      : JSON.stringify(schema, null, 2)
+    
+    if (!jsonContent || jsonContent === '{}') {
+      return null
+    }
+    
+    // Validate the JSON content before rendering
+    try {
+      JSON.parse(jsonContent)
+    } catch {
+      logSchemaError({
+        message: 'Schema content failed JSON validation in renderSchemaScript',
+        context: 'renderSchemaScript - JSON validation',
+        timestamp: new Date(),
+      })
+      return null
+    }
+    
+    return {
+      type: 'script',
+      props: {
+        type: 'application/ld+json',
+        dangerouslySetInnerHTML: { __html: jsonContent }
+      }
+    }
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in renderSchemaScript',
+      context: 'renderSchemaScript',
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Enhanced safe JSON stringification with error recovery
+export function safeJsonStringify(data: any, fallback: string = '{}'): string {
+  try {
+    if (!data) return fallback
+    
+    // First attempt - standard JSON stringify
+    const result = JSON.stringify(data, null, 2)
+    
+    // Validate the result is parseable
+    JSON.parse(result)
+    
+    return result
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'JSON stringification failed',
+      context: 'safeJsonStringify',
+      timestamp: new Date(),
+    })
+    
+    // Attempt to stringify individual properties if it's an object
+    if (typeof data === 'object' && data !== null) {
+      try {
+        const safeData: Record<string, any> = {}
+        for (const [key, value] of Object.entries(data)) {
+          try {
+            // Test if this property can be stringified
+            JSON.stringify(value)
+            safeData[key] = value
+          } catch {
+            // Skip problematic properties
+            continue
+          }
+        }
+        const result = JSON.stringify(safeData, null, 2)
+        JSON.parse(result) // Validate
+        return result
+      } catch {
+        return fallback
+      }
+    }
+    
+    return fallback
+  }
+}
+
+// Circuit breaker for schema generation to prevent repeated failures
+class SchemaCircuitBreaker {
+  private failures: Map<string, { count: number; lastFailure: Date }> = new Map()
+  private readonly maxFailures = 3
+  private readonly resetTimeout = 300000 // 5 minutes
+
+  shouldSkip(context: string): boolean {
+    const failure = this.failures.get(context)
+    if (!failure) return false
+
+    const timeSinceLastFailure = Date.now() - failure.lastFailure.getTime()
+    
+    // Reset if enough time has passed
+    if (timeSinceLastFailure > this.resetTimeout) {
+      this.failures.delete(context)
+      return false
+    }
+
+    return failure.count >= this.maxFailures
+  }
+
+  recordFailure(context: string): void {
+    const existing = this.failures.get(context)
+    if (existing) {
+      this.failures.set(context, {
+        count: existing.count + 1,
+        lastFailure: new Date()
+      })
+    } else {
+      this.failures.set(context, {
+        count: 1,
+        lastFailure: new Date()
+      })
+    }
+  }
+
+  reset(context: string): void {
+    this.failures.delete(context)
+  }
+}
+
+const schemaCircuitBreaker = new SchemaCircuitBreaker()
+
+// Enhanced schema generation wrapper with circuit breaker
+export function withCircuitBreaker<T extends any[], R>(
+  fn: (...args: T) => R | null,
+  context: string,
+  fallback: R | null = null
+) {
+  return (...args: T): R | null => {
+    // Check circuit breaker
+    if (schemaCircuitBreaker.shouldSkip(context)) {
+      logSchemaError({
+        message: `Circuit breaker open - skipping ${context}`,
+        context,
+        timestamp: new Date(),
+      })
+      return fallback
+    }
+
+    try {
+      const result = fn(...args)
+      // Reset circuit breaker on success
+      schemaCircuitBreaker.reset(context)
+      return result
+    } catch (error) {
+      schemaCircuitBreaker.recordFailure(context)
+      logSchemaError({
+        message: error instanceof Error ? error.message : `Unknown error in ${context}`,
+        context,
+        timestamp: new Date(),
+      })
+      return fallback
+    }
+  }
+}
+
+// Safe schema component factory for Next.js pages
+export function createSafeSchemaComponent(
+  schemas: (BaseSchema | null)[],
+  context: string = 'unknown'
+): React.JSX.Element | null {
+  try {
+    const validSchemas = schemas.filter((schema): schema is BaseSchema => 
+      schema !== null && validateSchema(schema)
+    )
+    
+    if (validSchemas.length === 0) {
+      return null
+    }
+    
+    const schemaData = validSchemas.length === 1 ? validSchemas[0] : validSchemas
+    const schemaJson = safeJsonStringify(schemaData)
+    
+    if (!schemaJson || schemaJson === '{}') {
+      logSchemaError({
+        message: 'Generated schema resulted in empty JSON',
+        context: `createSafeSchemaComponent - ${context}`,
+        timestamp: new Date(),
+      })
+      return null
+    }
+    
+    return React.createElement('script', {
+      type: 'application/ld+json',
+      dangerouslySetInnerHTML: { __html: schemaJson }
+    })
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in createSafeSchemaComponent',
+      context: `createSafeSchemaComponent - ${context}`,
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Health check function for schema generation system
+export function checkSchemaSystemHealth(): {
+  status: 'healthy' | 'degraded' | 'unhealthy'
+  details: Record<string, any>
+} {
+  const healthCheck = {
+    status: 'healthy' as const,
+    details: {
+      organizationSchema: false,
+      vehicleSchema: false,
+      breadcrumbSchema: false,
+      faqSchema: false,
+      errors: [] as string[],
+      timestamp: new Date().toISOString()
+    }
+  }
+  
+  try {
+    // Test organization schema
+    const orgSchema = generateOrganizationSchema()
+    healthCheck.details.organizationSchema = orgSchema !== null && validateSchema(orgSchema)
+    
+    // Test vehicle schema with mock data
+    const mockCar = {
+      id: 'test',
+      name: 'Test Car',
+      description: 'Test Description',
+      category: 'Test',
+      available: true,
+      images: [],
+      specifications: [],
+      pricing: { base_price: 100 }
+    }
+    const vehicleSchema = generateAppCarVehicleSchema(mockCar as any, 'test-slug')
+    healthCheck.details.vehicleSchema = vehicleSchema !== null && validateSchema(vehicleSchema)
+    
+    // Test breadcrumb schema
+    const breadcrumbSchema = generateBreadcrumbSchema([
+      { name: 'Home', url: 'https://www.exodrive.co' },
+      { name: 'Test', url: 'https://www.exodrive.co/test' }
+    ])
+    healthCheck.details.breadcrumbSchema = breadcrumbSchema !== null && validateSchema(breadcrumbSchema)
+    
+    // Test FAQ schema
+    const faqSchema = generateFAQSchema([
+      { question: 'Test Question?', answer: 'Test Answer' }
+    ])
+    healthCheck.details.faqSchema = faqSchema !== null && validateSchema(faqSchema)
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    healthCheck.details.errors.push(errorMessage)
+  }
+  
+  // Determine overall health status
+  const successCount = Object.values(healthCheck.details)
+    .filter((value, index) => index < 4 && value === true).length
+  
+  if (successCount === 4) {
+    healthCheck.status = 'healthy'
+  } else if (successCount >= 2) {
+    healthCheck.status = 'degraded'
+  } else {
+    healthCheck.status = 'unhealthy'
+  }
+  
+  return healthCheck
 }
 
 // Common FAQ items for exotic car rentals
@@ -565,8 +1193,36 @@ export const COMMON_FAQS: FAQItem[] = [
   },
 ]
 
-// Aggregate Rating Schema Template
+// Safe Aggregate Rating Schema Template
 export function generateAggregateRatingSchema(
+  ratingValue: number,
+  reviewCount: number,
+  bestRating: number = 5,
+  worstRating: number = 1
+): AggregateRating | null {
+  try {
+    const safeRating = safeNumber(ratingValue)
+    const safeCount = safeNumber(reviewCount)
+    const safeBest = safeNumber(bestRating, 5)
+    const safeWorst = safeNumber(worstRating, 1)
+    
+    if (safeRating <= 0 || safeCount <= 0) {
+      return null // Invalid rating data
+    }
+    
+    return generateAggregateRatingSchemaUnsafe(safeRating, safeCount, safeBest, safeWorst)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in rating schema',
+      context: `generateAggregateRatingSchema(${ratingValue}, ${reviewCount})`,
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateAggregateRatingSchemaUnsafe(
   ratingValue: number,
   reviewCount: number,
   bestRating: number = 5,
@@ -574,42 +1230,112 @@ export function generateAggregateRatingSchema(
 ): AggregateRating {
   return {
     '@type': 'AggregateRating',
-    ratingValue: Number(ratingValue.toFixed(1)),
+    ratingValue: Math.max(worstRating, Math.min(bestRating, Number(ratingValue.toFixed(1)))),
     bestRating,
     worstRating,
-    ratingCount: reviewCount,
-    reviewCount,
+    ratingCount: Math.max(1, Math.floor(reviewCount)),
+    reviewCount: Math.max(1, Math.floor(reviewCount)),
   }
 }
 
-// Review Schema Generator
+// Safe Review Schema Generator
 export function generateReviewSchema(review: {
   rating: number
   author: string
   date: string
   title?: string
   content?: string
+}): Review | null {
+  try {
+    if (!review) {
+      throw new Error('Review data is missing')
+    }
+    return generateReviewSchemaUnsafe(review)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in review schema',
+      context: `generateReviewSchema(author: ${review?.author})`,
+      timestamp: new Date(),
+    })
+    return null
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateReviewSchemaUnsafe(review: {
+  rating: number
+  author: string
+  date: string
+  title?: string
+  content?: string
 }): Review {
+  const rating = Math.max(1, Math.min(5, safeNumber(review.rating, 5)))
+  const author = safeString(review.author, 'Anonymous')
+  const date = safeString(review.date)
+  
+  if (!date || !author) {
+    throw new Error('Required review fields are missing')
+  }
+  
   return {
     '@type': 'Review',
     reviewRating: {
       '@type': 'Rating',
-      ratingValue: review.rating,
+      ratingValue: rating,
       bestRating: 5,
       worstRating: 1,
     },
     author: {
       '@type': 'Person',
-      name: review.author,
+      name: author,
     },
-    datePublished: review.date,
-    ...(review.title && { name: review.title }),
-    ...(review.content && { reviewBody: review.content }),
+    datePublished: date,
+    ...(safeString(review.title) && { name: safeString(review.title) }),
+    ...(safeString(review.content) && { reviewBody: safeString(review.content) }),
   }
 }
 
-// Service Schema for different rental types
+// Safe Service Schema for different rental types
 export function generateServiceSchema(serviceType: 'wedding' | 'corporate' | 'photoshoot' | 'general') {
+  try {
+    return generateServiceSchemaUnsafe(serviceType)
+  } catch (error) {
+    logSchemaError({
+      message: error instanceof Error ? error.message : 'Unknown error in service schema',
+      context: `generateServiceSchema(${serviceType})`,
+      timestamp: new Date(),
+    })
+    // Return fallback general service schema
+    return generateFallbackServiceSchema()
+  }
+}
+
+// Fallback service schema
+function generateFallbackServiceSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: 'Exotic Car Rental Service',
+    description: 'Premium exotic and luxury car rental service.',
+    provider: {
+      '@type': 'Organization',
+      name: 'ExoDrive Exotic Car Rentals',
+      url: 'https://www.exodrive.co',
+    },
+    areaServed: [
+      { '@type': 'Place', name: 'Washington DC' },
+      { '@type': 'Place', name: 'Maryland' },
+      { '@type': 'Place', name: 'Virginia' },
+    ],
+    serviceType: 'Car Rental',
+  }
+}
+
+// Internal unsafe version for actual generation
+function generateServiceSchemaUnsafe(serviceType: 'wedding' | 'corporate' | 'photoshoot' | 'general') {
+  const baseUrl = safeString(SEO_CONFIG?.BRAND?.url, 'https://www.exodrive.co')
+  const brandName = safeString(SEO_CONFIG?.BRAND?.fullName, 'ExoDrive Exotic Car Rentals')
+  
   const baseService = {
     '@context': 'https://schema.org',
     '@type': 'Service',
@@ -617,8 +1343,8 @@ export function generateServiceSchema(serviceType: 'wedding' | 'corporate' | 'ph
     description: '',
     provider: {
       '@type': 'Organization',
-      name: SEO_CONFIG.BRAND.fullName,
-      url: SEO_CONFIG.BRAND.url,
+      name: brandName,
+      url: baseUrl,
     },
     areaServed: [
       { '@type': 'Place', name: 'Washington DC' },
@@ -666,18 +1392,4 @@ export function generateServiceSchema(serviceType: 'wedding' | 'corporate' | 'ph
         description: 'Premium exotic and luxury car rental service in Washington DC, Maryland, and Virginia.',
       }
   }
-}
-
-// Helper function to combine multiple schemas
-export function combineSchemas(...schemas: BaseSchema[]): string {
-  if (schemas.length === 1) {
-    return JSON.stringify(schemas[0], null, 2)
-  }
-  
-  return JSON.stringify(schemas, null, 2)
-}
-
-// Helper function to inject schema into page
-export function createSchemaScript(schema: BaseSchema | BaseSchema[]): string {
-  return `<script type="application/ld+json">${Array.isArray(schema) ? combineSchemas(...schema) : JSON.stringify(schema, null, 2)}</script>`
 }
