@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPayPalAccessToken } from '@/lib/paypal-client';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/server';
+import type { ContractUpdateData } from '@/lib/types/docuseal';
 
 const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'sandbox' 
     ? 'https://api-m.sandbox.paypal.com' 
@@ -116,8 +117,7 @@ export async function POST(request: Request) {
           console.log(`Contract successfully generated for booking ${bookingResult.bookingId}:`, contractResult.submissionId);
           
           // Update booking with contract submission ID
-          // Use explicit typing for contract fields that may not be in generated types
-          const contractUpdateData: Record<string, any> = {
+          const contractUpdateData: Partial<ContractUpdateData> = {
             contract_submission_id: contractResult.submissionId,
             contract_status: 'sent',
             updated_at: new Date().toISOString()

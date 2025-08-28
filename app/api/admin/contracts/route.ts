@@ -82,18 +82,18 @@ export async function GET(request: NextRequest) {
     if (bookingId && !submissionId) {
       const { data: booking } = await supabase
         .from('bookings')
-        .select('docuseal_submission_id')
+        .select('contract_submission_id')
         .eq('id', bookingId)
         .single();
 
-      if (!booking?.docuseal_submission_id) {
+      if (!booking?.contract_submission_id) {
         return NextResponse.json(
           { error: 'No contract found for this booking' },
           { status: 404 }
         );
       }
       
-      finalSubmissionId = booking.docuseal_submission_id;
+      finalSubmissionId = booking.contract_submission_id;
     }
 
     if (!finalSubmissionId) {
@@ -301,7 +301,7 @@ export async function PUT(request: NextRequest) {
         const { data: booking } = await supabase
           .from('bookings')
           .select('id')
-          .eq('docuseal_submission_id', submissionId)
+          .eq('contract_submission_id', submissionId)
           .single();
 
         if (booking) {

@@ -235,7 +235,6 @@ export type Database = {
           contract_status: Database["public"]["Enums"]["contract_status_enum"] | null
           contract_submission_id: string | null
           contract_document_url: string | null
-          docuseal_submission_id: string | null
           created_at: string | null
           currency: string
           customer_id: string
@@ -256,7 +255,6 @@ export type Database = {
           contract_status?: Database["public"]["Enums"]["contract_status_enum"] | null
           contract_submission_id?: string | null
           contract_document_url?: string | null
-          docuseal_submission_id?: string | null
           created_at?: string | null
           currency?: string
           customer_id: string
@@ -277,7 +275,6 @@ export type Database = {
           contract_status?: Database["public"]["Enums"]["contract_status_enum"] | null
           contract_submission_id?: string | null
           contract_document_url?: string | null
-          docuseal_submission_id?: string | null
           created_at?: string | null
           currency?: string
           customer_id?: string

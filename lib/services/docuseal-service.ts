@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/lib/supabase/database.types';
 import { DOCUSEAL_CONSTANTS } from '@/lib/constants/docuseal';
+import { parsePhoneNumber, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 import {
   DocuSealSubmissionResponse,
   DocuSealDocument,
@@ -52,17 +53,80 @@ export class DocuSealService {
   private templateId: number;
   private supabase: ReturnType<typeof createClient<Database>>;
 
-  // Accept only E.164 (+<country><digits>) or try to normalize simple US-style inputs
+  // Convert phone number to E.164 format with robust international support
   private toE164IfValid(raw?: string | null): string | undefined {
     if (!raw) return undefined;
     const trimmed = String(raw).trim();
-    // Already valid E.164
-    if (DOCUSEAL_CONSTANTS.PHONE_REGEX.E164.test(trimmed)) return trimmed;
-    // Try to normalize: remove non-digits
-    const digits = trimmed.replace(/\D/g, '');
-    if (DOCUSEAL_CONSTANTS.PHONE_REGEX.US_10_DIGIT.test(digits)) return `+1${digits}`; // assume US if 10 digits
-    if (digits.length >= 7 && digits.length <= 15) return `+${digits}`; // best-effort
+    
+    try {
+      // Try to parse as US number first (most common for this business)
+      if (isValidPhoneNumber(trimmed, 'US')) {
+        const phoneNumber = parsePhoneNumber(trimmed, 'US');
+        return phoneNumber.format('E.164');
+      }
+      
+      // Try to parse as international number without country hint
+      if (isValidPhoneNumber(trimmed)) {
+        const phoneNumber = parsePhoneNumber(trimmed);
+        return phoneNumber.format('E.164');
+      }
+      
+      // Fallback: Check if already in E.164 format
+      if (DOCUSEAL_CONSTANTS.PHONE_REGEX.E164.test(trimmed)) {
+        // Validate it's actually valid E.164
+        if (isValidPhoneNumber(trimmed)) {
+          return trimmed;
+        }
+      }
+      
+      // Last resort: Try common US patterns
+      const digits = trimmed.replace(/\D/g, '');
+      if (DOCUSEAL_CONSTANTS.PHONE_REGEX.US_10_DIGIT.test(digits)) {
+        const formatted = `+1${digits}`;
+        if (isValidPhoneNumber(formatted, 'US')) {
+          return formatted;
+        }
+      }
+      
+      // Try with country codes for common international patterns
+      if (digits.length === 11 && digits.startsWith('1')) {
+        const formatted = `+${digits}`;
+        if (isValidPhoneNumber(formatted, 'US')) {
+          return formatted;
+        }
+      }
+    } catch (error) {
+      // Phone parsing failed - log for debugging but don't throw
+      console.warn(`Failed to parse phone number for DocuSeal: ${trimmed}`, error);
+    }
+    
     return undefined;
+  }
+
+  /**
+   * Validates submission ID to prevent SSRF vulnerabilities
+   * Only allows alphanumeric characters, hyphens, and underscores
+   * Maximum length of 50 characters
+   * Rejects path traversal attempts
+   */
+  private validateSubmissionId(submissionId: string): boolean {
+    if (!submissionId || typeof submissionId !== 'string') {
+      return false;
+    }
+
+    // Check length (max 50 characters)
+    if (submissionId.length > 50) {
+      return false;
+    }
+
+    // Check for path traversal attempts
+    if (submissionId.includes('..') || submissionId.includes('/') || submissionId.includes('\\')) {
+      return false;
+    }
+
+    // Only allow alphanumeric characters, hyphens, and underscores
+    const validPattern = /^[a-zA-Z0-9_-]+$/;
+    return validPattern.test(submissionId);
   }
 
   constructor(
@@ -440,6 +504,14 @@ export class DocuSealService {
     error?: string;
   }> {
     try {
+      // Validate submission ID to prevent SSRF attacks
+      if (!this.validateSubmissionId(submissionId)) {
+        return {
+          success: false,
+          error: 'Invalid submission ID format'
+        };
+      }
+
       const response = await fetch(
         `${this.apiUrl}/submissions/${submissionId}`,
         {
@@ -497,6 +569,14 @@ export class DocuSealService {
     error?: string;
   }> {
     try {
+      // Validate submission ID to prevent SSRF attacks
+      if (!this.validateSubmissionId(submissionId)) {
+        return {
+          success: false,
+          error: 'Invalid submission ID format'
+        };
+      }
+
       const response = await fetch(
         `${this.apiUrl}/submissions/${submissionId}/documents`,
         {
@@ -541,6 +621,14 @@ export class DocuSealService {
     error?: string;
   }> {
     try {
+      // Validate submission ID to prevent SSRF attacks
+      if (!this.validateSubmissionId(submissionId)) {
+        return {
+          success: false,
+          error: 'Invalid submission ID format'
+        };
+      }
+
       const response = await fetch(
         `${this.apiUrl}/submissions/${submissionId}/archive`,
         {

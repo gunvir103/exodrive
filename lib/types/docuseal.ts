@@ -100,7 +100,7 @@ export interface BookingEventDetails {
   submission_slug?: string;
   template_id?: number;
   docuseal_event_type?: string;
-  docuseal_submission_id?: string | number;
+  contract_submission_id?: string | number;
   template_name?: string;
   sent_at?: string;
   viewed_at?: string;
@@ -131,7 +131,7 @@ export interface BookingMediaInsert {
   uploaded_by_id: string;
   metadata?: {
     docuseal_document_id: number;
-    docuseal_submission_id: number;
+    contract_submission_id: number;
     [key: string]: unknown;
   };
 }
