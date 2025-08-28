@@ -13,7 +13,8 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Car, Menu, X, Instagram, ChevronRight } from "lucide-react"
+import { Menu, X, Instagram, ChevronRight } from "lucide-react"
+import Image from "next/image"
 
 export function Navbar() {
   const pathname = usePathname()
@@ -90,7 +91,14 @@ export function Navbar() {
       >
         <div className="container flex h-12 md:h-14 items-center justify-between">
           <Link href="/" className="flex items-center space-x-2 z-10">
-            <Car className={cn("h-5 w-5", isScrolled || isOpen ? "text-foreground" : "text-white")} />
+            <Image
+              src="/exo%20drive.svg"
+              alt="ExoDrive logo"
+              width={24}
+              height={24}
+              priority
+              className="h-6 w-6"
+            />
             <span className={cn("font-medium text-base", isScrolled || isOpen ? "text-foreground" : "text-white")}>
               ExoDrive Exotics
             </span>
@@ -148,7 +156,7 @@ export function Navbar() {
                 <div className="flex flex-col h-full">
                   <div className="flex items-center justify-between p-4 border-b border-[#333333]">
                     <Link href="/" className="flex items-center space-x-2" onClick={() => setIsOpen(false)}>
-                      <Car className="h-5 w-5" />
+                      <Image src="/exo%20drive.svg" alt="ExoDrive logo" width={20} height={20} className="h-5 w-5" />
                       <span className="font-medium text-base">ExoDrive</span>
                     </Link>
                     <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
@@ -205,4 +213,3 @@ export function Navbar() {
     </AnimatePresence>
   )
 }
-

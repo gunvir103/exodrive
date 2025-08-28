@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
   generator: 'v0.dev',
   metadataBase: new URL('https://www.exodrive.co'),
+  icons: {
+    icon: '/exo drive.svg'
+  },
   openGraph: {
     title: "ExoDrive | Exotic Car Rentals in DMV",
     description: "Rent luxury and exotic cars in the DC, Maryland, and Virginia area.",
@@ -63,4 +66,3 @@ export default function RootLayout({
     </html>
   )
 }
-
