@@ -10,7 +10,8 @@ import {
   BookingMediaInsert,
   isValidUUID,
   extractBookingId,
-  CONTRACT_STATUS_MAP
+  CONTRACT_STATUS_MAP,
+  DocuSealWebhookData
 } from '@/lib/types/docuseal'
 
 // Use centralized constants for event types
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract and validate booking ID from metadata
-    const bookingId = extractBookingId(data);
+    const bookingId = extractBookingId(data as DocuSealWebhookData);
     
     if (!bookingId) {
       console.warn('No valid booking ID found in DocuSeal webhook:', webhookData)
@@ -187,19 +188,20 @@ export async function POST(request: NextRequest) {
           updateData.contract_status = 'viewed'
         }
         eventType = 'contract_viewed'
-        eventMetadata.viewed_at = data.submitters?.[0]?.viewed_at
+        eventMetadata.viewed_at = data.submitters?.[0]?.viewed_at || undefined
         break
 
       case DOCUSEAL_EVENT_TYPES.SUBMISSION_COMPLETED:
         updateData.contract_status = 'signed'
         eventType = 'contract_signed'
-        eventMetadata.signed_at = data.completed_at
+        eventMetadata.signed_at = data.completed_at || undefined
         eventMetadata.documents = data.documents
         
-        // Store signed document URL
-        if (data.documents && data.documents.length > 0) {
-          updateData.contract_document_url = data.documents[0].url
-        }
+        // Store signed document URL  
+        // Note: contract_document_url field would need to be added to database schema
+        // if (data.documents && data.documents.length > 0) {
+        //   updateData.contract_document_url = data.documents[0].url
+        // }
         
         // Store signed contract as booking media
         if (data.documents) {
@@ -324,14 +326,14 @@ export async function POST(request: NextRequest) {
         break
 
       case DOCUSEAL_EVENT_TYPES.SUBMISSION_EXPIRED:
-        updateData.contract_status = 'expired'
+        updateData.contract_status = 'voided'
         eventType = 'contract_expired'
-        eventMetadata.expired_at = data.expire_at
+        eventMetadata.expired_at = data.expire_at || undefined
         break
 
       case DOCUSEAL_EVENT_TYPES.SUBMISSION_ARCHIVED:
         eventType = 'contract_archived'
-        eventMetadata.archived_at = data.archived_at
+        eventMetadata.archived_at = data.archived_at || undefined
         break
 
             default:

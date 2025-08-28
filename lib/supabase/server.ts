@@ -1,12 +1,16 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
+import type { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { createClient } from '@supabase/supabase-js'
 import { getPooledServerClient, getPooledServiceClient, executeWithConnection } from '../database/client-manager'
 import { SupabaseClient } from '@supabase/supabase-js'
 
+// Unified cookie type that works with both Next.js cookies() and request.cookies
+export type SupabaseCookieStore = ReadonlyRequestCookies | RequestCookies
+
 // Server client for Server Components, Server Actions, Route Handlers
-// Legacy function - will be deprecated
-export function createSupabaseServerClient(cookieStore: ReadonlyRequestCookies) {
+// Updated to support both ReadonlyRequestCookies and RequestCookies
+export function createSupabaseServerClient(cookieStore: SupabaseCookieStore) {
   return createServerClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -95,14 +99,14 @@ export function createSupabaseRouteHandlerClient(
 
 // New pooled server client functions
 export async function withServerClient<T>(
-  cookieStore: ReadonlyRequestCookies,
+  cookieStore: SupabaseCookieStore,
   operation: (client: SupabaseClient) => Promise<T>
 ): Promise<T> {
   return executeWithConnection(operation, 'browser', cookieStore);
 }
 
 // For cases where you need direct access (use sparingly)
-export async function getPooledSupabaseServerClient(cookieStore: ReadonlyRequestCookies) {
+export async function getPooledSupabaseServerClient(cookieStore: SupabaseCookieStore) {
   return getPooledServerClient(cookieStore);
 }
 

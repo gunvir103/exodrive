@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { checkAdminApiAuth } from '@/lib/auth/admin-api-check';
 
 export async function GET(request: NextRequest) {
-  const supabase = createSupabaseServerClient(request.cookies as any);
-  
   try {
     // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify user has admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
+    if (!isValid || !user) return response!;
     
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
+    const supabase = createSupabaseServerClient(request.cookies);
 
     // Get current date info for comparison
     const now = new Date();

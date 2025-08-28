@@ -317,8 +317,8 @@ describe('Error Handling', () => {
         expect(consoleSpy).toHaveBeenCalled();
         
         // Get the logged data - check if calls exist and have data
-        if (consoleSpy.mock.calls.length > 0 && consoleSpy.mock.calls[0].length > 1) {
-          const loggedData = consoleSpy.mock.calls[0][1];
+        if (consoleSpy.mock.calls.length > 0 && consoleSpy.mock.calls[0] && consoleSpy.mock.calls[0].length > 1) {
+          const loggedData = consoleSpy.mock.calls[0].at(1);
           
           // Verify logged context
           expect(loggedData).toHaveProperty('error', 'Test error for logging');

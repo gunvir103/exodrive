@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { emailServiceResend, type BookingConfirmationData } from "@/lib/services/email-service-resend"
+import { emailServiceResend, type LegacyBookingConfirmationData } from "@/lib/services/email-service-resend"
 
 export const runtime = "edge" // Use Edge Runtime
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as BookingConfirmationData
+    const body = await request.json() as LegacyBookingConfirmationData
     
     if (!body.customerName || !body.customerEmail || !body.carName || !body.startDate || !body.endDate) {
       return NextResponse.json(

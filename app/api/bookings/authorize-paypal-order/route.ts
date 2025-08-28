@@ -159,7 +159,8 @@ export async function POST(request: Request) {
             }
           });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error(`Contract generation error for booking ${bookingResult.bookingId}:`, error);
         
         // Log system error for admin attention
@@ -170,7 +171,7 @@ export async function POST(request: Request) {
           actor_id: 'paypal-authorization',
           summary_text: 'System error during contract generation',
           details: {
-            error: error.message,
+            error: errorMessage,
             authorization_id: authorizationId,
             paypal_order_id: authorizedData.id,
             requires_manual_intervention: true
@@ -180,7 +181,7 @@ export async function POST(request: Request) {
     }).catch(console.error); // Ensure promise rejection doesn't crash main flow
 
     return NextResponse.json({ success: true, bookingId: bookingResult.bookingId, authorizedData, authorizationId });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to authorize PayPal order:', error);
     // Type guard for error
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/lib/supabase/database.types';
+import { Database, type Json } from '@/lib/supabase/database.types';
 import { DOCUSEAL_CONSTANTS } from '@/lib/constants/docuseal';
 import { parsePhoneNumber, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 import {
@@ -386,17 +386,17 @@ export class DocuSealService {
       }
 
       // Log event
-      const eventData: BookingEventInsert = {
+      const eventData = {
         booking_id: bookingId,
-        event_type: 'contract_sent',
-        actor_type: 'system',
+        event_type: 'contract_sent' as const,
+        actor_type: 'system' as const,
         actor_id: 'docuseal-service',
         summary_text: `Contract sent to ${booking.customers?.email || 'customer'}`,
         details: {
           submission_id: submissionId,
           submission_slug: submissionSlug,
           template_id: this.templateId
-        }
+        } as Json
       };
       await this.supabase.from('booking_events').insert(eventData);
 
@@ -470,15 +470,15 @@ export class DocuSealService {
       }
 
       // Log event
-      const reminderEvent: BookingEventInsert = {
+      const reminderEvent = {
         booking_id: bookingId,
-        event_type: 'system_reminder_sent',
-        actor_type: 'system',
+        event_type: 'system_reminder_sent' as const,
+        actor_type: 'system' as const,
         actor_id: 'docuseal-service',
         summary_text: `Contract reminder sent to ${booking.customers?.email || 'customer'}`,
         details: {
           submission_id: booking.contract_submission_id
-        }
+        } as Json
       };
       await this.supabase.from('booking_events').insert(reminderEvent);
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getDocuSealService } from '@/lib/services/docuseal-service';
+import { checkAdminApiAuth } from '@/lib/auth/admin-api-check';
 import { z } from 'zod';
 
 // Request validation schemas
@@ -25,24 +26,11 @@ const getContractStatusSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies);
-    
     // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
+    if (!isValid || !user) return response!;
+    
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get('bookingId');
@@ -135,24 +123,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies);
-    
     // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
+    if (!isValid || !user) return response!;
+    
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const body = await request.json();
     const { action } = body;
@@ -255,24 +230,11 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies);
-    
     // Check admin authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const { isValid, response, user } = await checkAdminApiAuth(request.cookies);
+    if (!isValid || !user) return response!;
+    
+    const supabase = createSupabaseServerClient(request.cookies);
 
     const body = await request.json();
     const { action, submissionId } = body;

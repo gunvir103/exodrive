@@ -113,7 +113,8 @@ export async function POST(request: NextRequest) {
     let lockAcquired = true;
     
     if (redis) {
-      lockAcquired = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
+      const result = await redis.set(lockKey, 'locked', { nx: true, ex: lockTTL });
+      lockAcquired = result === 'OK';
     }
 
     if (!lockAcquired) {
@@ -278,7 +279,7 @@ export async function POST(request: NextRequest) {
       
       // Send email asynchronously (don't await to avoid blocking response)
       BookingEmailService.sendBookingConfirmation({
-        id: bookingIdFromFunction,
+        id: bookingIdFromFunction!,
         customerEmail: customerDetails.email,
         customerName: customerDetails.fullName,
         carName: carDetails?.name || 'Vehicle',
@@ -293,7 +294,7 @@ export async function POST(request: NextRequest) {
         dropoffLocation: undefined, // Will show default message
         bookingUrl,
         deposit: securityDepositAmount,
-        referenceNumber: `EXO-${bookingIdFromFunction.slice(0, 8).toUpperCase()}`
+        referenceNumber: `EXO-${bookingIdFromFunction!.slice(0, 8).toUpperCase()}`
       }, clientIP).catch(error => {
         bookingLogger.error('Failed to send booking confirmation email', error);
       });
@@ -309,7 +310,7 @@ export async function POST(request: NextRequest) {
         status: edgeFunctionPayload.initialOverallStatus, // Return initial status
       }, { status: 201 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       bookingLogger.error('Error during booking process (after lock acquisition)', error);
       const { error: sanitizedError, status } = errorHandler.formatApiError(error);
       return NextResponse.json(sanitizedError, { status });
@@ -320,7 +321,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Catches errors from request.json() or initial validation
     bookingLogger.error('Error processing booking request', error);
     if (error instanceof z.ZodError) {

@@ -7,7 +7,7 @@
 
 import { cacheWarmer, BunCacheWarmer, performance } from "../lib/redis";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../lib/types/database.types";
+import type { Database } from "../lib/supabase/database.types";
 
 // Initialize Supabase client
 const supabase = createClient<Database>(
@@ -40,9 +40,8 @@ async function advancedCacheWarming() {
     execute: async () => {
       const { data: cars } = await supabase
         .from("cars")
-        .select("*, category:categories(*)")
-        .eq("hidden", false)
-        .order("display_order");
+        .select("*")
+        .eq("hidden", false);
       
       if (cars) {
         await performance.measure("Cache fleet listing", async () => {
@@ -69,7 +68,7 @@ async function advancedCacheWarming() {
         .from("bookings")
         .select("car_id, created_at")
         .gte("created_at", thirtyDaysAgo.toISOString())
-        .not("overall_status", "in", '["cancelled", "failed"]');
+        .not("overall_status", "in", "(cancelled,disputed)");
 
       if (stats) {
         const { cacheService } = await import("../lib/redis");
@@ -86,21 +85,34 @@ async function advancedCacheWarming() {
     name: "Low: Category Statistics",
     priority: 3,
     execute: async () => {
-      const { data: categories } = await supabase
-        .from("categories")
-        .select("*, cars(count)");
+      // Get unique categories from cars table
+      const { data: cars } = await supabase
+        .from("cars")
+        .select("category")
+        .not("category", "is", null)
+        .eq("hidden", false);
 
-      if (categories) {
+      if (cars) {
         const { cacheService } = await import("../lib/redis");
         
+        // Get unique categories
+        const uniqueCategories = Array.from(new Set(cars.map(car => car.category).filter(Boolean)));
+        
         await BunCacheWarmer.batchWarmKeys(
-          categories.map(cat => ({
-            key: `category:stats:${cat.id}`,
-            fetcher: async () => ({
-              id: cat.id,
-              name: cat.name,
-              car_count: cat.cars?.[0]?.count || 0
-            }),
+          uniqueCategories.map(category => ({
+            key: `category:stats:${category}`,
+            fetcher: async () => {
+              const { data: categoryStats } = await supabase
+                .from("cars")
+                .select("id", { count: "exact" })
+                .eq("category", category)
+                .eq("hidden", false);
+              
+              return {
+                name: category,
+                car_count: categoryStats?.length || 0
+              };
+            },
             ttl: 7200 // 2 hours
           })),
           5 // batch size
