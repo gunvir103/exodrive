@@ -310,10 +310,13 @@ describe('DocuSeal Payment Integration Flow', () => {
 
   describe('Error Handling', () => {
     test('should handle DocuSeal API timeout gracefully', async () => {
+      // Use shorter timeouts for testing
+      const TEST_TIMEOUT = 2000; // 2 seconds for tests
+      
       const mockDocuSealService = {
         generateContract: mock(() => 
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), DOCUSEAL_CONSTANTS.CONTRACT_GENERATION_TIMEOUT)
+            setTimeout(() => reject(new Error('Timeout')), TEST_TIMEOUT + 500) // Longer than test timeout
           )
         )
       };
@@ -321,7 +324,7 @@ describe('DocuSeal Payment Integration Flow', () => {
       // With timeout handling
       const generateWithTimeout = async (bookingId: string) => {
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Contract generation timeout')), DOCUSEAL_CONSTANTS.PAYMENT_CAPTURE_TIMEOUT)
+          setTimeout(() => reject(new Error('Contract generation timeout')), TEST_TIMEOUT)
         );
         
         try {
