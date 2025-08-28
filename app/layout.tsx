@@ -11,10 +11,12 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { MobileAnalyticsClient } from '@/components/analytics/mobile-analytics-client';
 import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
+import { generateOrganizationSchema, safeJsonStringify, validateSchema } from '@/lib/seo/structured-data';
 
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
+  preload: true,
 })
 
 export const metadata: Metadata = {
@@ -41,9 +43,70 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Generate Organization structured data for all pages with enhanced error handling
+  let organizationSchema = null;
+  let organizationSchemaJson = '';
+  
+  try {
+    organizationSchema = generateOrganizationSchema();
+    
+    // Double-check schema validity before rendering
+    if (organizationSchema && validateSchema(organizationSchema)) {
+      organizationSchemaJson = safeJsonStringify(organizationSchema);
+      
+      // Final validation - ensure we have valid, non-empty JSON
+      if (!organizationSchemaJson || organizationSchemaJson === '{}') {
+        console.warn('Organization schema generated but resulted in empty JSON');
+        organizationSchema = null;
+        organizationSchemaJson = '';
+      }
+    } else {
+      console.warn('Organization schema failed validation');
+      organizationSchema = null;
+    }
+  } catch (error) {
+    console.error('Failed to generate organization schema:', error);
+    organizationSchema = null;
+    organizationSchemaJson = '';
+  }
   
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Core Web Vitals & Performance Hints */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        
+        {/* Preconnect to critical domains for faster loading */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://vercel.live" />
+        <link rel="preconnect" href="https://vitals.vercel-insights.com" />
+        
+        {/* DNS prefetch for secondary resources */}
+        <link rel="dns-prefetch" href="//www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="//www.google-analytics.com" />
+        <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
+        
+        {/* Prefetch critical pages for better navigation */}
+        <link rel="prefetch" href="/cars" />
+        <link rel="prefetch" href="/fleet" />
+        <link rel="prefetch" href="/booking" />
+        
+        {/* Security headers for SEO trust signals */}
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+        <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+        <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
+        
+        {/* Structured data - only render if schema generation succeeded and is valid */}
+        {organizationSchema && organizationSchemaJson && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: organizationSchemaJson,
+            }}
+          />
+        )}
+      </head>
       <body className={inter.className}>
         <Providers>
           <ErrorBoundary>
