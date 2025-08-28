@@ -367,7 +367,7 @@ describe('API Caching Integration Tests', () => {
       
       // Make requests with different filters
       for (const filter of filters) {
-        const params = new URLSearchParams(filter);
+        const params = new URLSearchParams(filter as unknown as Record<string, string>);
         const { response } = await makeRequest(`${TEST_API_ENDPOINTS.cars}?${params}`);
         responses.push({
           filter,

@@ -333,7 +333,7 @@ export class WebhookRetryService {
 
       const success = await this.updateWebhookRetry(retryId, {
         status: 'pending',
-        next_retry_at: nextRetryTime,
+        next_retry_at: String(nextRetryTime),
         failed_permanently_at: null
       });
 

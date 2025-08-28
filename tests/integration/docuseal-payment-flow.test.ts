@@ -86,9 +86,7 @@ describe('DocuSeal Payment Integration Flow', () => {
         if (bookingResult.data?.success) {
           // 2. Generate contract (non-blocking)
           try {
-            const contractResult = await mockDocuSealService.generateContract(
-              bookingResult.data.bookingId
-            );
+            const contractResult = await mockDocuSealService.generateContract();
             
             if (contractResult.success) {
               // 3. Update booking with submission ID
@@ -141,7 +139,7 @@ describe('DocuSeal Payment Integration Flow', () => {
       // Try contract generation
       let contractSent = false;
       try {
-        await mockDocuSealService.generateContract(bookingResult.bookingId);
+        await mockDocuSealService.generateContract();
         contractSent = true;
       } catch (error) {
         // Log but don't fail
@@ -329,7 +327,7 @@ describe('DocuSeal Payment Integration Flow', () => {
         
         try {
           const result = await Promise.race([
-            mockDocuSealService.generateContract(bookingId),
+            mockDocuSealService.generateContract(),
             timeout
           ]);
           return { success: true, result };

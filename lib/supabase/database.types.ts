@@ -1104,6 +1104,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_webhook_retry_time: {
+        Args: {
+          attempt_count: number
+        }
+        Returns: string
+      }
       check_and_reserve_car_availability: {
         Args: {
           p_car_id: string

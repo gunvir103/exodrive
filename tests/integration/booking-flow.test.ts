@@ -267,9 +267,9 @@ describe("Complete Booking Flow Integration", () => {
 
       expect(error).toBeNull();
       expect(events).toBeArray();
-      expect(events.length).toBeGreaterThan(0);
+      expect(events?.length).toBeGreaterThan(0);
 
-      const creationEvent = events.find((e: any) => e.event_type === "booking_created");
+      const creationEvent = events?.find((e: any) => e.event_type === "booking_created");
       expect(creationEvent).toBeDefined();
       expect(creationEvent.actor_type).toBe("system");
     });
@@ -292,8 +292,8 @@ describe("Complete Booking Flow Integration", () => {
 
       expect(error).toBeNull();
       expect(availability).toBeArray();
-      expect(availability.length).toBe(4);
-      expect(availability.every((day: any) => day.status === "booked")).toBe(true);
+      expect(availability?.length).toBe(4);
+      expect(availability?.every((day: any) => day.status === "booked")).toBe(true);
     });
   });
 
@@ -347,7 +347,7 @@ describe("Complete Booking Flow Integration", () => {
         .eq("id", createdBookingId)
         .single();
 
-      expect(booking.payment_status).toBe("authorized");
+      expect(booking?.payment_status).toBe("authorized");
     });
 
     test("should handle payment capture webhook", async () => {
@@ -404,8 +404,8 @@ describe("Complete Booking Flow Integration", () => {
         .eq("id", createdBookingId)
         .single();
 
-      expect(booking.payment_status).toBe("captured");
-      expect(booking.overall_status).toBe("upcoming");
+      expect(booking?.payment_status).toBe("captured");
+      expect(booking?.overall_status).toBe("upcoming");
     });
   });
 
@@ -420,7 +420,7 @@ describe("Complete Booking Flow Integration", () => {
       expect(error).toBeNull();
       expect(events).toBeArray();
 
-      const eventTypes = events.map((e: any) => e.event_type);
+      const eventTypes = events?.map((e: any) => e.event_type) || [];
       expect(eventTypes).toContain("booking_created");
       expect(eventTypes).toContain("payment_authorized");
       expect(eventTypes).toContain("payment_captured");

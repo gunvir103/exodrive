@@ -72,11 +72,24 @@ describe('DocuSeal Security Tests', () => {
       
       // Mock fetch to return success for valid IDs
       const originalFetch = global.fetch;
-      global.fetch = mock((url: string) => {
+      (global.fetch as any) = mock((url: string) => {
         if (url.includes('api.docuseal.com/submissions/')) {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve({ id: '123', status: 'pending' })
+            json: () => Promise.resolve({ id: '123', status: 'pending' }),
+            headers: new Headers(),
+            status: 200,
+            statusText: 'OK',
+            url,
+            clone: () => ({} as Response),
+            body: null,
+            bodyUsed: false,
+            arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+            blob: () => Promise.resolve(new Blob()),
+            formData: () => Promise.resolve(new FormData()),
+            text: () => Promise.resolve(''),
+            redirected: false,
+            type: 'default' as ResponseType
           } as Response);
         }
         return originalFetch(url);
@@ -326,7 +339,7 @@ describe('DocuSeal Security Tests', () => {
     test('should handle network timeouts gracefully', async () => {
       // Mock fetch with timeout
       const originalFetch = global.fetch;
-      global.fetch = mock(() => {
+      (global.fetch as any) = mock(() => {
         return new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Network timeout')), 100);
         });

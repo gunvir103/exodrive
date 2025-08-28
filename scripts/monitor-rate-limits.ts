@@ -61,7 +61,8 @@ async function displayRateLimitStatus() {
       
       console.log('');
     } catch (error) {
-      console.log(`${name}: Error - ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`${name}: Error - ${errorMessage}`);
       console.log('');
     }
   }

@@ -7,7 +7,7 @@
 
 import { cacheWarmer, BunCacheWarmer, performance } from "../lib/redis";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../lib/types/database";
+import type { Database } from "../lib/types/database.types";
 
 // Initialize Supabase client
 const supabase = createClient<Database>(
