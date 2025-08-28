@@ -1,14 +1,47 @@
 import { Metadata } from 'next'
 import { CarBrowsingClient } from './components/car-browsing-client'
+import { createPageMetadata, KEYWORDS, SEO_CONFIG, generateDynamicDescription } from "@/lib/seo/metadata"
 
-export const metadata: Metadata = {
-  title: 'Browse Luxury & Exotic Cars | Exo Drive',
-  description: 'Browse our collection of luxury and exotic cars available for rent. Filter by type, price, and features to find your perfect drive.',
-  openGraph: {
-    title: 'Browse Luxury & Exotic Cars | Exo Drive',
-    description: 'Browse our collection of luxury and exotic cars available for rent. Filter by type, price, and features to find your perfect drive.',
-    type: 'website',
-  },
+// Generate enhanced metadata for Cars browse page
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "Browse Exotic & Luxury Cars | Ferrari, Lamborghini, McLaren"
+  const description = generateDynamicDescription(
+    "Discover and filter through our premium collection of exotic and luxury rental cars",
+    [
+      "Advanced filtering by brand, price, and features",
+      "Real-time availability checking", 
+      "Instant booking with competitive rates",
+      "Professional delivery across DMV area"
+    ],
+    "Washington DC, Maryland, and Virginia",
+    "Find and reserve your perfect exotic car experience today."
+  )
+
+  return createPageMetadata({
+    title,
+    description,
+    keywords: [
+      'browse exotic cars',
+      'luxury car selection',
+      'filter rental cars',
+      'exotic car inventory',
+      'luxury car browse',
+      'car rental search',
+      'exotic car finder',
+      'luxury car catalog',
+      'supercar browser',
+      'exotic car availability',
+      'rental car filtering',
+      'luxury car comparison',
+      ...KEYWORDS.PRIMARY,
+      ...KEYWORDS.SECONDARY.slice(0, 8),
+      'car rental inventory search',
+      'exotic car rental selection',
+      'luxury car rental browser'
+    ],
+    canonical: `${SEO_CONFIG.BRAND.url}/cars`,
+    image: `${SEO_CONFIG.BRAND.url}/og-cars.jpg`
+  })
 }
 
 // Server component that renders the car browsing page

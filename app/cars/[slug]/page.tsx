@@ -3,6 +3,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { carServiceSupabase } from "@/lib/services/car-service-supabase"
 import { CarDetailClient } from "./components/car-detail-client"
 import { Metadata, ResolvingMetadata } from 'next'
+import { generateAppCarVehicleSchema, generateBreadcrumbSchema, safeJsonStringify, validateSchema, withCircuitBreaker } from '@/lib/seo/structured-data'
 
 export const revalidate = 60; // Revalidate data every 60 seconds
 
@@ -105,8 +106,84 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
       ? await carServiceSupabase.getRelatedCars(supabase, car.id, 3)
       : [];
 
-    // Render the Client Component, passing fetched data as props
-    return <CarDetailClient car={car} relatedCars={relatedCars} />;
+    // Generate structured data for the car with enhanced error handling and circuit breaker
+    const safeVehicleSchemaGenerator = withCircuitBreaker(
+      generateAppCarVehicleSchema,
+      `vehicle-schema-${carSlug}`,
+      null
+    );
+    
+    const safeBreadcrumbSchemaGenerator = withCircuitBreaker(
+      generateBreadcrumbSchema,
+      `breadcrumb-schema-${carSlug}`,
+      null
+    );
+    
+    let vehicleSchema = null;
+    let breadcrumbSchema = null;
+    let schemaJson = '';
+    
+    try {
+      vehicleSchema = safeVehicleSchemaGenerator(car, carSlug);
+      if (vehicleSchema && !validateSchema(vehicleSchema)) {
+        console.warn(`Vehicle schema for ${carSlug} failed validation`);
+        vehicleSchema = null;
+      }
+    } catch (error) {
+      console.error(`Failed to generate vehicle schema for ${carSlug}:`, error);
+      vehicleSchema = null;
+    }
+    
+    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
+
+    try {
+      breadcrumbSchema = safeBreadcrumbSchemaGenerator([
+        { name: 'Home', url: baseUrl },
+        { name: 'Cars', url: `${baseUrl}/cars` },
+        { name: car.name, url: `${baseUrl}/cars/${carSlug}` },
+      ]);
+      if (breadcrumbSchema && !validateSchema(breadcrumbSchema)) {
+        console.warn(`Breadcrumb schema for ${carSlug} failed validation`);
+        breadcrumbSchema = null;
+      }
+    } catch (error) {
+      console.error(`Failed to generate breadcrumb schema for ${carSlug}:`, error);
+      breadcrumbSchema = null;
+    }
+
+    // Combine valid schemas only and safely generate JSON
+    const validSchemas = [vehicleSchema, breadcrumbSchema].filter(Boolean);
+    
+    if (validSchemas.length > 0) {
+      try {
+        const schemaData = validSchemas.length === 1 ? validSchemas[0] : validSchemas;
+        schemaJson = safeJsonStringify(schemaData);
+        
+        // Final validation
+        if (!schemaJson || schemaJson === '{}') {
+          console.warn(`Generated schema JSON for ${carSlug} is empty or invalid`);
+          schemaJson = '';
+        }
+      } catch (error) {
+        console.error(`Failed to generate schema JSON for ${carSlug}:`, error);
+        schemaJson = '';
+      }
+    }
+
+    // Render the Client Component with structured data
+    return (
+      <>
+        {schemaJson && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: schemaJson,
+            }}
+          />
+        )}
+        <CarDetailClient car={car} relatedCars={relatedCars} />
+      </>
+    );
 
   } catch (error) {
     console.error("Error fetching car detail page data for slug:", carSlug, error);
