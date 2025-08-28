@@ -43,6 +43,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   const [isSuccess, setIsSuccess] = useState(false)
   const [step, setStep] = useState(1)
   const [showPayPalButtons, setShowPayPalButtons] = useState(false);
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -142,8 +143,39 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
       return
     }
     
-    // If validation passes, show the PayPal buttons
-    setShowPayPalButtons(true);
+    // If validation passes, create booking and send contract immediately
+    try {
+      setIsLoading(true)
+      const res = await fetch('/api/bookings/proceed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          carId,
+          startDate: format(startDate!, "yyyy-MM-dd"),
+          endDate: format(endDate!, "yyyy-MM-dd"),
+          customer: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+          }
+        })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to start booking')
+      }
+      setCreatedBookingId(data.bookingId)
+      toast({ title: 'Booking Started', description: 'We have emailed your contract to review.' })
+      // Show PayPal buttons next
+      setShowPayPalButtons(true)
+    } catch (err: any) {
+      console.error('Proceed error:', err)
+      toast({ title: 'Error', description: err.message || 'Could not start booking', variant: 'destructive' })
+      return
+    } finally {
+      setIsLoading(false)
+    }
   }
   
   const createPayPalOrder = async (): Promise<string> => {
@@ -156,7 +188,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
             carId,
             startDate: format(startDate!, "yyyy-MM-dd"),
             endDate: format(endDate!, "yyyy-MM-dd"),
-            bookingId: `temp-${Date.now()}`, // Temporary ID for tracking
+            bookingId: createdBookingId || `temp-${Date.now()}`,
             description: `Car rental from ${format(startDate!, "MMM dd")} to ${format(endDate!, "MMM dd")}`
         }),
     });
@@ -734,4 +766,3 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
     </div>
   )
 }
-

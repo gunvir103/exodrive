@@ -86,13 +86,7 @@ export const GET = withApiErrorHandling(async (
     // Build query
     let query = supabase
       .from('car_reviews')
-      .select(`
-        *,
-        customer:customers (
-          first_name,
-          last_name
-        )
-      `, { count: 'exact' })
+      .select(`*`, { count: 'exact' })
       .eq('car_id', carId)
       .order('created_at', { ascending: false });
     
@@ -130,19 +124,20 @@ export const GET = withApiErrorHandling(async (
     }
     
     // Format reviews
-    const formattedReviews = reviews?.map(review => ({
-      id: review.id,
-      carId: review.car_id,
-      reviewerName: review.reviewer_name,
-      rating: review.rating,
-      comment: review.comment,
-      isVerified: review.is_verified,
-      isApproved: review.is_approved,
-      createdAt: review.created_at,
-      customerName: review.customer ? 
-        `${review.customer.first_name} ${review.customer.last_name}`.trim() : 
-        review.reviewer_name
-    })) || [];
+    const formattedReviews = (reviews || []).map((review: any) => {
+      const reviewer = review.name || review.reviewer_name || 'Anonymous'
+      return {
+        id: review.id,
+        carId: review.car_id,
+        reviewerName: reviewer,
+        rating: review.rating,
+        comment: review.comment,
+        isVerified: review.is_verified,
+        isApproved: review.is_approved,
+        createdAt: review.created_at || review.date,
+        customerName: reviewer,
+      }
+    });
     
     const response = {
       reviews: formattedReviews,
