@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
+import { formatDate, formatCurrency } from '@/lib/utils/date-utils';
 
 interface BookingDetailsPageProps {
   params: {
@@ -24,13 +24,11 @@ async function getBookingDetails(token: string) {
     .single();
 
   if (tokenError || !tokenData) {
-    console.error('Error fetching token or token not found:', tokenError);
     return null;
   }
 
   // 2. Check if token is expired
   if (new Date(tokenData.expires_at) < new Date()) {
-    console.warn('Booking token expired:', token);
     return { error: 'expired_token' };
   }
 
@@ -64,7 +62,6 @@ async function getBookingDetails(token: string) {
     .single();
 
   if (bookingError || !bookingData) {
-    console.error('Error fetching booking details:', bookingError);
     return null;
   }
   
@@ -100,14 +97,6 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
       </div>
     );
   }
-  
-  const formatDate = (dateString: string) => {
-    try {
-        return format(parseISO(dateString), 'PPP'); // Example: Jun 23, 2024
-    } catch (e) {
-        return dateString; // Fallback
-    }
-  };
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6">
@@ -186,7 +175,7 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
             <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                     <p className="text-sm text-muted-foreground">Total Price</p>
-                    <p className="font-medium text-lg">{new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(booking.total_price || 0)}</p>
+                    <p className="font-medium text-lg">{formatCurrency(booking.total_price || 0, booking.currency || 'USD')}</p>
                 </div>
                 <div>
                     <p className="text-sm text-muted-foreground">Payment Status</p>
