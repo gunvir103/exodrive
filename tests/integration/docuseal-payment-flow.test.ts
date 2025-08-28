@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { createClient } from '@supabase/supabase-js';
+import { DOCUSEAL_CONSTANTS } from '@/lib/constants/docuseal';
 
 /**
  * Integration Test Suite: DocuSeal Contract → Payment Capture Flow
@@ -312,7 +313,7 @@ describe('DocuSeal Payment Integration Flow', () => {
       const mockDocuSealService = {
         generateContract: mock(() => 
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
+            setTimeout(() => reject(new Error('Timeout')), DOCUSEAL_CONSTANTS.CONTRACT_GENERATION_TIMEOUT)
           )
         )
       };
@@ -320,7 +321,7 @@ describe('DocuSeal Payment Integration Flow', () => {
       // With timeout handling
       const generateWithTimeout = async (bookingId: string) => {
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Contract generation timeout')), 3000)
+          setTimeout(() => reject(new Error('Contract generation timeout')), DOCUSEAL_CONSTANTS.PAYMENT_CAPTURE_TIMEOUT)
         );
         
         try {

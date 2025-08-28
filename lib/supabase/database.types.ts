@@ -131,9 +131,11 @@ export type Database = {
           created_at: string | null
           description: string | null
           file_name: string
-          file_path: string
+          file_path: string | null
+          file_url: string | null
           file_size_bytes: number | null
           id: string
+          metadata: Json | null
           mime_type: string | null
           stage: Database["public"]["Enums"]["booking_media_stage_enum"]
           storage_bucket_id: string
@@ -147,9 +149,11 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           file_name: string
-          file_path: string
+          file_path?: string | null
+          file_url?: string | null
           file_size_bytes?: number | null
           id?: string
+          metadata?: Json | null
           mime_type?: string | null
           stage: Database["public"]["Enums"]["booking_media_stage_enum"]
           storage_bucket_id?: string
@@ -163,9 +167,11 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           file_name?: string
-          file_path?: string
+          file_path?: string | null
+          file_url?: string | null
           file_size_bytes?: number | null
           id?: string
+          metadata?: Json | null
           mime_type?: string | null
           stage?: Database["public"]["Enums"]["booking_media_stage_enum"]
           storage_bucket_id?: string
@@ -227,6 +233,9 @@ export type Database = {
         Row: {
           car_id: string
           contract_status: Database["public"]["Enums"]["contract_status_enum"] | null
+          contract_submission_id: string | null
+          contract_document_url: string | null
+          docuseal_submission_id: string | null
           created_at: string | null
           currency: string
           customer_id: string
@@ -245,6 +254,9 @@ export type Database = {
         Insert: {
           car_id: string
           contract_status?: Database["public"]["Enums"]["contract_status_enum"] | null
+          contract_submission_id?: string | null
+          contract_document_url?: string | null
+          docuseal_submission_id?: string | null
           created_at?: string | null
           currency?: string
           customer_id: string
@@ -263,6 +275,9 @@ export type Database = {
         Update: {
           car_id?: string
           contract_status?: Database["public"]["Enums"]["contract_status_enum"] | null
+          contract_submission_id?: string | null
+          contract_document_url?: string | null
+          docuseal_submission_id?: string | null
           created_at?: string | null
           currency?: string
           customer_id?: string

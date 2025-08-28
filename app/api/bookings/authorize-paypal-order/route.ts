@@ -116,13 +116,16 @@ export async function POST(request: Request) {
           console.log(`Contract successfully generated for booking ${bookingResult.bookingId}:`, contractResult.submissionId);
           
           // Update booking with contract submission ID
+          // Use explicit typing for contract fields that may not be in generated types
+          const contractUpdateData: Record<string, any> = {
+            contract_submission_id: contractResult.submissionId,
+            contract_status: 'sent',
+            updated_at: new Date().toISOString()
+          };
+          
           await supabase
             .from('bookings')
-            .update({
-              contract_submission_id: contractResult.submissionId,
-              contract_status: 'sent',
-              updated_at: new Date().toISOString()
-            } as any) // Cast to any for contract fields that may not be in types
+            .update(contractUpdateData)
             .eq('id', bookingResult.bookingId);
             
           // Log successful contract generation

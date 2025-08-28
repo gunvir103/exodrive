@@ -25,7 +25,7 @@ const getContractStatusSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
     
     // Check admin authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -119,10 +119,11 @@ export async function GET(request: NextRequest) {
       data: result.data
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in GET /api/admin/contracts:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
@@ -134,7 +135,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
     
     // Check admin authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -238,10 +239,11 @@ export async function POST(request: NextRequest) {
         );
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in POST /api/admin/contracts:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
@@ -253,7 +255,7 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(request.cookies);
     
     // Check admin authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -327,10 +329,11 @@ export async function PUT(request: NextRequest) {
         );
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in PUT /api/admin/contracts:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }

@@ -1,5 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/lib/supabase/database.types';
+import { DOCUSEAL_CONSTANTS } from '@/lib/constants/docuseal';
+import {
+  DocuSealSubmissionResponse,
+  DocuSealDocument,
+  ContractUpdateData,
+  BookingEventInsert,
+  extractSubmissionId
+} from '@/lib/types/docuseal';
 
 interface DocuSealSubmitter {
   name: string;
@@ -19,34 +27,24 @@ interface DocuSealSubmissionPayload {
   send_email?: boolean;
   send_sms?: boolean;
   submitters: DocuSealSubmitter[];
-  metadata?: Record<string, any>;
+  metadata?: {
+    booking_id?: string;
+    booking_reference?: string;
+    customer_id?: string;
+    car_id?: string;
+    rental_dates?: string;
+    rental_days?: number;
+    total_amount?: number;
+    currency?: string;
+    [key: string]: string | number | boolean | undefined;
+  };
   message?: {
     subject?: string;
     body?: string;
   };
 }
 
-interface DocuSealSubmissionResponse {
-  id: number;
-  slug: string;
-  source: string;
-  submitters: Array<{
-    id: number;
-    slug: string;
-    email: string;
-    status: string;
-    sent_at: string | null;
-    opened_at: string | null;
-    completed_at: string | null;
-    metadata: Record<string, any>;
-  }>;
-  template: {
-    id: number;
-    name: string;
-  };
-  created_at: string;
-  updated_at: string;
-}
+// DocuSealSubmissionResponse interface moved to lib/types/docuseal.ts for reusability
 
 export class DocuSealService {
   private apiUrl: string;
@@ -59,10 +57,10 @@ export class DocuSealService {
     if (!raw) return undefined;
     const trimmed = String(raw).trim();
     // Already valid E.164
-    if (/^\+\d{7,15}$/.test(trimmed)) return trimmed;
+    if (DOCUSEAL_CONSTANTS.PHONE_REGEX.E164.test(trimmed)) return trimmed;
     // Try to normalize: remove non-digits
     const digits = trimmed.replace(/\D/g, '');
-    if (digits.length === 10) return `+1${digits}`; // assume US if 10 digits
+    if (DOCUSEAL_CONSTANTS.PHONE_REGEX.US_10_DIGIT.test(digits)) return `+1${digits}`; // assume US if 10 digits
     if (digits.length >= 7 && digits.length <= 15) return `+${digits}`; // best-effort
     return undefined;
   }
@@ -82,7 +80,8 @@ export class DocuSealService {
     this.apiUrl = apiUrl.replace(/\/$/, ''); // Remove trailing slash
     this.apiToken = apiToken;
     this.templateId = parseInt(templateId);
-    this.supabase = (supabaseClient as any) || createClient<Database>(supabaseUrl, supabaseKey);
+    // Use provided client or create new one - avoid unsafe any cast
+    this.supabase = supabaseClient || createClient<Database>(supabaseUrl, supabaseKey);
   }
 
   /**
@@ -293,9 +292,10 @@ export class DocuSealService {
         };
       }
 
-      const submissionRaw: any = await response.json();
-      const submissionId = (submissionRaw?.id ?? submissionRaw?.submission_id ?? submissionRaw?.submission?.id ?? submissionRaw?.data?.id ?? (Array.isArray(submissionRaw) ? submissionRaw[0]?.id : undefined));
-      const submissionSlug = (submissionRaw?.slug ?? submissionRaw?.submission?.slug ?? submissionRaw?.data?.slug ?? (Array.isArray(submissionRaw) ? submissionRaw[0]?.slug : undefined));
+      const submissionRaw = await response.json();
+      const submissionId = extractSubmissionId(submissionRaw);
+      const submissionSlug = typeof submissionRaw === 'object' && 'slug' in submissionRaw ? 
+        String(submissionRaw.slug) : undefined;
 
       if (!submissionId) {
         console.error('DocuSeal create submission: unexpected response shape', submissionRaw);
@@ -306,14 +306,15 @@ export class DocuSealService {
       }
 
       // Update booking with submission ID
+      const contractUpdateData: Partial<ContractUpdateData> = {
+        contract_submission_id: String(submissionId),
+        contract_status: 'sent',
+        updated_at: new Date().toISOString()
+      };
+      
       const { error: updateError } = await this.supabase
         .from('bookings')
-        .update({
-          // Fields not present in generated TS types are cast to any
-          contract_submission_id: String(submissionId),
-          contract_status: 'sent',
-          updated_at: new Date().toISOString()
-        } as any)
+        .update(contractUpdateData)
         .eq('id', bookingId);
 
       if (updateError) {
@@ -321,7 +322,7 @@ export class DocuSealService {
       }
 
       // Log event
-      await this.supabase.from('booking_events').insert({
+      const eventData: BookingEventInsert = {
         booking_id: bookingId,
         event_type: 'contract_sent',
         actor_type: 'system',
@@ -332,18 +333,20 @@ export class DocuSealService {
           submission_slug: submissionSlug,
           template_id: this.templateId
         }
-      });
+      };
+      await this.supabase.from('booking_events').insert(eventData);
 
       return {
         success: true,
         submissionId: String(submissionId)
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate contract';
       console.error('Error generating contract:', error);
       return {
         success: false,
-        error: error.message || 'Failed to generate contract'
+        error: errorMessage
       };
     }
   }
@@ -403,23 +406,26 @@ export class DocuSealService {
       }
 
       // Log event
-      await this.supabase.from('booking_events').insert({
+      const reminderEvent: BookingEventInsert = {
         booking_id: bookingId,
         event_type: 'system_reminder_sent',
         actor_type: 'system',
+        actor_id: 'docuseal-service',
         summary_text: `Contract reminder sent to ${booking.customers?.email || 'customer'}`,
         details: {
           submission_id: booking.contract_submission_id
         }
-      });
+      };
+      await this.supabase.from('booking_events').insert(reminderEvent);
 
       return { success: true };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resend contract';
       console.error('Error resending contract:', error);
       return {
         success: false,
-        error: error.message || 'Failed to resend contract'
+        error: errorMessage
       };
     }
   }
@@ -430,7 +436,7 @@ export class DocuSealService {
   async getSubmissionStatus(submissionId: string): Promise<{
     success: boolean;
     status?: string;
-    data?: any;
+    data?: DocuSealSubmissionResponse;
     error?: string;
   }> {
     try {
@@ -450,10 +456,10 @@ export class DocuSealService {
         };
       }
 
-      const submission = await response.json();
+      const submission = await response.json() as DocuSealSubmissionResponse;
       
       // Determine overall status from submitters
-      const statuses = submission.submitters.map((s: any) => s.status);
+      const statuses = submission.submitters.map(s => s.status);
       let overallStatus = 'pending';
       
       if (statuses.every((s: string) => s === 'completed')) {
@@ -472,11 +478,12 @@ export class DocuSealService {
         data: submission
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch status';
       console.error('Error fetching submission status:', error);
       return {
         success: false,
-        error: error.message || 'Failed to fetch status'
+        error: errorMessage
       };
     }
   }
@@ -510,17 +517,18 @@ export class DocuSealService {
 
       return {
         success: true,
-        documents: documents.map((doc: any) => ({
+        documents: documents.map((doc: DocuSealDocument) => ({
           url: doc.url,
           filename: doc.filename || 'rental-agreement.pdf'
         }))
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to download documents';
       console.error('Error downloading documents:', error);
       return {
         success: false,
-        error: error.message || 'Failed to download documents'
+        error: errorMessage
       };
     }
   }
@@ -552,23 +560,16 @@ export class DocuSealService {
 
       return { success: true };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to archive submission';
       console.error('Error archiving submission:', error);
       return {
         success: false,
-        error: error.message || 'Failed to archive submission'
+        error: errorMessage
       };
     }
   }
 
-  /**
-   * Format customer address for contract
-   * @deprecated Removed for security - customers fill this directly in DocuSeal
-   */
-  private formatAddress(customer: any): string {
-    // No longer used - keeping for backwards compatibility
-    return 'To be provided by customer';
-  }
 }
 
 // Singleton instance
