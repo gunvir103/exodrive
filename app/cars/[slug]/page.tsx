@@ -3,6 +3,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { carServiceSupabase } from "@/lib/services/car-service-supabase"
 import { CarDetailClient } from "./components/car-detail-client"
 import { Metadata, ResolvingMetadata } from 'next'
+import { generateAppCarVehicleSchema, generateBreadcrumbSchema } from '@/lib/seo/structured-data'
 
 export const revalidate = 60; // Revalidate data every 60 seconds
 
@@ -105,8 +106,28 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
       ? await carServiceSupabase.getRelatedCars(supabase, car.id, 3)
       : [];
 
-    // Render the Client Component, passing fetched data as props
-    return <CarDetailClient car={car} relatedCars={relatedCars} />;
+    // Generate structured data for the car
+    const vehicleSchema = generateAppCarVehicleSchema(car, carSlug);
+    
+    // Generate breadcrumb schema
+    const breadcrumbSchema = generateBreadcrumbSchema([
+      { name: 'Home', url: 'https://www.exodrive.co' },
+      { name: 'Cars', url: 'https://www.exodrive.co/cars' },
+      { name: car.name, url: `https://www.exodrive.co/cars/${carSlug}` },
+    ]);
+
+    // Render the Client Component with structured data
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([vehicleSchema, breadcrumbSchema], null, 2),
+          }}
+        />
+        <CarDetailClient car={car} relatedCars={relatedCars} />
+      </>
+    );
 
   } catch (error) {
     console.error("Error fetching car detail page data for slug:", carSlug, error);

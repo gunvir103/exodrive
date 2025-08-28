@@ -1,8 +1,48 @@
+import type { Metadata } from 'next'
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Award, Car, CheckCircle, MapPin, Shield, Star, Users } from "lucide-react"
+import { createPageMetadata, KEYWORDS, SEO_CONFIG, generateDynamicDescription } from "@/lib/seo/metadata"
+
+// Generate metadata for About page
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "About ExoDrive - Founded by Brendon Pham | Exotic Car Rental Experts"
+  const description = generateDynamicDescription(
+    "Meet Brendon Pham, founder of ExoDrive, bringing luxury and exotic car rental experiences to the DMV area since inception",
+    [
+      "Strategic investor partnerships",
+      "Diverse premium fleet",
+      "Local expertise & personalized service",
+      "Trusted by car enthusiasts"
+    ],
+    "Washington DC, Maryland, and Virginia",
+    "Discover why ExoDrive is the premier choice for exotic car rentals."
+  )
+
+  return createPageMetadata({
+    title,
+    description,
+    keywords: [
+      'brendon pham exodrive',
+      'exodrive founder',
+      'exotic car rental company history',
+      'luxury car rental experts',
+      'car rental business dmv',
+      'exotic car rental experience',
+      'luxury car rental founders',
+      'premium car rental service',
+      ...KEYWORDS.PRIMARY.slice(0, 5),
+      ...KEYWORDS.LONG_TAIL.slice(0, 3),
+      'trusted exotic car rental',
+      'professional car rental service',
+      'luxury automotive experience'
+    ],
+    canonical: `${SEO_CONFIG.BRAND.url}/about`,
+    image: `${SEO_CONFIG.BRAND.url}/og-about.jpg`
+  })
+}
 
 export default function AboutPage() {
   return (

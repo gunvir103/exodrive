@@ -1,22 +1,6 @@
-// Remove "use client" directive from the top
-
-// Remove client-side imports
-// import { useEffect, useState, useRef, Suspense } from "react"
-// import Image from "next/image"
-// import Link from "next/link"
-// import { motion, useInView } from "framer-motion"
-// import { Button } from "@/components/ui/button"
-// import { Badge } from "@/components/ui/badge"
-// import { CheckCircle, Shield, Car, Star, Zap, MapPin, Instagram } from "lucide-react"
-// import { CarCard } from "@/components/car-card"
-// Remove potentially conflicting import
-// import type { Car as AppCar } from "@/lib/types/car"
-// import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
-// import Autoplay from "embla-carousel-autoplay"
-// import { HeroSection } from "@/components/hero-section"
-// import { Skeleton } from "@/components/ui/skeleton"
-// import { getValidImageUrl, handleImageError } from "@/lib/utils/image-utils"
+import type { Metadata } from 'next'
 import type { AppCar } from "@/lib/services/car-service-supabase"; // Keep this import
+import { createPageMetadata, KEYWORDS, SEO_CONFIG, generateDynamicDescription } from "@/lib/seo/metadata"
 
 // Import the NEW client component
 import HomeClientComponent from "@/app/(main)/components/home-client-component"
@@ -32,6 +16,41 @@ import { Suspense } from "react"
 
 import { carServiceSupabase } from "@/lib/services/car-service-supabase";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+
+// Generate metadata for homepage
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "Premium Exotic & Luxury Car Rentals in Washington DC, Maryland & Virginia"
+  const description = generateDynamicDescription(
+    "Experience the thrill of driving exotic supercars with ExoDrive's premium rental service",
+    [
+      "Ferrari, Lamborghini, McLaren & more",
+      "Professional delivery service",
+      "Competitive rates & flexible booking",
+      "Trusted by car enthusiasts across the DMV"
+    ],
+    "Washington DC, Maryland, and Virginia",
+    "Book your dream car today and create unforgettable memories."
+  )
+
+  return createPageMetadata({
+    title,
+    description,
+    keywords: [
+      ...KEYWORDS.PRIMARY,
+      ...KEYWORDS.SECONDARY.slice(0, 6),
+      ...KEYWORDS.LONG_TAIL.slice(0, 4),
+      'exotic car rental near me',
+      'luxury car rental experience',
+      'supercar rental washington dc',
+      'exotic car rental dmv area',
+      'rent ferrari dc',
+      'lamborghini rental maryland',
+      'mclaren rental virginia'
+    ],
+    canonical: SEO_CONFIG.BRAND.url,
+    image: `${SEO_CONFIG.BRAND.url}/og-homepage.jpg`
+  })
+}
 
 // Fallback car data in case of error
 const fallbackCars: AppCar[] = [
