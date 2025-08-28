@@ -1,0 +1,27 @@
+User-Agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /booking/
+Disallow: /auth/
+Disallow: /_next/
+Disallow: /temp/
+Crawl-delay: 1
+
+User-Agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /booking/
+Disallow: /auth/
+
+User-Agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /booking/
+Disallow: /auth/
+Crawl-delay: 2
+
+Host: https://www.exodrive.co
+Sitemap: https://www.exodrive.co/sitemap.xml
