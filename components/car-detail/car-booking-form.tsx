@@ -43,6 +43,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   const [isSuccess, setIsSuccess] = useState(false)
   const [step, setStep] = useState(1)
   const [showPayPalButtons, setShowPayPalButtons] = useState(false);
+  const [paypalError, setPaypalError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -55,7 +56,7 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   const bookingStartTimeRef = useRef<number>(Date.now())
   const { toast } = useToast()
   const isMobile = useMediaQuery("(max-width: 640px)")
-  const [{ isPending }] = usePayPalScriptReducer();
+  const [{ isPending, isResolved, options }] = usePayPalScriptReducer();
 
   // Calculate rental days and total price safely
   const days = startDate && endDate ? Math.max(1, differenceInDays(endDate, startDate) + 1) : 0
@@ -147,29 +148,47 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
   }
   
   const createPayPalOrder = async (): Promise<string> => {
-    const response = await fetch('/api/bookings/create-paypal-order', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-            carId,
-            startDate: format(startDate!, "yyyy-MM-dd"),
-            endDate: format(endDate!, "yyyy-MM-dd"),
-            bookingId: `temp-${Date.now()}`, // Temporary ID for tracking
-            description: `Car rental from ${format(startDate!, "MMM dd")} to ${format(endDate!, "MMM dd")}`
-        }),
-    });
-    const order = await response.json();
-    if (!response.ok) {
-        toast({
-            title: "Error creating PayPal order",
-            description: order.error || "There was an issue initiating the payment.",
-            variant: "destructive",
-        });
-        throw new Error("Failed to create PayPal order");
+    try {
+      console.log('Creating PayPal order...', { carId, startDate, endDate });
+      
+      const response = await fetch('/api/bookings/create-paypal-order', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+              carId,
+              startDate: format(startDate!, "yyyy-MM-dd"),
+              endDate: format(endDate!, "yyyy-MM-dd"),
+              bookingId: `temp-${Date.now()}`, // Temporary ID for tracking
+              description: `Car rental from ${format(startDate!, "MMM dd")} to ${format(endDate!, "MMM dd")}`
+          }),
+      });
+      
+      const order = await response.json();
+      console.log('PayPal order response:', { status: response.status, order });
+      
+      if (!response.ok) {
+          const errorMsg = order.error || "There was an issue initiating the payment.";
+          console.error('PayPal order creation failed:', order);
+          
+          toast({
+              title: "Error creating PayPal order",
+              description: errorMsg,
+              variant: "destructive",
+          });
+          
+          setPaypalError(errorMsg);
+          throw new Error("Failed to create PayPal order");
+      }
+      
+      setPaypalError(null);
+      return order.orderID;
+    } catch (error) {
+      console.error('createPayPalOrder error:', error);
+      setPaypalError(error instanceof Error ? error.message : 'Unknown error');
+      throw error;
     }
-    return order.orderID;
   };
 
   const onPayPalApprove = async (data: any): Promise<void> => {
@@ -232,6 +251,23 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
       );
     });
   }, [step, carId]);
+
+  // Check PayPal configuration on mount
+  useEffect(() => {
+    if (isResolved) {
+      const clientId = options?.clientId;
+      console.log('PayPal configuration:', { clientId, options, isResolved });
+      
+      if (!clientId || clientId === 'sb') {
+        const errorMsg = 'PayPal is not properly configured. Missing NEXT_PUBLIC_PAYPAL_CLIENT_ID environment variable.';
+        console.warn(errorMsg);
+        setPaypalError(errorMsg);
+      } else {
+        console.log('PayPal properly configured with client ID:', clientId);
+        setPaypalError(null);
+      }
+    }
+  }, [isResolved, options]);
 
   // Track booking abandonment when component unmounts
   useEffect(() => {
@@ -712,13 +748,61 @@ export function CarBookingForm({ carId, pricing, availability = [] }: BookingFor
             {showPayPalButtons && (
               <>
                 <Separator className="my-2" />
-                {isPending && <div className="text-center text-sm text-muted-foreground">Loading payment options...</div>}
-                <PayPalButtons
-                    style={{ layout: "vertical", color: "blue", shape: "rect", label: "pay" }}
-                    createOrder={createPayPalOrder}
-                    onApprove={onPayPalApprove}
-                    forceReRender={[totalPrice]} // Re-render buttons if the price changes
-                />
+                <div className="paypal-buttons-wrapper">
+                  {paypalError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                      <p className="text-red-600 text-sm font-medium">PayPal Configuration Issue</p>
+                      <p className="text-red-500 text-xs mt-1">{paypalError}</p>
+                      <p className="text-red-500 text-xs mt-2">
+                        Please contact support or check your environment variables.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {isPending && <div className="text-center text-sm text-muted-foreground">Loading payment options...</div>}
+                  
+                  {!paypalError && (
+                    <PayPalButtons
+                        style={{ 
+                          layout: "vertical", 
+                          color: "black", 
+                          shape: "pill", 
+                          label: "pay",
+                          height: 45
+                        }}
+                        createOrder={createPayPalOrder}
+                        onApprove={onPayPalApprove}
+                        onError={(err) => {
+                          console.error('PayPal button error:', err);
+                          const errorMsg = err?.message || "There was an error processing your payment. Please try again.";
+                          setPaypalError(errorMsg);
+                          toast({
+                            title: "Payment Error",
+                            description: errorMsg,
+                            variant: "destructive"
+                          });
+                        }}
+                        onCancel={() => {
+                          console.log('PayPal payment cancelled by user');
+                          setShowPayPalButtons(false);
+                        }}
+                        forceReRender={[totalPrice]} // Re-render buttons if the price changes
+                    />
+                  )}
+                  
+                  {paypalError && (
+                    <div className="mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowPayPalButtons(false)}
+                        className="w-full"
+                      >
+                        Close Payment Options
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </motion.div>

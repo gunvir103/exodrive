@@ -11,6 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DocuSeal contract automation integration
 - Advanced architecture improvements (Phase 3)
 
+## [1.2.1] - 2025-08-20
+
+### Fixed
+- **Checkout Button Styling and Price Calculation**
+  - Added missing `calculate_booking_price()` database function for server-side price calculation
+  - Added `validate_booking_price()` database function for price validation security
+  - Fixed PayPal button styling to match site's black/minimalist theme
+  - Updated PayPal buttons to use pill shape and black color scheme
+  - Added hover effects and transitions consistent with site design
+  - Improved error handling with toast notifications for payment failures
+  - Enhanced PayPal SDK button style overrides with dark mode support
+
+### Technical
+- Fixed runtime error caused by missing database pricing functions
+- Improved CSS specificity for PayPal button style overrides
+- Added comprehensive error handling for PayPal payment flow
+- Implemented server-side price validation to prevent manipulation
+
+### Database
+- Created `calculate_booking_price()` function for accurate price calculation
+- Created `validate_booking_price()` function for security validation
+- Added proper error handling and logging in pricing functions
+
 ## [1.2.0] - 2025-01-23
 
 ### Added

@@ -427,3 +427,79 @@
   }
 }
 
+/* PayPal and Payment Button Styling Override */
+.paypal-buttons-wrapper {
+  margin-top: 1rem;
+}
+
+/* Style PayPal buttons to match site theme */
+.paypal-buttons {
+  width: 100% !important;
+}
+
+.paypal-buttons .paypal-button {
+  background: linear-gradient(to right, #0a0a0a, #222222) !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  color: white !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+
+.paypal-buttons .paypal-button:hover {
+  background: linear-gradient(to right, #333333, #444444) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Override PayPal SDK button styles */
+[data-funding-source="paypal"],
+[data-funding-source="card"] {
+  background: #0a0a0a !important;
+  border-radius: 9999px !important;
+  min-height: 44px !important;
+  transition: all 0.3s ease !important;
+}
+
+[data-funding-source="paypal"]:hover,
+[data-funding-source="card"]:hover {
+  background: #333333 !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Dark mode adjustments for PayPal buttons */
+.dark [data-funding-source="paypal"],
+.dark [data-funding-source="card"] {
+  background: rgba(234, 226, 183, 0.1) !important;
+  border: 1px solid rgba(234, 226, 183, 0.2) !important;
+}
+
+.dark [data-funding-source="paypal"]:hover,
+.dark [data-funding-source="card"]:hover {
+  background: rgba(234, 226, 183, 0.2) !important;
+}
+
+/* Custom debit/credit card button styling */
+.debit-card-button,
+.credit-card-button {
+  background: linear-gradient(to right, #0a0a0a, #222222) !important;
+  border-radius: 9999px !important;
+  color: white !important;
+  font-weight: 500 !important;
+  padding: 0.75rem 1.5rem !important;
+  transition: all 0.3s ease !important;
+  border: none !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+.debit-card-button:hover,
+.credit-card-button:hover {
+  background: linear-gradient(to right, #333333, #444444) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+}
+

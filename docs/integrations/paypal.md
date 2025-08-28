@@ -244,6 +244,52 @@ const onPayPalApprove = async (data: any): Promise<void> => {
 };
 ```
 
+## Custom Button Styling
+
+The application overrides default PayPal SDK styling to maintain consistency with the site's black/minimalist design theme.
+
+### Override Approach
+The application uses CSS `!important` declarations to override PayPal SDK default styling:
+
+- **Color Scheme**: Black theme (#0a0a0a) matching site design
+- **Shape**: Pill shape (border-radius: 9999px) for consistency
+- **Height**: Consistent 45px height for accessibility
+- **Hover Effects**: translateY(-2px) with shadow effects
+- **Dark Mode**: Conditional styling with rgba colors for dark theme support
+
+### Implementation Details
+
+#### CSS Overrides
+Location: `app/globals.css` lines 430-504
+
+The CSS targets PayPal buttons using attribute selectors:
+- `[data-funding-source="paypal"]` - PayPal payment button
+- `[data-funding-source="card"]` - Debit/Credit card button
+
+#### Component Configuration
+Location: `components/car-detail/car-booking-form.tsx`
+
+PayPal button configuration:
+- Layout: vertical
+- Color: black (to match site theme)
+- Shape: pill (fully rounded)
+- Height: 45px
+- Label: "pay"
+
+### Styling Classes
+
+Key CSS classes for PayPal button customization:
+- `.paypal-buttons-wrapper` - Container wrapper for spacing
+- `.paypal-buttons` - Main button container
+- `.debit-card-button`, `.credit-card-button` - Alternative payment buttons
+
+### Browser Compatibility
+The styling overrides are tested across major browsers and maintain consistency in:
+- Chrome/Edge (Chromium-based)
+- Firefox
+- Safari
+- Mobile browsers
+
 ## Backend API Implementation
 
 ### API Routes Structure
