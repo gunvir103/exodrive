@@ -485,24 +485,68 @@ function generateAppCarVehicleSchemaUnsafe(car: AppCar, slug: string): ProductSc
   const rawImages = safeArray(car.images?.map(img => img?.url).filter(Boolean))
   const images = rawImages.length > 0 ? rawImages.map(url => safeUrl(url, baseUrl)) : [safeUrl('/placeholder.jpg', baseUrl)]
 
-  // Create additional properties from car specifications
+  // Enhanced vehicle properties extraction with standardized naming
   const additionalProperties: PropertyValue[] = []
   
   try {
     const specs = safeArray(car.specifications)
+    
+    // Define specific properties we want to extract with SEO-friendly names
+    const vehiclePropertyMap: Record<string, string> = {
+      'Year': 'modelYear',
+      'Engine': 'vehicleEngine',
+      'Transmission': 'vehicleTransmission',
+      'Drivetrain': 'driveWheelConfiguration',
+      'Horsepower': 'enginePower',
+      'Acceleration': 'acceleration0to60',
+      'Top Speed': 'vehicleSpeed',
+      'Fuel Type': 'fuelType',
+      'Seating Capacity': 'vehicleSeatingCapacity',
+      'Seating': 'vehicleSeatingCapacity',
+      'Body Style': 'bodyType',
+      'Body Type': 'bodyType',
+      'Mileage': 'mileageFromOdometer',
+      'Color': 'color',
+      'Interior Color': 'vehicleInteriorColor',
+      'Exterior Color': 'color'
+    }
+    
     specs.forEach(spec => {
       const name = safeString(spec?.name)
       const value = safeString(spec?.value)
+      
       if (name && value) {
+        // Use standardized property names for better SEO when available
+        const standardName = vehiclePropertyMap[name] || name
         additionalProperties.push({
           '@type': 'PropertyValue',
-          name,
+          name: standardName,
           value,
         })
       }
     })
-  } catch {
-    // Skip specifications if they cause errors
+    
+    // Add computed properties if base price exists (luxury categorization)
+    const basePrice = safeNumber(car.pricing?.base_price)
+    if (basePrice > 0) {
+      additionalProperties.push({
+        '@type': 'PropertyValue',
+        name: 'rentalCategory',
+        value: basePrice > 1500 ? 'Exotic Supercar' : basePrice > 800 ? 'Luxury Sports' : 'Premium'
+      })
+      
+      // Add ACRISS-like categorization if not present
+      if (!specs.find(s => s?.name?.toLowerCase().includes('acriss'))) {
+        additionalProperties.push({
+          '@type': 'PropertyValue',
+          name: 'vehicleClass',
+          value: basePrice > 2000 ? 'XSAR' : basePrice > 1000 ? 'LTAR' : 'PDAR' // Exotic/Luxury/Premium codes
+        })
+      }
+    }
+  } catch (error) {
+    // Skip specifications if they cause errors - maintains existing safety pattern
+    console.debug('Specification extraction error (non-fatal):', error)
   }
 
   // Extract make and model safely
@@ -558,6 +602,39 @@ function generateAppCarVehicleSchemaUnsafe(car: AppCar, slug: string): ProductSc
       }),
     },
     additionalProperty: additionalProperties,
+    // Safely add aggregate rating if reviews are available
+    ...(car.reviews && Array.isArray(car.reviews) && car.reviews.length > 0 && (() => {
+      try {
+        const approvedReviews = car.reviews.filter(review => 
+          review?.is_approved === true && safeNumber(review?.rating) > 0
+        )
+        
+        if (approvedReviews.length > 0) {
+          const totalRating = approvedReviews.reduce((sum, review) => 
+            sum + safeNumber(review.rating, 0), 0
+          )
+          const averageRating = totalRating / approvedReviews.length
+          
+          // Only add if we have a valid average
+          if (averageRating > 0 && averageRating <= 5) {
+            return {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+                bestRating: 5,
+                worstRating: 1,
+                ratingCount: approvedReviews.length,
+                reviewCount: approvedReviews.length
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Silent fail - don't break schema generation for rating issues
+        console.debug('AggregateRating extraction failed (non-fatal):', error)
+      }
+      return {} // Return empty object if no valid ratings
+    })()),
   }
 }
 

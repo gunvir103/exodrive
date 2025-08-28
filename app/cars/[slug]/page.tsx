@@ -134,6 +134,8 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
       vehicleSchema = null;
     }
     
+    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://www.exodrive.co';
+
     try {
       breadcrumbSchema = safeBreadcrumbSchemaGenerator([
         { name: 'Home', url: baseUrl },
