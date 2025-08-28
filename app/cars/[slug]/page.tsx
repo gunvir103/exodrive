@@ -136,9 +136,9 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
     
     try {
       breadcrumbSchema = safeBreadcrumbSchemaGenerator([
-        { name: 'Home', url: 'https://www.exodrive.co' },
-        { name: 'Cars', url: 'https://www.exodrive.co/cars' },
-        { name: car.name, url: `https://www.exodrive.co/cars/${carSlug}` },
+        { name: 'Home', url: baseUrl },
+        { name: 'Cars', url: `${baseUrl}/cars` },
+        { name: car.name, url: `${baseUrl}/cars/${carSlug}` },
       ]);
       if (breadcrumbSchema && !validateSchema(breadcrumbSchema)) {
         console.warn(`Breadcrumb schema for ${carSlug} failed validation`);
