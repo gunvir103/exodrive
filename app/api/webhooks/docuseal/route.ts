@@ -173,12 +173,6 @@ export async function POST(request: NextRequest) {
           updateData.contract_document_url = data.documents[0].url
         }
         
-        // If payment is authorized and contract is signed, mark as upcoming
-        if (booking.payment_status === 'authorized' && 
-            ['pending_contract', 'contract_pending_signature'].includes(booking.overall_status)) {
-          updateData.overall_status = 'upcoming'
-        }
-
         // Store signed contract as booking media
         if (data.documents) {
           for (const doc of data.documents) {
@@ -196,6 +190,80 @@ export async function POST(request: NextRequest) {
               }
             })
           }
+        }
+
+        // CRITICAL: Trigger payment capture when contract is signed
+        // This must be non-blocking to prevent webhook timeout
+        if (booking.payment_status === 'authorized') {
+          Promise.resolve().then(async () => {
+            try {
+              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+              
+              console.log(`Triggering payment capture for booking ${bookingId} after contract signing`)
+              
+              const captureResponse = await fetch(`${baseUrl}/api/bookings/${bookingId}/capture-payment`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` // Internal API call
+                }
+              })
+
+              if (!captureResponse.ok) {
+                const errorData = await captureResponse.text()
+                console.error(`Failed to capture payment for booking ${bookingId}:`, errorData)
+                
+                // Log critical failure for admin attention
+                await supabase.from('booking_events').insert({
+                  booking_id: bookingId,
+                  event_type: 'payment_capture_failed',
+                  actor_type: 'system',
+                  actor_id: 'docuseal-webhook',
+                  summary_text: 'CRITICAL: Payment capture failed after contract signing',
+                  details: {
+                    error: errorData,
+                    contract_signed_at: data.completed_at,
+                    submission_id: data.id,
+                    requires_manual_intervention: true
+                  }
+                })
+              } else {
+                const captureData = await captureResponse.json()
+                console.log(`Payment successfully captured for booking ${bookingId}:`, captureData.captureId)
+                
+                // Log successful automatic capture
+                await supabase.from('booking_events').insert({
+                  booking_id: bookingId,
+                  event_type: 'payment_auto_captured',
+                  actor_type: 'system',
+                  actor_id: 'docuseal-webhook',
+                  summary_text: 'Payment automatically captured after contract signing',
+                  details: {
+                    capture_id: captureData.captureId,
+                    contract_signed_at: data.completed_at,
+                    submission_id: data.id
+                  }
+                })
+              }
+            } catch (error: any) {
+              console.error(`Payment capture error for booking ${bookingId}:`, error)
+              
+              // Log system error for admin attention
+              await supabase.from('booking_events').insert({
+                booking_id: bookingId,
+                event_type: 'payment_capture_error',
+                actor_type: 'system',
+                actor_id: 'docuseal-webhook',
+                summary_text: 'CRITICAL: System error during payment capture',
+                details: {
+                  error: error.message,
+                  contract_signed_at: data.completed_at,
+                  submission_id: data.id,
+                  requires_manual_intervention: true
+                }
+              })
+            }
+          }).catch(console.error) // Ensure promise rejection doesn't crash webhook
         }
         break
 

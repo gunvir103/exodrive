@@ -101,6 +101,81 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Booking creation failed after successful payment.', details: errorDetails }, { status: 500 });
     }
 
+    // CRITICAL: Generate DocuSeal contract after successful booking and payment authorization
+    // This must be non-blocking to prevent PayPal flow timeout
+    Promise.resolve().then(async () => {
+      try {
+        const { getDocuSealService } = await import('@/lib/services/docuseal-service');
+        const docusealService = getDocuSealService();
+        
+        console.log(`Generating contract for booking ${bookingResult.bookingId}`)
+        
+        const contractResult = await docusealService.generateContract(bookingResult.bookingId);
+        
+        if (contractResult.success) {
+          console.log(`Contract successfully generated for booking ${bookingResult.bookingId}:`, contractResult.submissionId);
+          
+          // Update booking with contract submission ID
+          await supabase
+            .from('bookings')
+            .update({
+              contract_submission_id: contractResult.submissionId,
+              contract_status: 'sent',
+              updated_at: new Date().toISOString()
+            } as any) // Cast to any for contract fields that may not be in types
+            .eq('id', bookingResult.bookingId);
+            
+          // Log successful contract generation
+          await supabase.from('booking_events').insert({
+            booking_id: bookingResult.bookingId,
+            event_type: 'contract_auto_generated',
+            actor_type: 'system',
+            actor_id: 'paypal-authorization',
+            summary_text: 'Contract automatically generated and sent after payment authorization',
+            details: {
+              submission_id: contractResult.submissionId,
+              authorization_id: authorizationId,
+              paypal_order_id: authorizedData.id
+            }
+          });
+        } else {
+          console.error(`Contract generation failed for booking ${bookingResult.bookingId}:`, contractResult.error);
+          
+          // Log contract generation failure for admin attention  
+          await supabase.from('booking_events').insert({
+            booking_id: bookingResult.bookingId,
+            event_type: 'contract_generation_failed',
+            actor_type: 'system',
+            actor_id: 'paypal-authorization',
+            summary_text: 'Contract generation failed after successful payment authorization',
+            details: {
+              error: contractResult.error,
+              authorization_id: authorizationId,
+              paypal_order_id: authorizedData.id,
+              requires_manual_contract_generation: true
+            }
+          });
+        }
+      } catch (error: any) {
+        console.error(`Contract generation error for booking ${bookingResult.bookingId}:`, error);
+        
+        // Log system error for admin attention
+        await supabase.from('booking_events').insert({
+          booking_id: bookingResult.bookingId,
+          event_type: 'contract_generation_error',
+          actor_type: 'system',
+          actor_id: 'paypal-authorization',
+          summary_text: 'System error during contract generation',
+          details: {
+            error: error.message,
+            authorization_id: authorizationId,
+            paypal_order_id: authorizedData.id,
+            requires_manual_intervention: true
+          }
+        });
+      }
+    }).catch(console.error); // Ensure promise rejection doesn't crash main flow
+
     return NextResponse.json({ success: true, bookingId: bookingResult.bookingId, authorizedData, authorizationId });
   } catch (error) {
     console.error('Failed to authorize PayPal order:', error);
